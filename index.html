@@ -3,27 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simulador de Remuneração Variável</title>
+    <title>Simulador de Remuneração Variável - SAF Botafogo</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <!-- Chosen Palette: Calm Harmony (Slate Gray, White, Accent Blue) -->
-    <!-- Application Structure Plan: A dashboard-style SPA guiding the user through the remuneration model. It starts with an overview, moves to a central interactive calculator/simulator, and finishes with a comparative analysis. This task-oriented flow (simulating a bonus calculation) makes the complex proposal tangible and easy to grasp, which is more effective than just reproducing the report's linear structure. -->
-    <!-- Visualization & Content Choices: Revenue Input -> Goal: Explore -> Slider -> User can see immediate impact on total bonus pool. Team Builder -> Goal: Simulate -> Dynamic Table + Selects -> Allows custom scenarios and "what-if" analysis. Bonus Results -> Goal: Compare -> Bar Chart (Chart.js) -> Provides instant visual comparison of individual rewards, highlighting the model's meritocratic nature. Comparison Table -> Goal: Justify -> Styled HTML Table -> Clearly summarizes the benefits of the new model over the old one. -->
+    <!-- Application Structure Plan: A dashboard-style SPA guiding the user through the remuneration model. It starts with an overview, moves to a central interactive calculator/simulator with a new collapsible configuration panel, and finishes with a comparative analysis. This task-oriented flow makes the complex proposal tangible and easy to grasp. -->
+    <!-- Visualization & Content Choices: Revenue Input -> Goal: Explore -> Slider -> User can see immediate impact on total bonus pool. Team Builder -> Goal: Simulate -> Dynamic Table + Selects. Configuration Panel -> Goal: Customize -> Input fields for real-time model adjustments. Bonus Results -> Goal: Compare -> Bar Chart (Chart.js). Comparison Table -> Goal: Justify -> Styled HTML Table. -->
     <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
         .chart-container { position: relative; width: 100%; max-width: 800px; margin-left: auto; margin-right: auto; height: 350px; max-height: 40vh; }
         @media (min-width: 768px) { .chart-container { height: 400px; } }
-        .tooltip-custom {
-            background: rgba(0, 0, 0, 0.8);
-            color: white;
-            border-radius: 6px;
-            padding: 8px 12px;
-            font-size: 12px;
-            pointer-events: none;
+        .config-section {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.5s ease-in-out;
+        }
+        /* Style to remove arrows from number inputs in some browsers */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+          -webkit-appearance: none; 
+          margin: 0; 
+        }
+        input[type=number] {
+          -moz-appearance: textfield;
         }
     </style>
 </head>
@@ -33,19 +39,19 @@
         
         <header class="text-center mb-10">
             <h1 class="text-3xl md:text-4xl font-bold text-slate-900">Simulador da Nova Política de Remuneração Variável</h1>
-            <p class="mt-2 text-lg text-slate-600">Explore de forma interativa como o modelo "Pool de Performance" funciona.</p>
+            <p class="mt-2 text-lg text-slate-600">Explore de forma interativa como o modelo "Pool de Performance" da SAF Botafogo funciona.</p>
         </header>
 
         <main class="space-y-12">
 
             <section id="philosophy" class="bg-white p-6 rounded-xl shadow-md">
                 <h2 class="text-2xl font-bold text-slate-900 mb-4 text-center">A Filosofia: O Modelo "Pool de Performance"</h2>
-                <p class="text-center text-slate-600 mb-6 max-w-3xl mx-auto">Este modelo abandona uma distribuição fixa por um sistema mais justo e dinâmico. A receita da empresa cria um "Pool" (reserva) de bônus, que é distribuído à equipe com base na responsabilidade e, crucialmente, no mérito de cada um.</p>
+                <p class="text-center text-slate-600 mb-6 max-w-3xl mx-auto">Este modelo abandona uma distribuição fixa por um sistema mais justo e dinâmico. A receita da SAF Botafogo cria um "Pool" (reserva) de bônus, que é distribuído à equipe com base na responsabilidade e, crucialmente, no mérito de cada um.</p>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 text-center">
                     <div class="bg-slate-50 p-4 rounded-lg">
                         <div class="text-blue-600 text-3xl mb-2">①</div>
                         <h3 class="font-semibold text-slate-800">Cálculo do Pool Total</h3>
-                        <p class="text-sm text-slate-500">A receita comercial da empresa define o valor total do "bolo" a ser distribuído.</p>
+                        <p class="text-sm text-slate-500">A receita comercial da SAF Botafogo define o valor total do "bolo" a ser distribuído.</p>
                     </div>
                     <div class="bg-slate-50 p-4 rounded-lg">
                         <div class="text-blue-600 text-3xl mb-2">②</div>
@@ -59,8 +65,31 @@
                     </div>
                     <div class="bg-slate-50 p-4 rounded-lg">
                         <div class="text-blue-600 text-3xl mb-2">④</div>
-                        <h3 class="font-semibold text-slate-800">bônus Individual</h3>
+                        <h3 class="font-semibold text-slate-800">Bônus Individual</h3>
                         <p class="text-sm text-slate-500">A sua recompensa final: os seus pontos multiplicados pelo valor do ponto.</p>
+                    </div>
+                </div>
+            </section>
+
+             <section id="configurator" class="bg-slate-50 p-6 rounded-xl shadow-md border">
+                <div id="configHeader" class="flex justify-between items-center cursor-pointer">
+                    <h2 class="text-2xl font-bold text-slate-900">Configurações do Modelo</h2>
+                    <span id="configToggleIcon" class="text-2xl text-slate-500 transform transition-transform">▶</span>
+                </div>
+                <div id="configContent" class="config-section mt-6">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                        <div>
+                            <h3 class="font-semibold text-slate-700 mb-2">Pontos Base por Cargo</h3>
+                            <div id="configCargos" class="space-y-2"></div>
+                        </div>
+                         <div>
+                            <h3 class="font-semibold text-slate-700 mb-2">Multiplicador de Performance</h3>
+                            <div id="configPerformances" class="space-y-2"></div>
+                        </div>
+                        <div>
+                            <h3 class="font-semibold text-slate-700 mb-2">Faixas para Cálculo do Pool de Bônus</h3>
+                            <div id="configFaixas" class="space-y-3"></div>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -82,8 +111,8 @@
                         <div class="p-4 border rounded-lg">
                              <h3 class="font-semibold text-slate-700 mb-2">Resultados do Pool</h3>
                              <div class="space-y-2 text-sm">
-                                 <div class="flex justify-between"><span>Pool Total de bônus:</span> <strong id="poolTotalValue" class="text-green-600">R$ 650.000,00</strong></div>
-                                 <div class="flex justify-between"><span>Total de Pontos da equipe:</span> <strong id="totalPointsValue">1.237,5</strong></div>
+                                 <div class="flex justify-between"><span>Pool Total de Bônus:</span> <strong id="poolTotalValue" class="text-green-600">R$ 650.000,00</strong></div>
+                                 <div class="flex justify-between"><span>Total de Pontos da Equipe:</span> <strong id="totalPointsValue">1.237,5</strong></div>
                                  <div class="flex justify-between"><span>Valor por Ponto:</span> <strong id="pointValue" class="text-blue-600">R$ 525,25</strong></div>
                              </div>
                         </div>
@@ -92,7 +121,7 @@
                     <div class="lg:col-span-2">
                         <div>
                             <div class="flex justify-between items-center mb-2">
-                                <h3 class="font-semibold text-slate-700">Passo 2: Monte a sua equipe</h3>
+                                <h3 class="font-semibold text-slate-700">Passo 2: Monte a sua Equipe</h3>
                                 <button id="addEmployeeBtn" class="bg-blue-600 text-white px-4 py-2 text-sm rounded-lg hover:bg-blue-700 transition-colors">
                                     + Adicionar Colaborador
                                 </button>
@@ -117,7 +146,7 @@
                 </div>
 
                 <div class="mt-10">
-                    <h3 class="text-xl font-bold text-slate-900 mb-4 text-center">Passo 4: Distribuição Final do bônus</h3>
+                    <h3 class="text-xl font-bold text-slate-900 mb-4 text-center">Passo 3: Distribuição Final do Bônus</h3>
                     <div class="chart-container">
                         <canvas id="bonusChart"></canvas>
                     </div>
@@ -153,7 +182,7 @@
                                 <td class="border p-3 font-semibold">Simplicidade</td>
                                 <td class="border p-3 text-slate-600">Complexo, com regras de exceção e ajustes subjetivos.</td>
                                 <td class="border p-3 text-slate-800 font-medium">Simples e Transparente. A lógica de pontos é fácil de comunicar.</td>
-                                <td class="border p-3 text-slate-600">A equipe foca-se em performar, não em decifrar regras ou negociar exceções.</td>
+                                <td class="border p-3 text-slate-600">A equipe foca em performar, não em decifrar regras ou negociar exceções.</td>
                             </tr>
                         </tbody>
                     </table>
@@ -170,35 +199,34 @@
 <script>
 document.addEventListener('DOMContentLoaded', () => {
 
-    const CONFIG = {
-        pontosPorCargo: {
-            'Analista Comercial': 100,
-            'Coordenador/Especialista': 150,
-            'Gerente': 250,
-            'Diretor': 450,
-        },
-        multiplicadorPorPerformance: {
-            'Abaixo do esperado': 0.5,
-            'Atende às expectativas': 1.0,
-            'Acima do esperado': 1.25,
-            'Excepcional': 1.5,
-        },
-        faixasBonificacao: [
-            { ate: 20000000, perc: 0.0075 },
-            { ate: 40000000, perc: 0.015 },
-            { acima: 40000000, perc: 0.02 },
-        ]
-    };
-
     let state = {
         revenue: 50000000,
         team: [
-            { id: 1, nome: 'Carlos', cargo: 'Diretor', performance: 'Excepcional' },
-            { id: 2, nome: 'Fernanda', cargo: 'Gerente', performance: 'Acima do esperado' },
-            { id: 3, nome: 'Bruno', cargo: 'Analista Comercial', performance: 'Excepcional' },
-            { id: 4, nome: 'Ana', cargo: 'Analista Comercial', performance: 'Atende às expectativas' },
+            { id: 1, nome: 'Pessoa I', cargo: 'Diretor', performance: 'Excepcional' },
+            { id: 2, nome: 'Pessoa II', cargo: 'Gerente', performance: 'Acima do esperado' },
+            { id: 3, nome: 'Pessoa III', cargo: 'Analista Comercial', performance: 'Excepcional' },
+            { id: 4, nome: 'Pessoa IV', cargo: 'Analista Comercial', performance: 'Atende às expectativas' },
         ],
         nextId: 5,
+        config: {
+            pontosPorCargo: {
+                'Analista Comercial': 75,
+                'Coordenador/Especialista': 100,
+                'Gerente': 175,
+                'Diretor': 350,
+            },
+            multiplicadorPorPerformance: {
+                'Abaixo do esperado': 0.75,
+                'Atende às expectativas': 1.0,
+                'Acima do esperado': 1.25,
+                'Excepcional': 1.5,
+            },
+            faixasBonificacao: [
+                { ate: 40000000, perc: 0.025 },
+                { ate: 80000000, perc: 0.050 },
+                { acima: 80000000, perc: 0.01 },
+            ]
+        }
     };
 
     const revenueSlider = document.getElementById('revenueSlider');
@@ -211,16 +239,36 @@ document.addEventListener('DOMContentLoaded', () => {
     const chartCanvas = document.getElementById('bonusChart');
     let bonusChart = null;
 
-    const formatCurrency = (value) => {
-        if (isNaN(value)) return 'R$ 0,00';
-        return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+    const configHeader = document.getElementById('configHeader');
+    const configContent = document.getElementById('configContent');
+    const configToggleIcon = document.getElementById('configToggleIcon');
+    const configCargosContainer = document.getElementById('configCargos');
+    const configPerformancesContainer = document.getElementById('configPerformances');
+    const configFaixasContainer = document.getElementById('configFaixas');
+
+    const formatCurrency = (value, showSymbol = true) => {
+        if (isNaN(value)) return showSymbol ? 'R$ 0,00' : '0,00';
+        const options = showSymbol ? { style: 'currency', currency: 'BRL' } : { style: 'decimal', minimumFractionDigits: 2, maximumFractionDigits: 2 };
+        return new Intl.NumberFormat('pt-BR', options).format(value);
     };
 
-    function calculatePoolTotal(revenue) {
-        const faixas = CONFIG.faixasBonificacao;
-        let pool = 0;
-        let receitaRestante = revenue;
+    const parseCurrency = (value) => {
+        return Number(String(value).replace(/\./g, '').replace(',', '.'));
+    };
+    
+    const formatPercent = (value) => {
+        return (value * 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    };
 
+    const parsePercent = (value) => {
+        return parseCurrency(value) / 100;
+    };
+
+
+    function calculatePoolTotal(revenue) {
+        const faixas = state.config.faixasBonificacao;
+        let pool = 0;
+        
         if (revenue <= faixas[0].ate) {
             pool = revenue * faixas[0].perc;
         } else if (revenue <= faixas[1].ate) {
@@ -232,6 +280,52 @@ document.addEventListener('DOMContentLoaded', () => {
             pool += (revenue - faixas[1].ate) * faixas[2].perc;
         }
         return pool;
+    }
+
+    function renderConfig() {
+        configCargosContainer.innerHTML = '';
+        Object.entries(state.config.pontosPorCargo).forEach(([cargo, pontos]) => {
+            configCargosContainer.innerHTML += `
+                <div class="flex items-center justify-between text-sm">
+                    <label class="text-slate-600">${cargo}</label>
+                    <input type="number" value="${pontos}" data-type="cargo" data-key="${cargo}" class="w-20 p-1 border rounded text-right">
+                </div>`;
+        });
+
+        configPerformancesContainer.innerHTML = '';
+        Object.entries(state.config.multiplicadorPorPerformance).forEach(([perf, mult]) => {
+            configPerformancesContainer.innerHTML += `
+                 <div class="flex items-center justify-between text-sm">
+                    <label class="text-slate-600">${perf}</label>
+                    <input type="number" step="0.05" value="${mult}" data-type="performance" data-key="${perf}" class="w-20 p-1 border rounded text-right">
+                </div>`;
+        });
+        
+        configFaixasContainer.innerHTML = '';
+        state.config.faixasBonificacao.forEach((faixa, index) => {
+             if (faixa.ate) {
+                configFaixasContainer.innerHTML += `
+                    <div class="p-2 border rounded-md bg-white">
+                        <label class="block text-xs text-slate-500">Faixa ${index + 1}: Até</label>
+                        <input type="text" value="${formatCurrency(faixa.ate, false)}" data-type="faixa-ate" data-index="${index}" class="w-full p-1 border rounded text-right mb-1">
+                        <label class="block text-xs text-slate-500">Percentual</label>
+                        <div class="relative">
+                            <input type="text" value="${formatPercent(faixa.perc)}" data-type="faixa-perc" data-index="${index}" class="w-full p-1 border rounded text-right pr-6">
+                            <span class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500">%</span>
+                        </div>
+                    </div>`;
+             } else {
+                 configFaixasContainer.innerHTML += `
+                    <div class="p-2 border rounded-md bg-white">
+                        <label class="block text-xs text-slate-500">Faixa ${index + 1}: Acima de ${formatCurrency(state.config.faixasBonificacao[index-1].ate)}</label>
+                        <label class="block text-xs text-slate-500 mt-8">Percentual</label>
+                         <div class="relative">
+                            <input type="text" value="${formatPercent(faixa.perc)}" data-type="faixa-perc" data-index="${index}" class="w-full p-1 border rounded text-right pr-6">
+                            <span class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500">%</span>
+                        </div>
+                    </div>`;
+             }
+        });
     }
 
     function renderTeam() {
@@ -248,15 +342,15 @@ document.addEventListener('DOMContentLoaded', () => {
             row.id = `employee-${employee.id}`;
             row.className = 'border-b hover:bg-slate-50';
 
-            const pontosBase = CONFIG.pontosPorCargo[employee.cargo];
-            const multiplicador = CONFIG.multiplicadorPorPerformance[employee.performance];
+            const pontosBase = state.config.pontosPorCargo[employee.cargo] || 0;
+            const multiplicador = state.config.multiplicadorPorPerformance[employee.performance] || 0;
             const pontosFinais = pontosBase * multiplicador;
 
-            const cargoOptions = Object.keys(CONFIG.pontosPorCargo).map(cargo => 
+            const cargoOptions = Object.keys(state.config.pontosPorCargo).map(cargo => 
                 `<option value="${cargo}" ${employee.cargo === cargo ? 'selected' : ''}>${cargo}</option>`
             ).join('');
 
-            const performanceOptions = Object.keys(CONFIG.multiplicadorPorPerformance).map(perf => 
+            const performanceOptions = Object.keys(state.config.multiplicadorPorPerformance).map(perf => 
                 `<option value="${perf}" ${employee.performance === perf ? 'selected' : ''}>${perf}</option>`
             ).join('');
             
@@ -290,7 +384,7 @@ document.addEventListener('DOMContentLoaded', () => {
             data: {
                 labels: teamData.map(e => e.nome),
                 datasets: [{
-                    label: 'bônus Bruto a Receber',
+                    label: 'Bônus Bruto a Receber',
                     data: teamData.map(e => e.bonusFinal.toFixed(2)),
                     backgroundColor: 'rgba(59, 130, 246, 0.7)',
                     borderColor: 'rgba(59, 130, 246, 1)',
@@ -339,8 +433,8 @@ document.addEventListener('DOMContentLoaded', () => {
         
         let totalPontos = 0;
         const teamDataWithPoints = state.team.map(employee => {
-            const pontosBase = CONFIG.pontosPorCargo[employee.cargo];
-            const multiplicador = CONFIG.multiplicadorPorPerformance[employee.performance];
+            const pontosBase = state.config.pontosPorCargo[employee.cargo] || 0;
+            const multiplicador = state.config.multiplicadorPorPerformance[employee.performance] || 0;
             const pontosFinais = pontosBase * multiplicador;
             totalPontos += pontosFinais;
             return { ...employee, pontosFinais };
@@ -370,7 +464,7 @@ document.addEventListener('DOMContentLoaded', () => {
     addEmployeeBtn.addEventListener('click', () => {
         const newEmployee = {
             id: state.nextId++,
-            nome: `Colaborador ${state.nextId -1}`,
+            nome: `Colaborador ${state.nextId - 1}`,
             cargo: 'Analista Comercial',
             performance: 'Atende às expectativas',
         };
@@ -398,7 +492,47 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    configHeader.addEventListener('click', () => {
+        if (configContent.style.maxHeight) {
+            configContent.style.maxHeight = null;
+            configToggleIcon.style.transform = 'rotate(0deg)';
+        } else {
+            configContent.style.maxHeight = configContent.scrollHeight + "px";
+            configToggleIcon.style.transform = 'rotate(90deg)';
+        }
+    });
+
+    configContent.addEventListener('input', (e) => {
+        const target = e.target;
+        const type = target.dataset.type;
+        const key = target.dataset.key;
+        const value = target.value;
+
+        if (type === 'cargo') {
+            state.config.pontosPorCargo[key] = Number(value);
+        } else if (type === 'performance') {
+            state.config.multiplicadorPorPerformance[key] = Number(value);
+        } else if (type === 'faixa-ate') {
+            const index = Number(target.dataset.index);
+            state.config.faixasBonificacao[index].ate = parseCurrency(value);
+        } else if (type === 'faixa-perc') {
+            const index = Number(target.dataset.index);
+            state.config.faixasBonificacao[index].perc = parsePercent(value);
+        }
+        updateSimulation();
+    });
+
+    configContent.addEventListener('blur', (e) => {
+        const target = e.target;
+        const type = target.dataset.type;
+        if (type === 'faixa-ate' || type === 'faixa-perc') {
+            renderConfig();
+        }
+    }, true);
+
+
     revenueValue.textContent = formatCurrency(state.revenue);
+    renderConfig();
     updateSimulation();
 });
 </script>
