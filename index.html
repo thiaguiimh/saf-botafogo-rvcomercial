@@ -40,7 +40,7 @@
 
             <section id="philosophy" class="bg-white p-6 rounded-xl shadow-md">
                 <h2 class="text-2xl font-bold text-slate-900 mb-4 text-center">A Filosofia: O Modelo "Pool de Performance"</h2>
-                <p class="text-center text-slate-600 mb-6 max-w-3xl mx-auto">Este modelo abandona uma distribuição fixa por um sistema mais justo e dinâmico. A receita da empresa cria um "Pool" (reserva) de bónus, que é distribuído à equipa com base na responsabilidade e, crucialmente, no mérito de cada um.</p>
+                <p class="text-center text-slate-600 mb-6 max-w-3xl mx-auto">Este modelo abandona uma distribuição fixa por um sistema mais justo e dinâmico. A receita da empresa cria um "Pool" (reserva) de bônus, que é distribuído à equipe com base na responsabilidade e, crucialmente, no mérito de cada um.</p>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 text-center">
                     <div class="bg-slate-50 p-4 rounded-lg">
                         <div class="text-blue-600 text-3xl mb-2">①</div>
@@ -59,7 +59,7 @@
                     </div>
                     <div class="bg-slate-50 p-4 rounded-lg">
                         <div class="text-blue-600 text-3xl mb-2">④</div>
-                        <h3 class="font-semibold text-slate-800">Bónus Individual</h3>
+                        <h3 class="font-semibold text-slate-800">bônus Individual</h3>
                         <p class="text-sm text-slate-500">A sua recompensa final: os seus pontos multiplicados pelo valor do ponto.</p>
                     </div>
                 </div>
@@ -82,8 +82,8 @@
                         <div class="p-4 border rounded-lg">
                              <h3 class="font-semibold text-slate-700 mb-2">Resultados do Pool</h3>
                              <div class="space-y-2 text-sm">
-                                 <div class="flex justify-between"><span>Pool Total de Bónus:</span> <strong id="poolTotalValue" class="text-green-600">R$ 650.000,00</strong></div>
-                                 <div class="flex justify-between"><span>Total de Pontos da Equipa:</span> <strong id="totalPointsValue">1.237,5</strong></div>
+                                 <div class="flex justify-between"><span>Pool Total de bônus:</span> <strong id="poolTotalValue" class="text-green-600">R$ 650.000,00</strong></div>
+                                 <div class="flex justify-between"><span>Total de Pontos da equipe:</span> <strong id="totalPointsValue">1.237,5</strong></div>
                                  <div class="flex justify-between"><span>Valor por Ponto:</span> <strong id="pointValue" class="text-blue-600">R$ 525,25</strong></div>
                              </div>
                         </div>
@@ -92,7 +92,7 @@
                     <div class="lg:col-span-2">
                         <div>
                             <div class="flex justify-between items-center mb-2">
-                                <h3 class="font-semibold text-slate-700">Passo 2: Monte a sua Equipa</h3>
+                                <h3 class="font-semibold text-slate-700">Passo 2: Monte a sua equipe</h3>
                                 <button id="addEmployeeBtn" class="bg-blue-600 text-white px-4 py-2 text-sm rounded-lg hover:bg-blue-700 transition-colors">
                                     + Adicionar Colaborador
                                 </button>
@@ -117,7 +117,7 @@
                 </div>
 
                 <div class="mt-10">
-                    <h3 class="text-xl font-bold text-slate-900 mb-4 text-center">Passo 4: Distribuição Final do Bónus</h3>
+                    <h3 class="text-xl font-bold text-slate-900 mb-4 text-center">Passo 4: Distribuição Final do bônus</h3>
                     <div class="chart-container">
                         <canvas id="bonusChart"></canvas>
                     </div>
@@ -146,14 +146,14 @@
                             <tr class="hover:bg-slate-50">
                                 <td class="border p-3 font-semibold">Justiça Percebida</td>
                                 <td class="border p-3 text-slate-600">Baixa. Distribuição fixa e muito concentrada no topo.</td>
-                                <td class="border p-3 text-slate-800 font-medium">Alta. A distribuição é flexível e baseada no desempenho relativo de toda a equipa.</td>
+                                <td class="border p-3 text-slate-800 font-medium">Alta. A distribuição é flexível e baseada no desempenho relativo de toda a equipe.</td>
                                 <td class="border p-3 text-slate-600">Melhora o Clima Organizacional e aumenta o engajamento.</td>
                             </tr>
                             <tr class="hover:bg-slate-50">
                                 <td class="border p-3 font-semibold">Simplicidade</td>
                                 <td class="border p-3 text-slate-600">Complexo, com regras de exceção e ajustes subjetivos.</td>
                                 <td class="border p-3 text-slate-800 font-medium">Simples e Transparente. A lógica de pontos é fácil de comunicar.</td>
-                                <td class="border p-3 text-slate-600">A equipa foca-se em performar, não em decifrar regras ou negociar exceções.</td>
+                                <td class="border p-3 text-slate-600">A equipe foca-se em performar, não em decifrar regras ou negociar exceções.</td>
                             </tr>
                         </tbody>
                     </table>
@@ -290,7 +290,7 @@ document.addEventListener('DOMContentLoaded', () => {
             data: {
                 labels: teamData.map(e => e.nome),
                 datasets: [{
-                    label: 'Bónus Bruto a Receber',
+                    label: 'bônus Bruto a Receber',
                     data: teamData.map(e => e.bonusFinal.toFixed(2)),
                     backgroundColor: 'rgba(59, 130, 246, 0.7)',
                     borderColor: 'rgba(59, 130, 246, 1)',
