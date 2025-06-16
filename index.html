@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador de Remuneração Variável</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Calm Harmony (Slate Gray, White, Accent Blue) -->
+    <!-- Application Structure Plan: A dashboard-style SPA guiding the user through the remuneration model. It starts with an overview, moves to a central interactive calculator/simulator, and finishes with a comparative analysis. This task-oriented flow (simulating a bonus calculation) makes the complex proposal tangible and easy to grasp, which is more effective than just reproducing the report's linear structure. -->
+    <!-- Visualization & Content Choices: Revenue Input -> Goal: Explore -> Slider -> User can see immediate impact on total bonus pool. Team Builder -> Goal: Simulate -> Dynamic Table + Selects -> Allows custom scenarios and "what-if" analysis. Bonus Results -> Goal: Compare -> Bar Chart (Chart.js) -> Provides instant visual comparison of individual rewards, highlighting the model's meritocratic nature. Comparison Table -> Goal: Justify -> Styled HTML Table -> Clearly summarizes the benefits of the new model over the old one. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        .chart-container { position: relative; width: 100%; max-width: 800px; margin-left: auto; margin-right: auto; height: 350px; max-height: 40vh; }
+        @media (min-width: 768px) { .chart-container { height: 400px; } }
+        .tooltip-custom {
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 12px;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="text-slate-800">
+
+    <div class="container mx-auto p-4 md:p-8 max-w-7xl">
+        
+        <header class="text-center mb-10">
+            <h1 class="text-3xl md:text-4xl font-bold text-slate-900">Simulador da Nova Política de Remuneração Variável</h1>
+            <p class="mt-2 text-lg text-slate-600">Explore de forma interativa como o modelo "Pool de Performance" funciona.</p>
+        </header>
+
+        <main class="space-y-12">
+
+            <section id="philosophy" class="bg-white p-6 rounded-xl shadow-md">
+                <h2 class="text-2xl font-bold text-slate-900 mb-4 text-center">A Filosofia: O Modelo "Pool de Performance"</h2>
+                <p class="text-center text-slate-600 mb-6 max-w-3xl mx-auto">Este modelo abandona uma distribuição fixa por um sistema mais justo e dinâmico. A receita da empresa cria um "Pool" (reserva) de bónus, que é distribuído à equipa com base na responsabilidade e, crucialmente, no mérito de cada um.</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 text-center">
+                    <div class="bg-slate-50 p-4 rounded-lg">
+                        <div class="text-blue-600 text-3xl mb-2">①</div>
+                        <h3 class="font-semibold text-slate-800">Cálculo do Pool Total</h3>
+                        <p class="text-sm text-slate-500">A receita comercial da empresa define o valor total do "bolo" a ser distribuído.</p>
+                    </div>
+                    <div class="bg-slate-50 p-4 rounded-lg">
+                        <div class="text-blue-600 text-3xl mb-2">②</div>
+                        <h3 class="font-semibold text-slate-800">Atribuição de Pontos</h3>
+                        <p class="text-sm text-slate-500">Cada colaborador recebe pontos com base no cargo e na sua avaliação de desempenho.</p>
+                    </div>
+                    <div class="bg-slate-50 p-4 rounded-lg">
+                        <div class="text-blue-600 text-3xl mb-2">③</div>
+                        <h3 class="font-semibold text-slate-800">Valor por Ponto</h3>
+                        <p class="text-sm text-slate-500">O valor de cada ponto é o Pool Total a dividir pela soma dos pontos de todos.</p>
+                    </div>
+                    <div class="bg-slate-50 p-4 rounded-lg">
+                        <div class="text-blue-600 text-3xl mb-2">④</div>
+                        <h3 class="font-semibold text-slate-800">Bónus Individual</h3>
+                        <p class="text-sm text-slate-500">A sua recompensa final: os seus pontos multiplicados pelo valor do ponto.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="calculator" class="bg-white p-6 rounded-xl shadow-lg">
+                <h2 class="text-2xl font-bold text-slate-900 mb-6 text-center">Calculadora Interativa</h2>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    
+                    <div class="lg:col-span-1 space-y-6">
+                        <div class="p-4 border rounded-lg bg-slate-50">
+                            <label for="revenueSlider" class="block font-semibold text-slate-700">Passo 1: Receita Comercial Bruta Anual</label>
+                            <input type="range" id="revenueSlider" min="10000000" max="80000000" step="1000000" value="50000000" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+                            <div class="text-center mt-2">
+                                <span class="text-2xl font-bold text-blue-700" id="revenueValue">R$ 50.000.000</span>
+                            </div>
+                        </div>
+
+                        <div class="p-4 border rounded-lg">
+                             <h3 class="font-semibold text-slate-700 mb-2">Resultados do Pool</h3>
+                             <div class="space-y-2 text-sm">
+                                 <div class="flex justify-between"><span>Pool Total de Bónus:</span> <strong id="poolTotalValue" class="text-green-600">R$ 650.000,00</strong></div>
+                                 <div class="flex justify-between"><span>Total de Pontos da Equipa:</span> <strong id="totalPointsValue">1.237,5</strong></div>
+                                 <div class="flex justify-between"><span>Valor por Ponto:</span> <strong id="pointValue" class="text-blue-600">R$ 525,25</strong></div>
+                             </div>
+                        </div>
+                    </div>
+                    
+                    <div class="lg:col-span-2">
+                        <div>
+                            <div class="flex justify-between items-center mb-2">
+                                <h3 class="font-semibold text-slate-700">Passo 2: Monte a sua Equipa</h3>
+                                <button id="addEmployeeBtn" class="bg-blue-600 text-white px-4 py-2 text-sm rounded-lg hover:bg-blue-700 transition-colors">
+                                    + Adicionar Colaborador
+                                </button>
+                            </div>
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full bg-white border rounded-lg">
+                                    <thead class="bg-slate-100 text-slate-600 text-sm">
+                                        <tr>
+                                            <th class="p-2 text-left">Nome</th>
+                                            <th class="p-2 text-left">Cargo</th>
+                                            <th class="p-2 text-left">Avaliação</th>
+                                            <th class="p-2 text-right">Pontos Finais</th>
+                                            <th class="p-2 text-center">Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="teamTableBody">
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-10">
+                    <h3 class="text-xl font-bold text-slate-900 mb-4 text-center">Passo 4: Distribuição Final do Bónus</h3>
+                    <div class="chart-container">
+                        <canvas id="bonusChart"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <section id="comparison" class="bg-white p-6 rounded-xl shadow-md">
+                <h2 class="text-2xl font-bold text-slate-900 mb-6 text-center">Análise Comparativa: Por que este modelo é melhor?</h2>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full border-collapse">
+                        <thead>
+                            <tr class="bg-slate-100">
+                                <th class="border p-3 text-left text-slate-700">Critério</th>
+                                <th class="border p-3 text-left text-slate-700">Modelo Antigo (BFR 2023)</th>
+                                <th class="border p-3 text-left text-blue-800 bg-blue-50">Novo Modelo (Pool de Performance)</th>
+                                <th class="border p-3 text-left text-slate-700">Vantagem Estratégica</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="hover:bg-slate-50">
+                                <td class="border p-3 font-semibold">Meritocracia</td>
+                                <td class="border p-3 text-slate-600">Inexistente. Pagamento igual por cargo.</td>
+                                <td class="border p-3 text-slate-800 font-medium">Central. A avaliação do gestor é um multiplicador direto da recompensa.</td>
+                                <td class="border p-3 text-slate-600">Estimula a superação e reconhece de forma justa os colaboradores de alto desempenho.</td>
+                            </tr>
+                            <tr class="hover:bg-slate-50">
+                                <td class="border p-3 font-semibold">Justiça Percebida</td>
+                                <td class="border p-3 text-slate-600">Baixa. Distribuição fixa e muito concentrada no topo.</td>
+                                <td class="border p-3 text-slate-800 font-medium">Alta. A distribuição é flexível e baseada no desempenho relativo de toda a equipa.</td>
+                                <td class="border p-3 text-slate-600">Melhora o Clima Organizacional e aumenta o engajamento.</td>
+                            </tr>
+                            <tr class="hover:bg-slate-50">
+                                <td class="border p-3 font-semibold">Simplicidade</td>
+                                <td class="border p-3 text-slate-600">Complexo, com regras de exceção e ajustes subjetivos.</td>
+                                <td class="border p-3 text-slate-800 font-medium">Simples e Transparente. A lógica de pontos é fácil de comunicar.</td>
+                                <td class="border p-3 text-slate-600">A equipa foca-se em performar, não em decifrar regras ou negociar exceções.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+            
+            <footer class="text-center text-slate-500 text-sm pt-6">
+                <p>Esta é uma ferramenta de simulação baseada na "Proposta de Nova Política de Remuneração Variável Comercial".</p>
+                <p>Todos os valores são ilustrativos.</p>
+            </footer>
+        </main>
+    </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+    const CONFIG = {
+        pontosPorCargo: {
+            'Analista Comercial': 100,
+            'Coordenador/Especialista': 150,
+            'Gerente': 250,
+            'Diretor': 450,
+        },
+        multiplicadorPorPerformance: {
+            'Abaixo do esperado': 0.5,
+            'Atende às expectativas': 1.0,
+            'Acima do esperado': 1.25,
+            'Excepcional': 1.5,
+        },
+        faixasBonificacao: [
+            { ate: 20000000, perc: 0.0075 },
+            { ate: 40000000, perc: 0.015 },
+            { acima: 40000000, perc: 0.02 },
+        ]
+    };
+
+    let state = {
+        revenue: 50000000,
+        team: [
+            { id: 1, nome: 'Carlos', cargo: 'Diretor', performance: 'Excepcional' },
+            { id: 2, nome: 'Fernanda', cargo: 'Gerente', performance: 'Acima do esperado' },
+            { id: 3, nome: 'Bruno', cargo: 'Analista Comercial', performance: 'Excepcional' },
+            { id: 4, nome: 'Ana', cargo: 'Analista Comercial', performance: 'Atende às expectativas' },
+        ],
+        nextId: 5,
+    };
+
+    const revenueSlider = document.getElementById('revenueSlider');
+    const revenueValue = document.getElementById('revenueValue');
+    const poolTotalValue = document.getElementById('poolTotalValue');
+    const totalPointsValue = document.getElementById('totalPointsValue');
+    const pointValue = document.getElementById('pointValue');
+    const teamTableBody = document.getElementById('teamTableBody');
+    const addEmployeeBtn = document.getElementById('addEmployeeBtn');
+    const chartCanvas = document.getElementById('bonusChart');
+    let bonusChart = null;
+
+    const formatCurrency = (value) => {
+        if (isNaN(value)) return 'R$ 0,00';
+        return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+    };
+
+    function calculatePoolTotal(revenue) {
+        const faixas = CONFIG.faixasBonificacao;
+        let pool = 0;
+        let receitaRestante = revenue;
+
+        if (revenue <= faixas[0].ate) {
+            pool = revenue * faixas[0].perc;
+        } else if (revenue <= faixas[1].ate) {
+            pool = faixas[0].ate * faixas[0].perc;
+            pool += (revenue - faixas[0].ate) * faixas[1].perc;
+        } else {
+            pool = faixas[0].ate * faixas[0].perc;
+            pool += (faixas[1].ate - faixas[0].ate) * faixas[1].perc;
+            pool += (revenue - faixas[1].ate) * faixas[2].perc;
+        }
+        return pool;
+    }
+
+    function renderTeam() {
+        teamTableBody.innerHTML = '';
+        if (state.team.length === 0) {
+            const row = document.createElement('tr');
+            row.innerHTML = `<td colspan="5" class="p-4 text-center text-slate-500">Adicione um colaborador para começar a simulação.</td>`;
+            teamTableBody.appendChild(row);
+            return;
+        }
+
+        state.team.forEach(employee => {
+            const row = document.createElement('tr');
+            row.id = `employee-${employee.id}`;
+            row.className = 'border-b hover:bg-slate-50';
+
+            const pontosBase = CONFIG.pontosPorCargo[employee.cargo];
+            const multiplicador = CONFIG.multiplicadorPorPerformance[employee.performance];
+            const pontosFinais = pontosBase * multiplicador;
+
+            const cargoOptions = Object.keys(CONFIG.pontosPorCargo).map(cargo => 
+                `<option value="${cargo}" ${employee.cargo === cargo ? 'selected' : ''}>${cargo}</option>`
+            ).join('');
+
+            const performanceOptions = Object.keys(CONFIG.multiplicadorPorPerformance).map(perf => 
+                `<option value="${perf}" ${employee.performance === perf ? 'selected' : ''}>${perf}</option>`
+            ).join('');
+            
+            row.innerHTML = `
+                <td class="p-2">
+                    <input type="text" value="${employee.nome}" class="w-full p-1 border rounded bg-transparent" data-id="${employee.id}" data-field="nome">
+                </td>
+                <td class="p-2">
+                    <select class="w-full p-1 border rounded bg-white" data-id="${employee.id}" data-field="cargo">${cargoOptions}</select>
+                </td>
+                <td class="p-2">
+                    <select class="w-full p-1 border rounded bg-white" data-id="${employee.id}" data-field="performance">${performanceOptions}</select>
+                </td>
+                <td class="p-2 text-right font-medium text-slate-700">${pontosFinais.toFixed(1)}</td>
+                <td class="p-2 text-center">
+                    <button class="text-red-500 hover:text-red-700" data-id="${employee.id}" data-action="delete">✖</button>
+                </td>
+            `;
+            teamTableBody.appendChild(row);
+        });
+    }
+
+    function renderChart(teamData) {
+        if (bonusChart) {
+            bonusChart.destroy();
+        }
+
+        const ctx = chartCanvas.getContext('2d');
+        bonusChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: teamData.map(e => e.nome),
+                datasets: [{
+                    label: 'Bónus Bruto a Receber',
+                    data: teamData.map(e => e.bonusFinal.toFixed(2)),
+                    backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                    borderColor: 'rgba(59, 130, 246, 1)',
+                    borderWidth: 1,
+                    borderRadius: 4,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return formatCurrency(value);
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.parsed.y !== null) {
+                                    label += formatCurrency(context.parsed.y);
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function updateSimulation() {
+        const pool = calculatePoolTotal(state.revenue);
+        
+        let totalPontos = 0;
+        const teamDataWithPoints = state.team.map(employee => {
+            const pontosBase = CONFIG.pontosPorCargo[employee.cargo];
+            const multiplicador = CONFIG.multiplicadorPorPerformance[employee.performance];
+            const pontosFinais = pontosBase * multiplicador;
+            totalPontos += pontosFinais;
+            return { ...employee, pontosFinais };
+        });
+
+        const valorDoPonto = totalPontos > 0 ? pool / totalPontos : 0;
+        
+        const finalTeamData = teamDataWithPoints.map(employee => ({
+            ...employee,
+            bonusFinal: employee.pontosFinais * valorDoPonto
+        }));
+        
+        poolTotalValue.textContent = formatCurrency(pool);
+        totalPointsValue.textContent = totalPontos.toFixed(1);
+        pointValue.textContent = formatCurrency(valorDoPonto);
+
+        renderTeam();
+        renderChart(finalTeamData);
+    }
+
+    revenueSlider.addEventListener('input', (e) => {
+        state.revenue = Number(e.target.value);
+        revenueValue.textContent = formatCurrency(state.revenue);
+        updateSimulation();
+    });
+
+    addEmployeeBtn.addEventListener('click', () => {
+        const newEmployee = {
+            id: state.nextId++,
+            nome: `Colaborador ${state.nextId -1}`,
+            cargo: 'Analista Comercial',
+            performance: 'Atende às expectativas',
+        };
+        state.team.push(newEmployee);
+        updateSimulation();
+    });
+
+    teamTableBody.addEventListener('change', (e) => {
+        if (e.target.matches('select, input')) {
+            const id = Number(e.target.dataset.id);
+            const field = e.target.dataset.field;
+            const employee = state.team.find(emp => emp.id === id);
+            if (employee) {
+                employee[field] = e.target.value;
+                updateSimulation();
+            }
+        }
+    });
+    
+    teamTableBody.addEventListener('click', (e) => {
+        if (e.target.matches('button[data-action="delete"]')) {
+            const id = Number(e.target.dataset.id);
+            state.team = state.team.filter(emp => emp.id !== id);
+            updateSimulation();
+        }
+    });
+
+    revenueValue.textContent = formatCurrency(state.revenue);
+    updateSimulation();
+});
+</script>
+
+</body>
+</html>
