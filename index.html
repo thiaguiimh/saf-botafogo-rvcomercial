@@ -14,13 +14,20 @@
     <!-- Visualization & Content Choices: Revenue Input -> Goal: Explore -> Slider -> User can see immediate impact on total bonus pool. Team Builder -> Goal: Simulate -> Dynamic Table + Selects. Configuration Panel -> Goal: Customize -> Input fields for real-time model adjustments. Bonus Results -> Goal: Compare -> Bar Chart (Chart.js). Comparison Table -> Goal: Justify -> Styled HTML Table. -->
     <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        body { font-family: 'Inter', sans-serif; background-color: #f9fafb; color: #334155; }
         .chart-container { position: relative; width: 100%; max-width: 800px; margin-left: auto; margin-right: auto; height: 350px; max-height: 40vh; }
         @media (min-width: 768px) { .chart-container { height: 400px; } }
         .config-section {
             max-height: 0;
             overflow: hidden;
             transition: max-height 0.5s ease-in-out;
+        }
+        .card {
+            background-color: white;
+            border-radius: 1.5rem; /* 24px */
+            padding: 2rem; /* 32px */
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.05), 0 4px 6px -4px rgb(0 0 0 / 0.05);
+            border: 1px solid #e2e8f0;
         }
         input[type=number]::-webkit-inner-spin-button, 
         input[type=number]::-webkit-outer-spin-button { 
@@ -32,42 +39,42 @@
         }
     </style>
 </head>
-<body class="text-slate-800">
+<body class="antialiased">
 
     <div class="container mx-auto p-4 md:p-8 max-w-7xl">
         
-        <header class="text-center mb-10">
-            <h1 class="text-3xl md:text-4xl font-bold text-slate-900">Simulador da Nova Política de Remuneração Variável</h1>
-            <p class="mt-2 text-lg text-slate-600">Explore de forma interativa como o modelo "Pool de Performance" da SAF Botafogo funciona.</p>
+        <header class="text-center mb-16">
+            <h1 class="text-4xl md:text-5xl font-bold text-slate-900 tracking-tight">Simulador da Nova Política de Remuneração Variável</h1>
+            <p class="mt-4 text-lg text-slate-500">Explore de forma interativa como o modelo "Pool de Performance" da SAF Botafogo funciona.</p>
         </header>
 
-        <main class="space-y-12">
+        <main class="space-y-16">
 
-            <section id="philosophy" class="bg-white p-6 rounded-xl shadow-md">
-                <h2 class="text-2xl font-bold text-slate-900 mb-4 text-center">A Filosofia: O Modelo "Pool de Performance"</h2>
-                <p class="text-center text-slate-600 mb-6 max-w-4xl mx-auto">Este modelo abandona uma distribuição fixa por um sistema mais justo e dinâmico, baseado em uma sequência clara de 5 passos.</p>
-                <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 text-center">
-                    <div class="bg-slate-50 p-4 rounded-lg flex flex-col">
+            <section id="philosophy" class="card">
+                <h2 class="text-3xl font-bold text-slate-900 mb-2 text-center tracking-tight">A Filosofia: O Modelo "Pool de Performance"</h2>
+                <p class="text-center text-slate-500 mb-8 max-w-4xl mx-auto">Este modelo abandona uma distribuição fixa por um sistema mais justo e dinâmico, baseado em uma sequência clara de 5 passos.</p>
+                <div class="grid grid-cols-1 md:grid-cols-5 gap-6 text-center">
+                    <div class="bg-slate-50 p-4 rounded-xl flex flex-col">
                         <div class="text-blue-600 text-3xl mb-2 font-bold">①</div>
                         <h3 class="font-semibold text-slate-800 mb-1">Cálculo do Pool Base</h3>
                         <p class="text-sm text-slate-500">A receita comercial da SAF define o valor inicial do "bolo" de bônus.</p>
                     </div>
-                    <div class="bg-slate-50 p-4 rounded-lg flex flex-col">
+                    <div class="bg-slate-50 p-4 rounded-xl flex flex-col">
                         <div class="text-blue-600 text-3xl mb-2 font-bold">②</div>
                         <h3 class="font-semibold text-slate-800 mb-1">Atribuição de Pontos</h3>
                         <p class="text-sm text-slate-500">Cada colaborador recebe pontos com base no cargo e na sua avaliação de desempenho.</p>
                     </div>
-                    <div class="bg-slate-50 p-4 rounded-lg flex flex-col">
+                    <div class="bg-slate-50 p-4 rounded-xl flex flex-col">
                         <div class="text-blue-600 text-3xl mb-2 font-bold">③</div>
                         <h3 class="font-semibold text-slate-800 mb-1">Valor por Ponto (Base)</h3>
                         <p class="text-sm text-slate-500">O Pool Base é dividido pela soma dos pontos, resultando num valor de ponto preliminar.</p>
                     </div>
-                    <div class="bg-slate-50 p-4 rounded-lg flex flex-col">
+                    <div class="bg-slate-50 p-4 rounded-xl flex flex-col">
                         <div class="text-blue-600 text-3xl mb-2 font-bold">④</div>
                         <h3 class="font-semibold text-slate-800 mb-1">Ajuste por Metas</h3>
                         <p class="text-sm text-slate-500">O atingimento das metas do departamento gera um multiplicador que ajusta o valor do ponto.</p>
                     </div>
-                    <div class="bg-green-50 border border-green-200 p-4 rounded-lg flex flex-col">
+                    <div class="bg-green-50/50 border border-green-200 p-4 rounded-xl flex flex-col">
                         <div class="text-green-600 text-3xl mb-2 font-bold">⑤</div>
                         <h3 class="font-semibold text-slate-800 mb-1">Bônus Individual</h3>
                         <p class="text-sm text-slate-500">Os pontos de cada um são multiplicados pelo valor final do ponto, resultando na recompensa.</p>
@@ -75,9 +82,9 @@
                 </div>
             </section>
 
-             <section id="configurator" class="bg-slate-50 p-6 rounded-xl shadow-md border">
+             <section id="configurator" class="bg-slate-100/70 p-6 rounded-2xl">
                 <div class="flex justify-between items-center">
-                    <h2 class="text-2xl font-bold text-slate-900">Configurações do Modelo</h2>
+                    <h2 class="text-2xl font-bold text-slate-900 tracking-tight">Configurações do Modelo</h2>
                     <button id="configToggleBtn" class="flex items-center gap-2 text-sm font-semibold text-blue-600 hover:text-blue-800 transition-colors py-1 px-3 rounded-lg hover:bg-blue-100">
                         <span id="configToggleText">Ajustar</span>
                         <span id="configToggleIcon" class="transform transition-transform">▼</span>
@@ -105,29 +112,29 @@
                 </div>
             </section>
 
-            <section id="calculator" class="bg-white p-6 rounded-xl shadow-lg">
-                <h2 class="text-2xl font-bold text-slate-900 mb-6 text-center">Calculadora Interativa</h2>
+            <section id="calculator" class="card">
+                <h2 class="text-3xl font-bold text-slate-900 mb-8 text-center tracking-tight">Calculadora Interativa</h2>
                 
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-                    <div class="lg:col-span-1 space-y-6 flex flex-col">
-                        <div class="p-4 border rounded-lg bg-slate-50">
-                            <label for="revenueSlider" class="block font-semibold text-slate-700">Passo 1: Receita Comercial Bruta Anual</label>
-                            <input type="range" id="revenueSlider" min="10000000" max="200000000" step="1000000" value="50000000" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                    <div class="lg:col-span-5 space-y-6">
+                        <div class="p-6 border rounded-xl bg-slate-50">
+                            <label for="revenueSlider" class="block font-semibold text-slate-700 text-center">Passo 1: Receita Comercial Bruta Anual</label>
+                            <input type="range" id="revenueSlider" min="10000000" max="200000000" step="1000000" value="50000000" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer mt-4">
                             <div class="text-center mt-2">
-                                <span class="text-2xl font-bold text-blue-700" id="revenueValue">R$ 50.000.000</span>
+                                <span class="text-3xl font-bold text-blue-700" id="revenueValue">R$ 50.000.000</span>
                             </div>
                         </div>
                         
-                        <div class="p-4 border rounded-lg bg-slate-50">
-                            <label for="departmentGoalSlider" class="block font-semibold text-slate-700">Passo 2: Atingimento da Meta do Departamento</label>
-                            <input type="range" id="departmentGoalSlider" min="80" max="150" step="1" value="120" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+                        <div class="p-6 border rounded-xl bg-slate-50">
+                            <label for="departmentGoalSlider" class="block font-semibold text-slate-700 text-center">Passo 2: Atingimento da Meta do Departamento</label>
+                            <input type="range" id="departmentGoalSlider" min="80" max="150" step="1" value="120" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer mt-4">
                             <div class="text-center mt-2">
-                                <span class="text-2xl font-bold text-blue-700" id="departmentGoalValue">120%</span>
+                                <span class="text-3xl font-bold text-blue-700" id="departmentGoalValue">120%</span>
                             </div>
                         </div>
                     </div>
                     
-                    <div class="lg:col-span-2">
+                    <div class="lg:col-span-7">
                         <div>
                             <div class="flex justify-between items-center mb-2">
                                 <h3 class="font-semibold text-slate-700">Passo 3: Monte a sua Equipe</h3>
@@ -154,44 +161,46 @@
                     </div>
                 </div>
                 
-                <div class="max-w-xl mx-auto p-4 border rounded-lg bg-slate-50">
-                     <h3 class="font-semibold text-slate-700 mb-2 text-center">Resultados do Pool</h3>
-                     <div class="space-y-2 text-sm">
-                         <div class="flex justify-between"><span>Pool Base (via Receita):</span> <strong id="poolBaseValue">R$ 650.000,00</strong></div>
-                         <div class="flex justify-between"><span>Multiplicador (Metas Depto.):</span> <strong id="departmentMultiplierValue">1.20x</strong></div>
-                         <div class="flex justify-between items-center border-t pt-2 mt-1">
-                            <span class="font-bold">Pool Final Ajustado:</span>
-                            <strong id="poolFinalValue" class="text-lg text-green-600">R$ 780.000,00</strong>
+                <div class="mt-8">
+                    <div class="max-w-xl mx-auto p-6 border rounded-xl bg-slate-50">
+                         <h3 class="font-semibold text-slate-700 mb-4 text-center">Resultados do Pool</h3>
+                         <div class="space-y-3 text-sm">
+                             <div class="flex justify-between"><span>Pool Base (via Receita):</span> <strong id="poolBaseValue" class="font-medium">R$ 650.000,00</strong></div>
+                             <div class="flex justify-between"><span>Multiplicador (Metas Depto.):</span> <strong id="departmentMultiplierValue" class="font-medium">1.20x</strong></div>
+                             <div class="flex justify-between items-center border-t border-slate-200 pt-3 mt-2">
+                                <span class="font-bold text-base">Pool Final Ajustado:</span>
+                                <strong id="poolFinalValue" class="text-xl text-green-600 font-bold">R$ 780.000,00</strong>
+                             </div>
+                             <hr class="border-slate-200">
+                             <div class="flex justify-between"><span>Total de Pontos da Equipe:</span> <strong id="totalPointsValue" class="font-medium">968,8</strong></div>
+                             <div class="flex justify-between"><span>Valor por Ponto:</span> <strong id="pointValue" class="font-medium text-blue-600">R$ 805,17</strong></div>
                          </div>
-                         <hr>
-                         <div class="flex justify-between"><span>Total de Pontos da Equipe:</span> <strong id="totalPointsValue">968,8</strong></div>
-                         <div class="flex justify-between"><span>Valor por Ponto:</span> <strong id="pointValue" class="text-blue-600">R$ 805,17</strong></div>
-                     </div>
+                    </div>
                 </div>
 
                 <div class="mt-10">
-                    <h3 class="text-xl font-bold text-slate-900 mb-4 text-center">Passo 4: Distribuição Final do Bônus</h3>
+                    <h3 class="text-xl font-bold text-slate-900 mb-4 text-center tracking-tight">Passo 4: Distribuição Final do Bônus</h3>
                     <div class="chart-container">
                         <canvas id="bonusChart"></canvas>
                     </div>
                 </div>
             </section>
 
-             <section id="regras" class="bg-white p-6 rounded-xl shadow-md">
-                <h2 class="text-2xl font-bold text-slate-900 mb-6 text-center">As Regras do Jogo</h2>
+             <section id="regras" class="card">
+                <h2 class="text-3xl font-bold text-slate-900 mb-8 text-center tracking-tight">As Regras do Jogo</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div class="bg-slate-50 p-6 rounded-xl border-l-4 border-green-500">
                         <h3 class="text-xl font-bold text-green-700 mb-4">O Que CONTA para o Bônus?</h3>
-                        <ul class="list-disc list-inside space-y-2 text-slate-700">
+                        <ul class="list-disc list-inside space-y-3 text-slate-600">
                             <li>Contratos de comercialização B2B.</li>
                             <li>Patrocínios em uniformes e redes sociais.</li>
                             <li>Venda de camarotes e placas de publicidade.</li>
-                            <li class="p-2 bg-amber-50 rounded-md border border-amber-200 text-sm"><span class="font-semibold">Atenção:</span> Permutas, eventos e naming rights do Estádio Nilton Santos dependem de um "racional" aprovado pela diretoria.</li>
+                            <li class="p-3 bg-blue-50/50 rounded-lg border border-blue-200 text-sm"><span class="font-semibold text-blue-800">Critério de Apuração:</span> A receita é apurada em **regime de caixa**. Apenas valores efetivamente recebidos no período são considerados.</li>
                         </ul>
                     </div>
                     <div class="bg-slate-50 p-6 rounded-xl border-l-4 border-red-500">
                         <h3 class="text-xl font-bold text-red-700 mb-4">O Que NÃO CONTA para o Bônus?</h3>
-                        <ul class="list-disc list-inside space-y-2 text-slate-700">
+                        <ul class="list-disc list-inside space-y-3 text-slate-600">
                             <li>Acordos de direito de transmissão.</li>
                             <li>Royalties de licenciamento.</li>
                             <li>Receitas de Matchday (B2C).</li>
@@ -202,36 +211,36 @@
                 </div>
             </section>
 
-            <section id="comparison" class="bg-white p-6 rounded-xl shadow-md">
-                <h2 class="text-2xl font-bold text-slate-900 mb-6 text-center">Análise Comparativa: Por que este modelo é melhor?</h2>
+            <section id="comparison" class="card">
+                <h2 class="text-3xl font-bold text-slate-900 mb-8 text-center tracking-tight">Análise Comparativa: Por que este modelo é melhor?</h2>
                 <div class="overflow-x-auto">
                     <table class="min-w-full border-collapse">
                         <thead>
                             <tr class="bg-slate-100">
-                                <th class="border p-3 text-left text-slate-700">Critério</th>
-                                <th class="border p-3 text-left text-slate-700">Modelo Antigo (BFR 2023)</th>
-                                <th class="border p-3 text-left text-blue-800 bg-blue-50">Novo Modelo (Pool de Performance)</th>
-                                <th class="border p-3 text-left text-slate-700">Vantagem Estratégica</th>
+                                <th class="border border-slate-200 p-3 text-left text-slate-700 text-sm font-semibold">Critério</th>
+                                <th class="border border-slate-200 p-3 text-left text-slate-700 text-sm font-semibold">Modelo Antigo (BFR 2023)</th>
+                                <th class="border border-slate-200 p-3 text-left text-blue-800 bg-blue-50 text-sm font-semibold">Novo Modelo (Pool de Performance)</th>
+                                <th class="border border-slate-200 p-3 text-left text-slate-700 text-sm font-semibold">Vantagem Estratégica</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr class="hover:bg-slate-50">
-                                <td class="border p-3 font-semibold">Meritocracia</td>
-                                <td class="border p-3 text-slate-600">Inexistente. Pagamento igual por cargo.</td>
-                                <td class="border p-3 text-slate-800 font-medium">Central. A avaliação do gestor é um multiplicador direto da recompensa.</td>
-                                <td class="border p-3 text-slate-600">Estimula a superação e reconhece de forma justa os colaboradores de alto desempenho.</td>
+                            <tr class="hover:bg-slate-50/50">
+                                <td class="border border-slate-200 p-3 font-semibold text-slate-800">Meritocracia</td>
+                                <td class="border border-slate-200 p-3 text-slate-600">Inexistente. Pagamento igual por cargo.</td>
+                                <td class="border border-slate-200 p-3 text-slate-800 font-medium">Central. A avaliação do gestor é um multiplicador direto da recompensa.</td>
+                                <td class="border border-slate-200 p-3 text-slate-600">Estimula a superação e reconhece de forma justa os colaboradores de alto desempenho.</td>
                             </tr>
-                            <tr class="hover:bg-slate-50">
-                                <td class="border p-3 font-semibold">Justiça Percebida</td>
-                                <td class="border p-3 text-slate-600">Baixa. Distribuição fixa e muito concentrada no topo.</td>
-                                <td class="border p-3 text-slate-800 font-medium">Alta. A distribuição é flexível e baseada no desempenho relativo de toda a equipe.</td>
-                                <td class="border p-3 text-slate-600">Melhora o Clima Organizacional e aumenta o engajamento.</td>
+                            <tr class="hover:bg-slate-50/50">
+                                <td class="border border-slate-200 p-3 font-semibold text-slate-800">Justiça Percebida</td>
+                                <td class="border border-slate-200 p-3 text-slate-600">Baixa. Distribuição fixa e muito concentrada no topo.</td>
+                                <td class="border border-slate-200 p-3 text-slate-800 font-medium">Alta. A distribuição é flexível e baseada no desempenho relativo de toda a equipe.</td>
+                                <td class="border border-slate-200 p-3 text-slate-600">Melhora o Clima Organizacional e aumenta o engajamento.</td>
                             </tr>
-                            <tr class="hover:bg-slate-50">
-                                <td class="border p-3 font-semibold">Simplicidade</td>
-                                <td class="border p-3 text-slate-600">Complexo, com regras de exceção e ajustes subjetivos.</td>
-                                <td class="border p-3 text-slate-800 font-medium">Simples e Transparente. A lógica de pontos é fácil de comunicar.</td>
-                                <td class="border p-3 text-slate-600">A equipe foca em performar, não em decifrar regras ou negociar exceções.</td>
+                            <tr class="hover:bg-slate-50/50">
+                                <td class="border border-slate-200 p-3 font-semibold text-slate-800">Simplicidade</td>
+                                <td class="border border-slate-200 p-3 text-slate-600">Complexo, com regras de exceção e ajustes subjetivos.</td>
+                                <td class="border border-slate-200 p-3 text-slate-800 font-medium">Simples e Transparente. A lógica de pontos é fácil de comunicar.</td>
+                                <td class="border border-slate-200 p-3 text-slate-600">A equipe foca em performar, não em decifrar regras ou negociar exceções.</td>
                             </tr>
                         </tbody>
                     </table>
@@ -400,7 +409,7 @@ document.addEventListener('DOMContentLoaded', () => {
         state.team.forEach(employee => {
             const row = document.createElement('tr');
             row.id = `employee-${employee.id}`;
-            row.className = 'border-b hover:bg-slate-50 text-sm';
+            row.className = 'border-b border-slate-100 text-sm';
 
             const pontosBase = state.config.pontosPorCargo[employee.cargo] || 0;
             const multiplicador = state.config.multiplicadorPorPerformance[employee.performance] || 0;
@@ -415,11 +424,11 @@ document.addEventListener('DOMContentLoaded', () => {
             ).join('');
             
             row.innerHTML = `
-                <td class="p-2"><input type="text" value="${employee.nome}" class="w-full p-1 border rounded bg-transparent text-sm" data-id="${employee.id}" data-field="nome"></td>
-                <td class="p-2"><select class="w-full p-1 border rounded bg-white text-sm" data-id="${employee.id}" data-field="cargo">${cargoOptions}</select></td>
-                <td class="p-2"><select class="w-full p-1 border rounded bg-white text-sm" data-id="${employee.id}" data-field="performance">${performanceOptions}</select></td>
+                <td class="p-2"><input type="text" value="${employee.nome}" class="w-full p-2 border rounded bg-white text-sm" data-id="${employee.id}" data-field="nome"></td>
+                <td class="p-2"><select class="w-full p-2 border rounded bg-white text-sm" data-id="${employee.id}" data-field="cargo">${cargoOptions}</select></td>
+                <td class="p-2"><select class="w-full p-2 border rounded bg-white text-sm" data-id="${employee.id}" data-field="performance">${performanceOptions}</select></td>
                 <td class="p-2 text-right font-medium text-slate-700">${pontosFinais.toFixed(1)}</td>
-                <td class="p-2 text-center"><button class="text-red-500 hover:text-red-700" data-id="${employee.id}" data-action="delete">✖</button></td>
+                <td class="p-2 text-center"><button class="text-red-500 hover:text-red-700 transition-colors" data-id="${employee.id}" data-action="delete">✖</button></td>
             `;
             teamTableBody.appendChild(row);
         });
