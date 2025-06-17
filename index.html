@@ -658,19 +658,47 @@ document.addEventListener('DOMContentLoaded', () => {
         modelSettings.classList.toggle('hidden');
     });
 
-    const evaluateExpression = (expr) => {
+    const evaluateExpression = (expr, visited = new Set()) => {
         try {
-            return math.evaluate(String(expr).replace(/,/g, '.'));
+            let processed = String(expr).replace(/,/g, '.');
+            processed = processed.replace(/[A-Z][0-9]+/gi, (match) => {
+                const id = match.toUpperCase();
+                if (visited.has(id)) return '0';
+                visited.add(id);
+                const input = document.getElementById(id);
+                if (!input) return '0';
+                const raw = input.value.trim();
+                if (raw.startsWith('=')) {
+                    return evaluateExpression(raw.slice(1), visited);
+                }
+                return raw.replace(/,/g, '.');
+            });
+            return math.evaluate(processed);
         } catch (err) {
             return NaN;
         }
     };
 
+    function evaluateAllCells() {
+        document.querySelectorAll('#tierSettingsBody input').forEach(input => {
+            const raw = input.value.trim();
+            if (raw.startsWith('=')) {
+                const index = parseInt(input.dataset.index, 10);
+                const role = input.dataset.role;
+                const val = evaluateExpression(raw.slice(1), new Set([input.id]));
+                if (!isNaN(val)) {
+                    input.value = val.toFixed(3);
+                    state.tiers[index].rates[role] = val / 100;
+                }
+            }
+        });
+    }
+
     tierSettingsBody.addEventListener('input', (e) => {
         if (e.target.tagName === 'INPUT') {
             const index = parseInt(e.target.dataset.index, 10);
             const role = e.target.dataset.role;
-            const value = evaluateExpression(e.target.value) / 100;
+            const value = evaluateExpression(e.target.value, new Set([e.target.id])) / 100;
             if (!isNaN(value)) {
                 state.tiers[index].rates[role] = value;
                 updateAllCalculations();
@@ -682,13 +710,20 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.target.tagName === 'INPUT') {
             const index = parseInt(e.target.dataset.index, 10);
             const role = e.target.dataset.role;
-            const value = evaluateExpression(e.target.value);
+            const raw = e.target.value.trim();
+            let value;
+            if (raw.startsWith('=')) {
+                value = evaluateExpression(raw.slice(1), new Set([e.target.id]));
+            } else {
+                value = evaluateExpression(raw);
+            }
             if (!isNaN(value)) {
                 state.tiers[index].rates[role] = value / 100;
                 e.target.value = value.toFixed(3);
             } else {
                 e.target.value = (state.tiers[index].rates[role] * 100).toFixed(3);
             }
+            evaluateAllCells();
             updateAllCalculations();
         }
     });
