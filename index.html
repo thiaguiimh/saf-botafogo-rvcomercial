@@ -346,7 +346,8 @@ document.addEventListener('DOMContentLoaded', () => {
         tierSettingsBody.innerHTML = '';
         state.tiers.forEach((tier, index) => {
             const row = document.createElement('tr');
-            const rangeLabel = `${formatCurrency(tier.from)} - ${tier.to === Infinity ? '∞' : formatCurrency(tier.to)}`;
+            const displayFrom = index === 0 ? tier.from : tier.from + 0.01;
+            const rangeLabel = `${formatCurrency(displayFrom)} - ${tier.to === Infinity ? '∞' : formatCurrency(tier.to)}`;
             row.innerHTML = `
                 <td class="p-2">${rangeLabel}</td>
                 <td class="p-2 text-right"><input type="number" step="0.001" data-index="${index}" data-role="diretor" class="w-20 p-1 border rounded text-right" value="${(tier.rates.diretor*100).toFixed(3)}"></td>
@@ -536,7 +537,8 @@ document.addEventListener('DOMContentLoaded', () => {
          const tierIndices = [];
          tierStats.forEach((stat, idx) => {
             if (stat.revenue > 0) {
-                labels.push(`> ${formatCurrency(state.tiers[idx].from / 1000)}k`);
+                const start = idx === 0 ? state.tiers[idx].from : state.tiers[idx].from + 0.01;
+                labels.push(`> ${formatCurrency(start / 1000)}k`);
                 data.push(stat.bonus / stat.revenue);
                 tierIndices.push(idx);
             }
@@ -599,7 +601,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateTierIncidenceChart(tierStats) {
-        const labels = state.tiers.map(t => `${formatCurrency(t.from)}-${t.to === Infinity ? '∞' : formatCurrency(t.to)}`);
+        const labels = state.tiers.map((t, idx) => {
+            const displayFrom = idx === 0 ? t.from : t.from + 0.01;
+            return `${formatCurrency(displayFrom)}-${t.to === Infinity ? '∞' : formatCurrency(t.to)}`;
+        });
         const contractData = tierStats.map(t => t.contracts);
         const bonusData = tierStats.map(t => t.bonus);
 
