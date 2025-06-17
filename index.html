@@ -3,39 +3,59 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simulador de Remuneração Variável - SAF Botafogo</title>
+    <title>Simulador e Análise de Comissão - SAF Botafogo</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Chosen Palette: Calm Harmony (Slate Gray, White, Accent Blue) -->
-    <!-- Application Structure Plan: A dashboard-style SPA guiding the user through the remuneration model. It starts with an overview, moves to a central interactive calculator/simulator with a new collapsible configuration panel, and finishes with a comparative analysis. This task-oriented flow makes the complex proposal tangible and easy to grasp. -->
-    <!-- Visualization & Content Choices: Revenue Input -> Goal: Explore -> Slider -> User can see immediate impact on total bonus pool. Team Builder -> Goal: Simulate -> Dynamic Table + Selects. Configuration Panel -> Goal: Customize -> Input fields for real-time model adjustments. Bonus Results -> Goal: Compare -> Bar Chart (Chart.js). Comparison Table -> Goal: Justify -> Styled HTML Table. -->
-    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #f9fafb; color: #334155; }
-        .chart-container { position: relative; width: 100%; max-width: 800px; margin-left: auto; margin-right: auto; height: 350px; max-height: 40vh; }
-        @media (min-width: 768px) { .chart-container { height: 400px; } }
-        .config-section {
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.5s ease-in-out;
-        }
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #0f172a; }
+        .chart-container { position: relative; width: 100%; margin-left: auto; margin-right: auto; height: 300px; max-height: 40vh; }
         .card {
             background-color: white;
-            border-radius: 1.5rem; /* 24px */
-            padding: 2rem; /* 32px */
+            border-radius: 1.5rem;
+            padding: 2rem;
             box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.05), 0 4px 6px -4px rgb(0 0 0 / 0.05);
             border: 1px solid #e2e8f0;
         }
-        input[type=number]::-webkit-inner-spin-button, 
-        input[type=number]::-webkit-outer-spin-button { 
-          -webkit-appearance: none; 
-          margin: 0; 
+        /* Tab Styling */
+        .tab-btn {
+            padding: 0.75rem 1.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            color: #475569;
+            background-color: transparent;
+            border: 2px solid transparent;
         }
-        input[type=number] {
-          -moz-appearance: textfield;
+        .tab-btn.active {
+            color: #2563eb;
+            background-color: #dbeafe;
+        }
+        .tab-btn:hover:not(.active) {
+            background-color: #f1f5f9;
+        }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* Custom scrollbar for better aesthetics */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
         }
     </style>
 </head>
@@ -43,563 +63,542 @@
 
     <div class="container mx-auto p-4 md:p-8 max-w-7xl">
         
-        <header class="text-center mb-16">
-            <h1 class="text-4xl md:text-5xl font-bold text-slate-900 tracking-tight">Simulador da Nova Política de Remuneração Variável</h1>
-            <p class="mt-4 text-lg text-slate-500">Explore de forma interativa como o modelo "Pool de Performance" da SAF Botafogo funciona.</p>
+        <header class="text-center mb-10">
+            <h1 class="text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tight">Simulador e Análise de Comissão</h1>
+            <p class="mt-4 text-xl text-slate-600">Construa cenários e extraia insights estratégicos do modelo "Por Contrato".</p>
         </header>
 
-        <main class="space-y-16">
+        <!-- Tab Navigation -->
+        <div class="flex justify-center mb-8 border-b border-slate-200">
+            <div id="tabContainer" class="flex space-x-2">
+                <button class="tab-btn active" data-tab="simulator">Calculadora</button>
+                <button class="tab-btn" data-tab="analysis">Análise Executiva</button>
+            </div>
+        </div>
 
-            <section id="philosophy" class="card">
-                <h2 class="text-3xl font-bold text-slate-900 mb-2 text-center tracking-tight">A Filosofia: O Modelo "Pool de Performance"</h2>
-                <p class="text-center text-slate-500 mb-8 max-w-4xl mx-auto">Este modelo abandona uma distribuição fixa por um sistema mais justo e dinâmico, baseado em uma sequência clara de 5 passos.</p>
-                <div class="grid grid-cols-1 md:grid-cols-5 gap-6 text-center">
-                    <div class="bg-slate-50 p-4 rounded-xl flex flex-col">
-                        <div class="text-blue-600 text-3xl mb-2 font-bold">①</div>
-                        <h3 class="font-semibold text-slate-800 mb-1">Cálculo do Pool Base</h3>
-                        <p class="text-sm text-slate-500">A receita comercial da SAF define o valor inicial do "bolo" de bônus.</p>
-                    </div>
-                    <div class="bg-slate-50 p-4 rounded-xl flex flex-col">
-                        <div class="text-blue-600 text-3xl mb-2 font-bold">②</div>
-                        <h3 class="font-semibold text-slate-800 mb-1">Atribuição de Pontos</h3>
-                        <p class="text-sm text-slate-500">Cada colaborador recebe pontos com base no cargo e na sua avaliação de desempenho.</p>
-                    </div>
-                    <div class="bg-slate-50 p-4 rounded-xl flex flex-col">
-                        <div class="text-blue-600 text-3xl mb-2 font-bold">③</div>
-                        <h3 class="font-semibold text-slate-800 mb-1">Valor por Ponto (Base)</h3>
-                        <p class="text-sm text-slate-500">O Pool Base é dividido pela soma dos pontos, resultando num valor de ponto preliminar.</p>
-                    </div>
-                    <div class="bg-slate-50 p-4 rounded-xl flex flex-col">
-                        <div class="text-blue-600 text-3xl mb-2 font-bold">④</div>
-                        <h3 class="font-semibold text-slate-800 mb-1">Ajuste por Metas</h3>
-                        <p class="text-sm text-slate-500">O atingimento das metas do departamento gera um multiplicador que ajusta o valor do ponto.</p>
-                    </div>
-                    <div class="bg-green-50/50 border border-green-200 p-4 rounded-xl flex flex-col">
-                        <div class="text-green-600 text-3xl mb-2 font-bold">⑤</div>
-                        <h3 class="font-semibold text-slate-800 mb-1">Bônus Individual</h3>
-                        <p class="text-sm text-slate-500">Os pontos de cada um são multiplicados pelo valor final do ponto, resultando na recompensa.</p>
-                    </div>
-                </div>
-            </section>
+        <main>
+            <!-- Simulator Tab Content -->
+            <div id="simulator" class="tab-content active">
+                <div class="space-y-8">
+                    <div class="grid grid-cols-1 lg:grid-cols-5 gap-8">
+                        <section class="card lg:col-span-3">
+                            <div class="flex justify-between items-center mb-6">
+                                <h2 class="text-2xl font-bold text-slate-900 tracking-tight">1. Construa o Cenário</h2>
+                                <button id="addContractGroupBtn" class="bg-blue-600 text-white px-4 py-2 text-sm rounded-lg hover:bg-blue-700 transition-colors">+ Adicionar Grupo</button>
+                            </div>
+                            <p class="text-sm text-slate-500 mb-4">Adicione grupos de contratos com o mesmo valor ou insira contratos individuais.</p>
+                            <div id="contractGroupsContainer" class="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                            </div>
+                        </section>
 
-             <section id="configurator" class="bg-slate-100/70 p-6 rounded-2xl">
-                <div class="flex justify-between items-center">
-                    <h2 class="text-2xl font-bold text-slate-900 tracking-tight">Configurações do Modelo</h2>
-                    <button id="configToggleBtn" class="flex items-center gap-2 text-sm font-semibold text-blue-600 hover:text-blue-800 transition-colors py-1 px-3 rounded-lg hover:bg-blue-100">
-                        <span id="configToggleText">Ajustar</span>
-                        <span id="configToggleIcon" class="transform transition-transform">▼</span>
-                    </button>
-                </div>
-                <div id="configContent" class="config-section mt-6">
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-                        <div>
-                            <h3 class="font-semibold text-slate-700 mb-2">Pontos Base por Cargo</h3>
-                            <div id="configCargos" class="space-y-2"></div>
-                        </div>
-                         <div>
-                            <h3 class="font-semibold text-slate-700 mb-2">Multiplicador de Performance</h3>
-                            <div id="configPerformances" class="space-y-2"></div>
-                        </div>
-                        <div>
-                            <h3 class="font-semibold text-slate-700 mb-2">Faixas para Cálculo do Pool</h3>
-                            <div id="configFaixas" class="space-y-3"></div>
-                        </div>
-                        <div>
-                            <h3 class="font-semibold text-slate-700 mb-2">Multiplicador por Meta de Departamento</h3>
-                            <div id="configDepartamento" class="space-y-3"></div>
+                        <div class="lg:col-span-2 space-y-8">
+                            <section class="card">
+                                <h2 class="text-2xl font-bold text-slate-900 mb-4 tracking-tight">2. Resumo do Cenário</h2>
+                                <div class="space-y-4">
+                                    <div class="bg-slate-50 p-4 rounded-xl">
+                                        <p class="text-sm text-slate-600">Receita Total Gerada</p>
+                                        <p id="totalRevenue" class="text-3xl font-bold text-blue-600">R$ 0,00</p>
+                                    </div>
+                                    <div class="bg-slate-50 p-4 rounded-xl">
+                                        <p class="text-sm text-slate-600">Número Total de Contratos</p>
+                                        <p id="totalContracts" class="text-3xl font-bold text-blue-600">0</p>
+                                    </div>
+                                </div>
+                            </section>
+                            
+                            <section class="card">
+                                <h2 class="text-2xl font-bold text-slate-900 mb-4 tracking-tight">3. Bônus Final por Cargo</h2>
+                                <div id="finalBonusResults" class="space-y-3 text-lg"></div>
+                                <div class="mt-6 chart-container">
+                                    <canvas id="bonusSummaryChart"></canvas>
+                                </div>
+                            </section>
                         </div>
                     </div>
-                </div>
-            </section>
 
-            <section id="calculator" class="card">
-                <h2 class="text-3xl font-bold text-slate-900 mb-8 text-center tracking-tight">Calculadora Interativa</h2>
-                
-                <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                    <div class="lg:col-span-5 space-y-6">
-                        <div class="p-6 border rounded-xl bg-slate-50">
-                            <label for="revenueSlider" class="block font-semibold text-slate-700 text-center">Passo 1: Receita Comercial Bruta Anual</label>
-                            <input type="range" id="revenueSlider" min="10000000" max="200000000" step="1000000" value="50000000" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer mt-4">
-                            <div class="text-center mt-2">
-                                <span class="text-3xl font-bold text-blue-700" id="revenueValue">R$ 50.000.000</span>
+                    <section class="card">
+                        <h2 class="text-2xl font-bold text-slate-900 mb-4 tracking-tight">4. Demonstração do Cálculo</h2>
+                        <p class="text-sm text-slate-500 mb-4">Veja como cada contrato contribui para o bônus total de cada cargo.</p>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm">
+                                <thead class="bg-slate-100 text-slate-600">
+                                    <tr>
+                                        <th class="p-3 text-left font-semibold tracking-wider">Descrição do Contrato</th>
+                                        <th class="p-3 text-right font-semibold tracking-wider">Bônus Diretor</th>
+                                        <th class="p-3 text-right font-semibold tracking-wider">Bônus Gerente</th>
+                                        <th class="p-3 text-right font-semibold tracking-wider">Bônus Coordenador</th>
+                                        <th class="p-3 text-right font-semibold tracking-wider">Bônus Analista</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="calculationBreakdown" class="divide-y divide-slate-100"></tbody>
+                            </table>
+                        </div>
+                    </section>
+                </div>
+            </div>
+
+            <!-- Analysis Tab Content -->
+            <div id="analysis" class="tab-content">
+                <div class="space-y-12">
+                     <!-- Executive Summary -->
+                    <section class="card bg-slate-800 text-white">
+                        <h2 class="text-3xl font-bold tracking-tight mb-6 text-white border-b border-slate-600 pb-4">Análise Executiva do Portfólio de Contratos</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 text-center">
+                            <div class="bg-slate-700 p-4 rounded-xl">
+                                <p class="text-sm text-slate-300 uppercase tracking-wider">Receita Total</p>
+                                <p id="analysisTotalRevenue" class="text-3xl font-bold text-cyan-400">R$ 0,00</p>
+                            </div>
+                            <div class="bg-slate-700 p-4 rounded-xl">
+                                <p class="text-sm text-slate-300 uppercase tracking-wider">Comissão Total</p>
+                                <p id="analysisTotalCommission" class="text-3xl font-bold text-green-400">R$ 0,00</p>
+                            </div>
+                             <div class="bg-slate-700 p-4 rounded-xl">
+                                <p class="text-sm text-slate-300 uppercase tracking-wider">% Comissão Efetiva</p>
+                                <p id="analysisEffectiveCommissionRate" class="text-3xl font-bold text-amber-400">0.00%</p>
+                            </div>
+                            <div class="bg-slate-700 p-4 rounded-xl">
+                                <p class="text-sm text-slate-300 uppercase tracking-wider">Contrato Médio</p>
+                                <p id="analysisAverageContract" class="text-3xl font-bold text-violet-400">R$ 0,00</p>
                             </div>
                         </div>
-                        
-                        <div class="p-6 border rounded-xl bg-slate-50">
-                            <label for="departmentGoalSlider" class="block font-semibold text-slate-700 text-center">Passo 2: Atingimento da Meta do Departamento</label>
-                            <input type="range" id="departmentGoalSlider" min="80" max="150" step="1" value="120" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer mt-4">
-                            <div class="text-center mt-2">
-                                <span class="text-3xl font-bold text-blue-700" id="departmentGoalValue">120%</span>
-                            </div>
-                        </div>
-                    </div>
+                    </section>
                     
-                    <div class="lg:col-span-7">
-                        <div>
-                            <div class="flex justify-between items-center mb-2">
-                                <h3 class="font-semibold text-slate-700">Passo 3: Monte a sua Equipe</h3>
-                                <button id="addEmployeeBtn" class="bg-blue-600 text-white px-4 py-2 text-sm rounded-lg hover:bg-blue-700 transition-colors">
-                                    + Adicionar Colaborador
-                                </button>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        <!-- Commission Distribution by Role -->
+                        <section class="card">
+                             <h2 class="text-2xl font-bold text-slate-900 mb-4 tracking-tight">Distribuição da Comissão por Cargo</h2>
+                             <div class="chart-container !h-[350px]">
+                                <canvas id="commissionDistributionChart"></canvas>
                             </div>
-                            <div class="overflow-x-auto">
-                                <table class="w-full table-fixed bg-white border rounded-lg">
-                                    <thead class="bg-slate-100 text-slate-600 text-xs uppercase">
-                                        <tr>
-                                            <th class="p-2 text-left">Nome</th>
-                                            <th class="p-2 text-left w-36">Cargo</th>
-                                            <th class="p-2 text-left w-48">Avaliação</th>
-                                            <th class="p-2 text-right w-24">Pontos Finais</th>
-                                            <th class="p-2 text-center w-16">Ações</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="teamTableBody">
-                                    </tbody>
-                                </table>
+                        </section>
+                        
+                        <!-- Contract Value vs. Commission Rate -->
+                        <section class="card">
+                            <h2 class="text-2xl font-bold text-slate-900 mb-4 tracking-tight">Valor do Contrato vs. % Comissão</h2>
+                            <p class="text-sm text-slate-500 mb-4">Análise da taxa de comissão efetiva por faixa de valor do contrato. Mostra o efeito decrescente das taxas.</p>
+                            <div class="chart-container !h-[350px]">
+                                <canvas id="valueVsRateChart"></canvas>
+                            </div>
+                        </section>
+                    </div>
+
+                     <!-- Strategic Insights -->
+                    <section class="card">
+                        <h2 class="text-2xl font-bold text-slate-900 mb-4 tracking-tight">Insights Estratégicos e Recomendações</h2>
+                        <div class="space-y-6">
+                            <div class="p-5 rounded-xl bg-blue-50 border border-blue-200">
+                                <h3 class="font-bold text-lg text-blue-800">🎯 Foco em Contratos de Alto Valor ("Golden Tier")</h3>
+                                <p class="text-blue-700 mt-2">Contratos na faixa de <strong>R$ 3M a R$ 5M</strong> representam o "ponto ótimo" do portfólio, gerando <strong id="goldenTierContribution"></strong> do bônus total. Embora as taxas percentuais diminuam, o volume absoluto gerado por esses negócios é o motor principal da comissão. <strong>Recomendação:</strong> Priorizar a prospecção e negociação de clientes com potencial para fechar contratos nesta faixa de valor.</p>
+                            </div>
+                             <div class="p-5 rounded-xl bg-amber-50 border border-amber-200">
+                                <h3 class="font-bold text-lg text-amber-800">⚖️ A Cauda Longa de Contratos Menores</h3>
+                                <p class="text-amber-700 mt-2">Contratos com valor abaixo de <strong>R$ 1M</strong>, embora numerosos, contribuem com apenas <strong id="smallTierContribution"></strong> do bônus. Eles possuem as maiores taxas percentuais, mas seu impacto individual é baixo. <strong>Recomendação:</strong> Avaliar o custo de aquisição (esforço vs. recompensa) para esses contratos. Buscar padronizar e automatizar o processo de vendas para este segmento para maximizar a eficiência.</p>
+                            </div>
+                             <div class="p-5 rounded-xl bg-green-50 border border-green-200">
+                                <h3 class="font-bold text-lg text-green-800">🚀 Potencial Inexplorado: Aceleradores de Bônus</h3>
+                                <p class="text-green-700 mt-2">O bônus para <strong>Diretor</strong> é desproporcionalmente maior, recebendo <strong id="directorShare"></strong> do total. Isso cria um forte incentivo para a liderança se envolver diretamente no fechamento de grandes contas. <strong>Recomendação:</strong> Estruturar metas de equipe que alinhem os objetivos de Analistas e Coordenadores com o fechamento de contratos que maximizem o bônus do Diretor, criando um ciclo virtuoso de mentoria e resultados.</p>
                             </div>
                         </div>
-                    </div>
-                </div>
-                
-                <div class="mt-8">
-                    <div class="max-w-xl mx-auto p-6 border rounded-xl bg-slate-50">
-                         <h3 class="font-semibold text-slate-700 mb-4 text-center">Resultados do Pool</h3>
-                         <div class="space-y-3 text-sm">
-                             <div class="flex justify-between"><span>Pool Base (via Receita):</span> <strong id="poolBaseValue" class="font-medium">R$ 650.000,00</strong></div>
-                             <div class="flex justify-between"><span>Multiplicador (Metas Depto.):</span> <strong id="departmentMultiplierValue" class="font-medium">1.20x</strong></div>
-                             <div class="flex justify-between items-center border-t border-slate-200 pt-3 mt-2">
-                                <span class="font-bold text-base">Pool Final Ajustado:</span>
-                                <strong id="poolFinalValue" class="text-xl text-green-600 font-bold">R$ 780.000,00</strong>
-                             </div>
-                             <hr class="border-slate-200">
-                             <div class="flex justify-between"><span>Total de Pontos da Equipe:</span> <strong id="totalPointsValue" class="font-medium">968,8</strong></div>
-                             <div class="flex justify-between"><span>Valor por Ponto:</span> <strong id="pointValue" class="font-medium text-blue-600">R$ 805,17</strong></div>
-                         </div>
-                    </div>
-                </div>
+                    </section>
 
-                <div class="mt-10">
-                    <h3 class="text-xl font-bold text-slate-900 mb-4 text-center tracking-tight">Passo 4: Distribuição Final do Bônus</h3>
-                    <div class="chart-container">
-                        <canvas id="bonusChart"></canvas>
-                    </div>
                 </div>
-            </section>
-
-             <section id="regras" class="card">
-                <h2 class="text-3xl font-bold text-slate-900 mb-8 text-center tracking-tight">As Regras do Jogo</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div class="bg-slate-50 p-6 rounded-xl border-l-4 border-green-500">
-                        <h3 class="text-xl font-bold text-green-700 mb-4">O Que CONTA para o Bônus?</h3>
-                        <ul class="list-disc list-inside space-y-3 text-slate-600">
-                            <li>Contratos de comercialização B2B.</li>
-                            <li>Patrocínios em uniformes e redes sociais.</li>
-                            <li>Venda de camarotes e placas de publicidade.</li>
-                            <li class="p-3 bg-blue-50/50 rounded-lg border border-blue-200 text-sm"><span class="font-semibold text-blue-800">Critério de Apuração:</span> A receita é apurada em **regime de caixa**. Apenas valores efetivamente recebidos no período são considerados.</li>
-                        </ul>
-                    </div>
-                    <div class="bg-slate-50 p-6 rounded-xl border-l-4 border-red-500">
-                        <h3 class="text-xl font-bold text-red-700 mb-4">O Que NÃO CONTA para o Bônus?</h3>
-                        <ul class="list-disc list-inside space-y-3 text-slate-600">
-                            <li>Acordos de direito de transmissão.</li>
-                            <li>Royalties de licenciamento.</li>
-                            <li>Receitas de Matchday (B2C).</li>
-                            <li>Patrocínio de material esportivo.</li>
-                            <li>Contratos celebrados diretamente pela holding (Eagle Football).</li>
-                        </ul>
-                    </div>
-                </div>
-            </section>
-
-            <section id="comparison" class="card">
-                <h2 class="text-3xl font-bold text-slate-900 mb-8 text-center tracking-tight">Análise Comparativa: Por que este modelo é melhor?</h2>
-                <div class="overflow-x-auto">
-                    <table class="min-w-full border-collapse">
-                        <thead>
-                            <tr class="bg-slate-100">
-                                <th class="border border-slate-200 p-3 text-left text-slate-700 text-sm font-semibold">Critério</th>
-                                <th class="border border-slate-200 p-3 text-left text-slate-700 text-sm font-semibold">Modelo Antigo (BFR 2023)</th>
-                                <th class="border border-slate-200 p-3 text-left text-blue-800 bg-blue-50 text-sm font-semibold">Novo Modelo (Pool de Performance)</th>
-                                <th class="border border-slate-200 p-3 text-left text-slate-700 text-sm font-semibold">Vantagem Estratégica</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr class="hover:bg-slate-50/50">
-                                <td class="border border-slate-200 p-3 font-semibold text-slate-800">Meritocracia</td>
-                                <td class="border border-slate-200 p-3 text-slate-600">Inexistente. Pagamento igual por cargo.</td>
-                                <td class="border border-slate-200 p-3 text-slate-800 font-medium">Central. A avaliação do gestor é um multiplicador direto da recompensa.</td>
-                                <td class="border border-slate-200 p-3 text-slate-600">Estimula a superação e reconhece de forma justa os colaboradores de alto desempenho.</td>
-                            </tr>
-                            <tr class="hover:bg-slate-50/50">
-                                <td class="border border-slate-200 p-3 font-semibold text-slate-800">Justiça Percebida</td>
-                                <td class="border border-slate-200 p-3 text-slate-600">Baixa. Distribuição fixa e muito concentrada no topo.</td>
-                                <td class="border border-slate-200 p-3 text-slate-800 font-medium">Alta. A distribuição é flexível e baseada no desempenho relativo de toda a equipe.</td>
-                                <td class="border border-slate-200 p-3 text-slate-600">Melhora o Clima Organizacional e aumenta o engajamento.</td>
-                            </tr>
-                            <tr class="hover:bg-slate-50/50">
-                                <td class="border border-slate-200 p-3 font-semibold text-slate-800">Simplicidade</td>
-                                <td class="border border-slate-200 p-3 text-slate-600">Complexo, com regras de exceção e ajustes subjetivos.</td>
-                                <td class="border border-slate-200 p-3 text-slate-800 font-medium">Simples e Transparente. A lógica de pontos é fácil de comunicar.</td>
-                                <td class="border border-slate-200 p-3 text-slate-600">A equipe foca em performar, não em decifrar regras ou negociar exceções.</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </section>
-            
-            <footer class="text-center text-slate-500 text-sm pt-6">
-                <p>Esta é uma ferramenta de simulação baseada na "Proposta de Nova Política de Remuneração Variável Comercial".</p>
-                <p>Todos os valores são ilustrativos.</p>
-            </footer>
+            </div>
         </main>
+        
+        <footer class="text-center text-slate-500 text-sm pt-12 mt-16 border-t border-slate-200">
+            <p>Análise e simulação baseadas no modelo de comissão "Por Contrato". Todos os valores são ilustrativos.</p>
+        </footer>
     </div>
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
+    
+    // --- MODELO DE DADOS E CONSTANTES ---
+    const TIERS_DIRECT = [
+        { from: 0, to: 1000000, rates: { diretor: 0.01542, gerente: 0.00925, coordenador: 0.00463, analista: 0.00247 } },
+        { from: 1000000, to: 3000000, rates: { diretor: 0.01157, gerente: 0.00694, coordenador: 0.00347, analista: 0.00185 } },
+        { from: 3000000, to: 5000000, rates: { diretor: 0.00925, gerente: 0.00555, coordenador: 0.00278, analista: 0.00148 } },
+        { from: 5000000, to: 10000000, rates: { diretor: 0.00771, gerente: 0.00463, coordenador: 0.00231, analista: 0.00123 } },
+        { from: 10000000, to: 30000000, rates: { diretor: 0.00667, gerente: 0.00400, coordenador: 0.00200, analista: 0.00106 } },
+        { from: 30000000, to: 100000000, rates: { diretor: 0.00308, gerente: 0.00185, coordenador: 0.00093, analista: 0.00049 } },
+        { from: 100000000, to: Infinity, rates: { diretor: 0.00154, gerente: 0.00093, coordenador: 0.00046, analista: 0.00025 } }
+    ];
+    
+    const ROLES = ['diretor', 'gerente', 'coordenador', 'analista'];
+    const ROLE_NAMES = { diretor: 'Diretor', gerente: 'Gerente', coordenador: 'Coordenador', analista: 'Analista' };
+    const ROLE_COLORS = {
+        diretor: { bg: 'rgba(59, 130, 246, 0.7)', border: '#3b82f6' },
+        gerente: { bg: 'rgba(34, 197, 94, 0.7)', border: '#10b981' },
+        coordenador: { bg: 'rgba(234, 179, 8, 0.7)', border: '#eab308' },
+        analista: { bg: 'rgba(239, 68, 68, 0.7)', border: '#ef4444' },
+    };
+
+    const initialContracts = [
+        { name: "Costas Superior", value: 3550000.00 }, { name: "Costas Inferior", value: 2325000.00 },
+        { name: "Omoplata", value: 3500000.00 }, { name: "Short", value: 1825000.00 },
+        { name: "Meião", value: 2125000.00 }, { name: "Uniforme base Masculino", value: 225000.00 },
+        { name: "Uniforme Feminino Profissional (Treino e Jogo)", value: 187500.00 }, { name: "Botafogo TV", value: 120000.00 },
+        { name: "Camisa 6", value: 5000000.00 }, { name: "Ativações Mundial (ex: Casa Botafogo)", value: 500000.00 },
+        { name: "Patrocínio Spot", value: 400000.00 }, { name: "Testeira digital", value: 120000.00 },
+        { name: "Publicidade no telão de LED", value: 120000.00 }, { name: "Firezone", value: 413111.40 },
+        { name: "Número Uniforme", value: 3000000.00 }, { name: "Wizard", value: 1400000.00 },
+        { name: "Philips", value: 1250000.00 }, { name: "Outros", value: 5000000.00 }
+    ];
 
     let state = {
-        revenue: 50000000,
-        departmentGoal: 120,
-        team: [
-            { id: 1, nome: 'Pessoa I', cargo: 'Diretor', performance: 'Excepcional' },
-            { id: 2, nome: 'Pessoa II', cargo: 'Gerente', performance: 'Acima do esperado' },
-            { id: 3, nome: 'Pessoa III', cargo: 'Analista Comercial', performance: 'Excepcional' },
-            { id: 4, nome: 'Pessoa IV', cargo: 'Analista Comercial', performance: 'Atende às expectativas' },
-        ],
-        nextId: 5,
-        config: {
-            pontosPorCargo: {
-                'Analista Comercial': 75,
-                'Coordenador/Especialista': 100,
-                'Gerente': 175,
-                'Diretor': 350,
-            },
-            multiplicadorPorPerformance: {
-                'Abaixo do esperado': 0.75,
-                'Atende às expectativas': 1.0,
-                'Acima do esperado': 1.25,
-                'Excepcional': 1.5,
-            },
-            faixasBonificacao: [
-                { ate: 40000000, perc: 0.0025 },
-                { ate: 80000000, perc: 0.0050 },
-                { acima: 80000000, perc: 0.01 },
-            ],
-            multiplicadorDepartamento: [
-                { atingimento: 80, multiplicador: 0.8 },
-                { atingimento: 100, multiplicador: 1.0 },
-                { atingimento: 150, multiplicador: 1.5 },
-            ]
-        }
+        contractGroups: [],
+        nextGroupId: 1,
     };
 
-    const revenueSlider = document.getElementById('revenueSlider');
-    const revenueValue = document.getElementById('revenueValue');
-    const departmentGoalSlider = document.getElementById('departmentGoalSlider');
-    const departmentGoalValue = document.getElementById('departmentGoalValue');
-
-    const poolBaseValue = document.getElementById('poolBaseValue');
-    const departmentMultiplierValue = document.getElementById('departmentMultiplierValue');
-    const poolFinalValue = document.getElementById('poolFinalValue');
+    // --- ELEMENTOS DO DOM ---
+    const tabContainer = document.getElementById('tabContainer');
+    const addContractGroupBtn = document.getElementById('addContractGroupBtn');
+    const contractGroupsContainer = document.getElementById('contractGroupsContainer');
+    const totalRevenueEl = document.getElementById('totalRevenue');
+    const totalContractsEl = document.getElementById('totalContracts');
+    const calculationBreakdownBody = document.getElementById('calculationBreakdown');
+    const finalBonusResultsContainer = document.getElementById('finalBonusResults');
     
-    const totalPointsValue = document.getElementById('totalPointsValue');
-    const pointValue = document.getElementById('pointValue');
-    const teamTableBody = document.getElementById('teamTableBody');
-    const addEmployeeBtn = document.getElementById('addEmployeeBtn');
-    const chartCanvas = document.getElementById('bonusChart');
-    let bonusChart = null;
+    // Elements for charts
+    const bonusChartCanvas = document.getElementById('bonusSummaryChart');
+    const commissionDistributionCanvas = document.getElementById('commissionDistributionChart');
+    const valueVsRateCanvas = document.getElementById('valueVsRateChart');
+    let bonusChart, commissionDistributionChart, valueVsRateChart = null;
 
-    const configToggleBtn = document.getElementById('configToggleBtn');
-    const configContent = document.getElementById('configContent');
-    const configToggleIcon = document.getElementById('configToggleIcon');
-    const configToggleText = document.getElementById('configToggleText');
-    const configCargosContainer = document.getElementById('configCargos');
-    const configPerformancesContainer = document.getElementById('configPerformances');
-    const configFaixasContainer = document.getElementById('configFaixas');
-    const configDepartamentoContainer = document.getElementById('configDepartamento');
-
-    const formatCurrency = (value, showSymbol = true) => {
-        if (isNaN(value)) return showSymbol ? 'R$ 0,00' : '0,00';
-        const options = showSymbol ? { style: 'currency', currency: 'BRL' } : { style: 'decimal', minimumFractionDigits: 2, maximumFractionDigits: 2 };
-        return new Intl.NumberFormat('pt-BR', options).format(value);
-    };
-
-    const parseCurrency = (value) => {
-        return Number(String(value).replace(/\./g, '').replace(',', '.'));
-    };
+    // --- FUNÇÕES AUXILIARES ---
+    const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+    const formatPercent = (value) => `${(value * 100).toFixed(2)}%`.replace('.',',');
+    const parseCurrency = (value) => parseFloat(String(value).replace(/[R$\s]/g, '').replace(/\./g, '').replace(',', '.'));
     
-    const formatPercent = (value, multiplier = 100) => {
-        return (value * multiplier).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    };
-
-    const parsePercent = (value, multiplier = 100) => {
-        return parseCurrency(value) / multiplier;
-    };
-
-    function calculateBasePool(revenue) {
-        const faixas = state.config.faixasBonificacao;
-        let pool = 0;
-        
-        if (revenue <= faixas[0].ate) {
-            pool = revenue * faixas[0].perc;
-        } else if (revenue <= faixas[1].ate) {
-            pool = faixas[0].ate * faixas[0].perc;
-            pool += (revenue - faixas[0].ate) * faixas[1].perc;
-        } else {
-            pool = faixas[0].ate * faixas[0].perc;
-            pool += (faixas[1].ate - faixas[0].ate) * faixas[1].perc;
-            pool += (revenue - faixas[1].ate) * faixas[2].perc;
-        }
-        return pool;
+    function findDirectTier(value) {
+        return TIERS_DIRECT.find(tier => value > tier.from && value <= tier.to) || TIERS_DIRECT[TIERS_DIRECT.length - 1];
     }
     
-    function calculateDepartmentMultiplier(atingimento) {
-        const config = state.config.multiplicadorDepartamento;
-        const x_coords = config.map(p => p.atingimento);
-        const y_coords = config.map(p => p.multiplicador);
-
-        if (atingimento <= x_coords[0]) return y_coords[0];
-        if (atingimento >= x_coords[x_coords.length - 1]) return y_coords[y_coords.length - 1];
-
-        let i = 1;
-        while (atingimento > x_coords[i]) i++;
-
-        const x1 = x_coords[i-1], y1 = y_coords[i-1];
-        const x2 = x_coords[i], y2 = y_coords[i];
-        
-        return y1 + (y2 - y1) * (atingimento - x1) / (x2 - x1);
-    }
-
-    function renderConfig() {
-        configCargosContainer.innerHTML = '';
-        Object.entries(state.config.pontosPorCargo).forEach(([cargo, pontos]) => {
-            configCargosContainer.innerHTML += `<div class="flex items-center justify-between text-sm"><label class="text-slate-600">${cargo}</label><input type="number" value="${pontos}" data-type="cargo" data-key="${cargo}" class="w-20 p-1 border rounded text-right"></div>`;
-        });
-
-        configPerformancesContainer.innerHTML = '';
-        Object.entries(state.config.multiplicadorPorPerformance).forEach(([perf, mult]) => {
-            configPerformancesContainer.innerHTML += `<div class="flex items-center justify-between text-sm"><label class="text-slate-600">${perf}</label><input type="number" step="0.05" value="${mult}" data-type="performance" data-key="${perf}" class="w-20 p-1 border rounded text-right"></div>`;
-        });
-        
-        configFaixasContainer.innerHTML = '';
-        state.config.faixasBonificacao.forEach((faixa, index) => {
-             if (faixa.ate) {
-                configFaixasContainer.innerHTML += `<div class="p-2 border rounded-md bg-white"><label class="block text-xs text-slate-500">Faixa ${index + 1}: Até</label><input type="text" value="${formatCurrency(faixa.ate, false)}" data-type="faixa-ate" data-index="${index}" class="w-full p-1 border rounded text-right mb-1"><label class="block text-xs text-slate-500">Percentual</label><div class="relative"><input type="text" value="${formatPercent(faixa.perc)}" data-type="faixa-perc" data-index="${index}" class="w-full p-1 border rounded text-right pr-6"><span class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500">%</span></div></div>`;
-             } else {
-                 configFaixasContainer.innerHTML += `<div class="p-2 border rounded-md bg-white"><label class="block text-xs text-slate-500">Faixa ${index + 1}: Acima de ${formatCurrency(state.config.faixasBonificacao[index-1].ate)}</label><label class="block text-xs text-slate-500 mt-8">Percentual</label><div class="relative"><input type="text" value="${formatPercent(faixa.perc)}" data-type="faixa-perc" data-index="${index}" class="w-full p-1 border rounded text-right pr-6"><span class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500">%</span></div></div>`;
-             }
-        });
-
-        configDepartamentoContainer.innerHTML = '';
-        state.config.multiplicadorDepartamento.forEach((item, index) => {
-            const labels = ['Mínimo', 'Alvo', 'Máximo'];
-            configDepartamentoContainer.innerHTML += `<div class="p-2 border rounded-md bg-white"><label class="block text-xs text-slate-500">Atingimento ${labels[index]}</label><div class="relative"><input type="text" value="${item.atingimento}" data-type="depto-atingimento" data-index="${index}" class="w-full p-1 border rounded text-right pr-6"><span class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500">%</span></div><label class="block text-xs text-slate-500 mt-1">Multiplicador</label><input type="number" step="0.01" value="${item.multiplicador}" data-type="depto-multiplicador" data-index="${index}" class="w-full p-1 border rounded text-right"></div>`;
-        });
-    }
-
-    function renderTeam() {
-        teamTableBody.innerHTML = '';
-        if (state.team.length === 0) {
-            const row = document.createElement('tr');
-            row.innerHTML = `<td colspan="5" class="p-4 text-center text-slate-500">Adicione um colaborador para começar a simulação.</td>`;
-            teamTableBody.appendChild(row);
-            return;
+    // --- LÓGICA DE RENDERIZAÇÃO E CÁLCULO ---
+    function renderContractGroups() {
+        contractGroupsContainer.innerHTML = '';
+        if (state.contractGroups.length === 0) {
+            contractGroupsContainer.innerHTML = `<div class="text-center text-slate-500 p-8 border-2 border-dashed rounded-xl">Nenhum contrato adicionado.</div>`;
         }
-
-        state.team.forEach(employee => {
-            const row = document.createElement('tr');
-            row.id = `employee-${employee.id}`;
-            row.className = 'border-b border-slate-100 text-sm';
-
-            const pontosBase = state.config.pontosPorCargo[employee.cargo] || 0;
-            const multiplicador = state.config.multiplicadorPorPerformance[employee.performance] || 0;
-            const pontosFinais = pontosBase * multiplicador;
-
-            const cargoOptions = Object.keys(state.config.pontosPorCargo).map(cargo => 
-                `<option value="${cargo}" ${employee.cargo === cargo ? 'selected' : ''}>${cargo}</option>`
-            ).join('');
-
-            const performanceOptions = Object.keys(state.config.multiplicadorPorPerformance).map(perf => 
-                `<option value="${perf}" ${employee.performance === perf ? 'selected' : ''}>${perf}</option>`
-            ).join('');
-            
-            row.innerHTML = `
-                <td class="p-2"><input type="text" value="${employee.nome}" class="w-full p-2 border rounded bg-white text-sm" data-id="${employee.id}" data-field="nome"></td>
-                <td class="p-2"><select class="w-full p-2 border rounded bg-white text-sm" data-id="${employee.id}" data-field="cargo">${cargoOptions}</select></td>
-                <td class="p-2"><select class="w-full p-2 border rounded bg-white text-sm" data-id="${employee.id}" data-field="performance">${performanceOptions}</select></td>
-                <td class="p-2 text-right font-medium text-slate-700">${pontosFinais.toFixed(1)}</td>
-                <td class="p-2 text-center"><button class="text-red-500 hover:text-red-700 transition-colors" data-id="${employee.id}" data-action="delete">✖</button></td>
+        state.contractGroups.forEach(group => {
+            const div = document.createElement('div');
+            div.className = 'flex gap-4 items-end p-4 border rounded-xl bg-slate-50/75';
+            div.innerHTML = `
+                <div class="flex-grow">
+                    <label class="text-xs text-slate-500">Nome do Contrato (Opcional)</label>
+                    <input type="text" data-id="${group.id}" data-field="name" value="${group.name}" class="w-full p-2 border rounded-lg text-sm" placeholder="Ex: Patrocínio Master">
+                </div>
+                <div class="w-48">
+                    <label class="text-xs text-slate-500">Valor (R$)</label>
+                    <input type="text" data-id="${group.id}" data-field="value" value="${new Intl.NumberFormat('pt-BR', {minimumFractionDigits: 2}).format(group.value)}" class="w-full p-2 border rounded-lg text-sm text-right">
+                </div>
+                <div class="w-24">
+                    <label class="text-xs text-slate-500">Qtde.</label>
+                    <input type="number" data-id="${group.id}" data-field="incidence" value="${group.incidence}" min="1" class="w-full p-2 border rounded-lg text-sm text-center">
+                </div>
+                <button data-id="${group.id}" class="remove-btn text-slate-400 hover:text-red-500 transition-colors pb-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 256 256"><path d="M216,48H176V40a24,24,0,0,0-24-24H104A24,24,0,0,0,80,40v8H40a8,8,0,0,0,0,16h8V208a16,16,0,0,0,16,16H192a16,16,0,0,0,16-16V64h8a8,8,0,0,0,0-16ZM96,40a8,8,0,0,1,8-8h48a8,8,0,0,1,8,8v8H96Zm96,168H64V64H192ZM112,104v64a8,8,0,0,1-16,0V104a8,8,0,0,1,16,0Zm48,0v64a8,8,0,0,1-16,0V104a8,8,0,0,1,16,0Z"></path></svg>
+                </button>
             `;
-            teamTableBody.appendChild(row);
+            contractGroupsContainer.appendChild(div);
         });
     }
+    
+    function updateAllCalculations() {
+        const roleTotals = { diretor: 0, gerente: 0, coordenador: 0, analista: 0 };
+        const breakdown = [];
+        let totalRevenue = 0;
+        let totalContracts = 0;
 
-    function renderChart(teamData) {
+        state.contractGroups.forEach(group => {
+            if (isNaN(group.value) || isNaN(group.incidence) || group.value <= 0 || group.incidence <= 0) return;
+            
+            totalRevenue += group.value * group.incidence;
+            totalContracts += group.incidence;
+            
+            const tier = findDirectTier(group.value);
+            const groupBonusByRole = { diretor: 0, gerente: 0, coordenador: 0, analista: 0 };
+            
+            ROLES.forEach(role => {
+                const bonusForRole = group.value * tier.rates[role] * group.incidence;
+                roleTotals[role] += bonusForRole;
+                groupBonusByRole[role] = bonusForRole;
+            });
+            
+            breakdown.push({
+                description: `${group.name || `Grupo de ${group.incidence} contrato(s)`} de ${formatCurrency(group.value)}`,
+                bonuses: groupBonusByRole,
+                value: group.value
+            });
+        });
+        
+        // Update Simulator Tab
+        totalRevenueEl.textContent = formatCurrency(totalRevenue);
+        totalContractsEl.textContent = totalContracts;
+
+        calculationBreakdownBody.innerHTML = '';
+        breakdown.forEach(item => {
+            const row = document.createElement('tr');
+            row.className = "hover:bg-slate-50";
+            row.innerHTML = `
+                <td class="p-3">${item.description}</td>
+                <td class="p-3 text-right text-slate-700">${formatCurrency(item.bonuses.diretor)}</td>
+                <td class="p-3 text-right text-slate-700">${formatCurrency(item.bonuses.gerente)}</td>
+                <td class="p-3 text-right text-slate-700">${formatCurrency(item.bonuses.coordenador)}</td>
+                <td class="p-3 text-right text-slate-700">${formatCurrency(item.bonuses.analista)}</td>
+            `;
+            calculationBreakdownBody.appendChild(row);
+        });
+
+        finalBonusResultsContainer.innerHTML = '';
+        ROLES.forEach(role => {
+            const div = document.createElement('div');
+            div.className = 'flex justify-between items-center';
+            div.innerHTML = `<span class="text-slate-700 capitalize">${ROLE_NAMES[role]}</span><strong class="text-slate-900">${formatCurrency(roleTotals[role])}</strong>`;
+            finalBonusResultsContainer.appendChild(div);
+        });
+        
+        updateBonusSummaryChart(roleTotals);
+        
+        // Trigger Analysis Tab Update
+        updateAnalysisTab(totalRevenue, roleTotals, breakdown);
+    }
+    
+    function updateBonusSummaryChart(totals) {
+        const data = ROLES.map(role => totals[role]);
+        const labels = ROLES.map(role => ROLE_NAMES[role]);
+
+        const chartOptions = {
+            responsive: true, maintainAspectRatio: false,
+            scales: { 
+                y: { beginAtZero: true, ticks: { callback: value => formatCurrency(value) } },
+                x: { grid: { display: false } }
+            }, 
+            plugins: { 
+                legend: { display: false }, 
+                tooltip: { 
+                    backgroundColor: '#0f172a',
+                    titleFont: { size: 14, weight: 'bold'},
+                    bodyFont: { size: 12 },
+                    callbacks: { label: context => ' ' + formatCurrency(context.raw) } 
+                } 
+            }
+        };
+
         if (bonusChart) {
-            bonusChart.destroy();
+            bonusChart.data.datasets[0].data = data;
+            bonusChart.update();
+        } else {
+            bonusChart = new Chart(bonusChartCanvas.getContext('2d'), {
+                type: 'bar',
+                data: { labels, datasets: [{ label: 'Bônus Final', data, backgroundColor: ROLES.map(role => ROLE_COLORS[role].bg), borderColor: ROLES.map(role => ROLE_COLORS[role].border), borderWidth: 1, borderRadius: 5 }] },
+                options: chartOptions
+            });
         }
+    }
 
-        const ctx = chartCanvas.getContext('2d');
-        const chartLabels = teamData.map(e => [e.nome, `(${e.cargo})`]);
+    // --- LÓGICA DA ABA DE ANÁLISE ---
+    function updateAnalysisTab(totalRevenue, roleTotals, breakdown) {
+        const totalCommission = Object.values(roleTotals).reduce((a, b) => a + b, 0);
+        const totalContracts = state.contractGroups.reduce((acc, g) => acc + g.incidence, 0);
 
-        bonusChart = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: chartLabels,
-                datasets: [{
-                    label: 'Bônus Bruto a Receber',
-                    data: teamData.map(e => e.bonusFinal.toFixed(2)),
-                    backgroundColor: 'rgba(59, 130, 246, 0.7)',
-                    borderColor: 'rgba(59, 130, 246, 1)',
-                    borderWidth: 1,
-                    borderRadius: 4,
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: { beginAtZero: true, ticks: { callback: function(value) { return formatCurrency(value); } } }
-                },
-                plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        callbacks: {
-                            title: function(tooltipItems) {
-                                const item = tooltipItems[0];
-                                let label = item.chart.data.labels[item.dataIndex];
-                                if (Array.isArray(label)) { return label.join(' '); }
-                                return label;
-                            },
-                            label: function(context) {
-                                let label = context.dataset.label || '';
-                                if (label) { label += ': '; }
-                                if (context.parsed.y !== null) { label += formatCurrency(context.parsed.y); }
-                                return label;
-                            }
+        // KPI Updates
+        document.getElementById('analysisTotalRevenue').textContent = formatCurrency(totalRevenue);
+        document.getElementById('analysisTotalCommission').textContent = formatCurrency(totalCommission);
+        const effectiveRate = totalRevenue > 0 ? totalCommission / totalRevenue : 0;
+        document.getElementById('analysisEffectiveCommissionRate').textContent = formatPercent(effectiveRate);
+        const avgContract = totalContracts > 0 ? totalRevenue / totalContracts : 0;
+        document.getElementById('analysisAverageContract').textContent = formatCurrency(avgContract);
+
+        // Update charts
+        updateCommissionDistributionChart(roleTotals, totalCommission);
+        updateValueVsRateChart(breakdown);
+
+        // Strategic Insights
+        const goldenTierBonus = breakdown.filter(b => b.value > 3000000 && b.value <= 5000000).reduce((acc, b) => acc + Object.values(b.bonuses).reduce((t,c) => t+c, 0), 0);
+        document.getElementById('goldenTierContribution').textContent = totalCommission > 0 ? formatPercent(goldenTierBonus/totalCommission) : '0,00%';
+        
+        const smallTierBonus = breakdown.filter(b => b.value <= 1000000).reduce((acc, b) => acc + Object.values(b.bonuses).reduce((t,c) => t+c, 0), 0);
+        document.getElementById('smallTierContribution').textContent = totalCommission > 0 ? formatPercent(smallTierBonus/totalCommission) : '0,00%';
+
+        const directorShare = totalCommission > 0 ? formatPercent(roleTotals.diretor / totalCommission) : '0,00%';
+        document.getElementById('directorShare').textContent = directorShare;
+    }
+    
+    function updateCommissionDistributionChart(roleTotals, totalCommission) {
+        const data = ROLES.map(role => totalCommission > 0 ? (roleTotals[role] / totalCommission) * 100 : 0);
+        const labels = ROLES.map(role => ROLE_NAMES[role]);
+        const backgroundColors = ROLES.map(role => ROLE_COLORS[role].bg);
+        
+        const chartOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom', labels: { padding: 20, font: {size: 14} } },
+                tooltip: {
+                     backgroundColor: '#0f172a',
+                    callbacks: {
+                        label: function(context) {
+                            return ` ${context.label}: ${context.formattedValue}% (${formatCurrency(roleTotals[context.label.toLowerCase()])})`;
                         }
                     }
                 }
             }
-        });
-    }
-
-    function updateSimulation() {
-        const basePool = calculateBasePool(state.revenue);
-        const departmentMultiplier = calculateDepartmentMultiplier(state.departmentGoal);
-        const finalPool = basePool * departmentMultiplier;
-        
-        let totalPontos = 0;
-        const teamDataWithPoints = state.team.map(employee => {
-            const pontosBase = state.config.pontosPorCargo[employee.cargo] || 0;
-            const multiplicador = state.config.multiplicadorPorPerformance[employee.performance] || 0;
-            const pontosFinais = pontosBase * multiplicador;
-            totalPontos += pontosFinais;
-            return { ...employee, pontosFinais };
-        });
-
-        const valorDoPonto = totalPontos > 0 ? finalPool / totalPontos : 0;
-        
-        const finalTeamData = teamDataWithPoints.map(employee => ({
-            ...employee,
-            bonusFinal: employee.pontosFinais * valorDoPonto
-        }));
-        
-        poolBaseValue.textContent = formatCurrency(basePool);
-        departmentMultiplierValue.textContent = `${departmentMultiplier.toFixed(2)}x`;
-        poolFinalValue.textContent = formatCurrency(finalPool);
-
-        totalPointsValue.textContent = totalPontos.toFixed(1);
-        pointValue.textContent = formatCurrency(valorDoPonto);
-
-        renderTeam();
-        renderChart(finalTeamData);
-    }
-
-    revenueSlider.addEventListener('input', (e) => {
-        state.revenue = Number(e.target.value);
-        revenueValue.textContent = formatCurrency(state.revenue);
-        updateSimulation();
-    });
-    
-    departmentGoalSlider.addEventListener('input', (e) => {
-        state.departmentGoal = Number(e.target.value);
-        departmentGoalValue.textContent = `${state.departmentGoal}%`;
-        updateSimulation();
-    });
-
-    addEmployeeBtn.addEventListener('click', () => {
-        const newEmployee = {
-            id: state.nextId++,
-            nome: `Colaborador ${state.nextId - 1}`,
-            cargo: 'Analista Comercial',
-            performance: 'Atende às expectativas',
         };
-        state.team.push(newEmployee);
-        updateSimulation();
+
+        if (commissionDistributionChart) {
+            commissionDistributionChart.data.datasets[0].data = data;
+            commissionDistributionChart.update();
+        } else {
+            commissionDistributionChart = new Chart(commissionDistributionCanvas.getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Distribuição de Comissão',
+                        data: data,
+                        backgroundColor: backgroundColors,
+                        borderColor: ROLES.map(role => ROLE_COLORS[role].border),
+                        borderWidth: 2,
+                        hoverOffset: 4
+                    }]
+                },
+                options: chartOptions
+            });
+        }
+    }
+
+    function updateValueVsRateChart() {
+         const labels = TIERS_DIRECT.map(t => `> ${formatCurrency(t.from / 1000)}k`);
+         const data = TIERS_DIRECT.map(t => (t.rates.diretor + t.rates.gerente + t.rates.coordenador + t.rates.analista));
+
+         const chartOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { callback: value => formatPercent(value) },
+                    title: { display: true, text: 'Soma das Taxas de Comissão', font: {size: 14} }
+                },
+                x: {
+                    grid: { display: false },
+                     title: { display: true, text: 'Valor do Contrato (Faixa Inicial)', font: {size: 14} }
+                }
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                     backgroundColor: '#0f172a',
+                    callbacks: {
+                        title: (context) => `Contratos de ${context[0].label} até ${TIERS_DIRECT[context[0].dataIndex].to === Infinity ? '∞' : formatCurrency(TIERS_DIRECT[context[0].dataIndex].to)}`,
+                        label: (context) => `Taxa Total: ${formatPercent(context.raw)}`
+                    }
+                }
+            }
+        };
+        
+        if (valueVsRateChart) {
+            valueVsRateChart.data.datasets[0].data = data;
+            valueVsRateChart.update();
+        } else {
+             valueVsRateChart = new Chart(valueVsRateCanvas.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Taxa de Comissão Efetiva',
+                        data: data,
+                        fill: true,
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        borderColor: ROLE_COLORS.diretor.border,
+                        tension: 0.1,
+                        pointBackgroundColor: ROLE_COLORS.diretor.border,
+                        pointRadius: 5,
+                        pointHoverRadius: 7,
+                    }]
+                },
+                options: chartOptions
+            });
+        }
+    }
+
+    // --- EVENT LISTENERS ---
+    addContractGroupBtn.addEventListener('click', () => {
+        state.contractGroups.unshift({ id: state.nextGroupId++, name: '', value: 100000, incidence: 1 });
+        renderContractGroups();
+        updateAllCalculations();
     });
 
-    teamTableBody.addEventListener('change', (e) => {
-        if (e.target.matches('select, input')) {
-            const id = Number(e.target.dataset.id);
+    contractGroupsContainer.addEventListener('input', (e) => { // Use 'input' for real-time updates
+        if(e.target.tagName === 'INPUT') {
+            const id = parseInt(e.target.dataset.id);
             const field = e.target.dataset.field;
-            const employee = state.team.find(emp => emp.id === id);
-            if (employee) {
-                employee[field] = e.target.value;
-                updateSimulation();
+            const group = state.contractGroups.find(g => g.id === id);
+            
+            if (field === 'value') {
+                const parsedValue = parseCurrency(e.target.value);
+                group.value = isNaN(parsedValue) ? 0 : parsedValue;
+            } else if (field === 'incidence') {
+                group.incidence = parseInt(e.target.value, 10) || 0;
+            } else if (field === 'name') {
+                group.name = e.target.value;
             }
         }
     });
     
-    teamTableBody.addEventListener('click', (e) => {
-        if (e.target.matches('button[data-action="delete"]')) {
-            const id = Number(e.target.dataset.id);
-            state.team = state.team.filter(emp => emp.id !== id);
-            updateSimulation();
+    contractGroupsContainer.addEventListener('focusout', (e) => { // Re-format currency on blur
+         if(e.target.tagName === 'INPUT' && e.target.dataset.field === 'value') {
+            const id = parseInt(e.target.dataset.id);
+            const group = state.contractGroups.find(g => g.id === id);
+            e.target.value = new Intl.NumberFormat('pt-BR', {minimumFractionDigits: 2}).format(group.value);
+         }
+         updateAllCalculations(); // Recalculate everything on any blur
+    });
+
+
+    contractGroupsContainer.addEventListener('click', (e) => {
+        if (e.target.closest('.remove-btn')) {
+            const id = parseInt(e.target.closest('.remove-btn').dataset.id);
+            state.contractGroups = state.contractGroups.filter(g => g.id !== id);
+            renderContractGroups();
+            updateAllCalculations();
         }
     });
 
-    configToggleBtn.addEventListener('click', () => {
-        if (configContent.style.maxHeight) {
-            configContent.style.maxHeight = null;
-            configToggleIcon.style.transform = 'rotate(0deg)';
-            configToggleText.textContent = 'Ajustar';
-        } else {
-            configContent.style.maxHeight = configContent.scrollHeight + "px";
-            configToggleIcon.style.transform = 'rotate(180deg)';
-            configToggleText.textContent = 'Fechar';
+    // Tab switching logic
+    tabContainer.addEventListener('click', (e) => {
+        if (e.target.classList.contains('tab-btn')) {
+            const tabName = e.target.dataset.tab;
+
+            // Update button styles
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            e.target.classList.add('active');
+            
+            // Update content visibility
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.getElementById(tabName).classList.add('active');
+
+            // Ensure charts in the analysis tab are rendered if it's visible now
+            if (tabName === 'analysis') {
+                updateAllCalculations(); // This will re-trigger analysis updates and chart rendering
+            }
         }
     });
 
-    configContent.addEventListener('input', (e) => {
-        const target = e.target;
-        const type = target.dataset.type;
-        const key = target.dataset.key;
-        let value = target.value;
+    // --- INICIALIZAÇÃO ---
+    function initialize() {
+        state.contractGroups = initialContracts.map((c, i) => ({
+            id: state.nextGroupId++,
+            name: c.name,
+            value: c.value,
+            incidence: 1
+        }));
+        renderContractGroups();
+        updateAllCalculations();
+    }
 
-        if (type === 'cargo') state.config.pontosPorCargo[key] = Number(value);
-        else if (type === 'performance') state.config.multiplicadorPorPerformance[key] = Number(value);
-        else if (type === 'faixa-ate') state.config.faixasBonificacao[Number(target.dataset.index)].ate = parseCurrency(value);
-        else if (type === 'faixa-perc') state.config.faixasBonificacao[Number(target.dataset.index)].perc = parsePercent(value);
-        else if (type === 'depto-atingimento') state.config.multiplicadorDepartamento[Number(target.dataset.index)].atingimento = Number(value);
-        else if (type === 'depto-multiplicador') state.config.multiplicadorDepartamento[Number(target.dataset.index)].multiplicador = Number(value);
-        
-        updateSimulation();
-    });
-
-    configContent.addEventListener('blur', (e) => {
-        const target = e.target;
-        const type = target.dataset.type;
-        if (type === 'faixa-ate' || type === 'faixa-perc' || type === 'depto-atingimento') {
-            renderConfig();
-        }
-    }, true);
-
-
-    revenueValue.textContent = formatCurrency(state.revenue);
-    departmentGoalValue.textContent = `${state.departmentGoal}%`;
-    renderConfig();
-    updateSimulation();
+    initialize();
 });
 </script>
 
