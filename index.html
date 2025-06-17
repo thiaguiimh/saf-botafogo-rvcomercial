@@ -83,17 +83,24 @@
             <section class="card">
                 <h2 class="text-2xl font-bold text-slate-900 mb-4 tracking-tight">Configurações do Modelo</h2>
                 <div class="overflow-x-auto">
-                    <table class="w-full text-sm">
-                        <thead class="bg-slate-100 text-slate-600">
-                            <tr>
-                                <th class="p-2 text-left">Faixa (R$)</th>
-                                <th class="p-2 text-right">Diretor (%)</th>
-                                <th class="p-2 text-right">Gerente (%)</th>
-                                <th class="p-2 text-right">Coordenador (%)</th>
-                                <th class="p-2 text-right">Analista (%)</th>
+                    <table class="w-full text-sm table-fixed border border-slate-200" id="settingsSheet">
+                        <thead>
+                            <tr class="bg-slate-100 text-slate-600">
+                                <th class="p-2 border"></th>
+                                <th class="p-2 border text-center">A</th>
+                                <th class="p-2 border text-center">B</th>
+                                <th class="p-2 border text-center">C</th>
+                                <th class="p-2 border text-center">D</th>
+                            </tr>
+                            <tr class="bg-slate-100 text-slate-600">
+                                <th class="p-2 border">Faixa (R$)</th>
+                                <th class="p-2 border text-center">Diretor (%)</th>
+                                <th class="p-2 border text-center">Gerente (%)</th>
+                                <th class="p-2 border text-center">Coordenador (%)</th>
+                                <th class="p-2 border text-center">Analista (%)</th>
                             </tr>
                         </thead>
-                        <tbody id="tierSettingsBody" class="divide-y divide-slate-100"></tbody>
+                        <tbody id="tierSettingsBody"></tbody>
                     </table>
                 </div>
             </section>
@@ -351,11 +358,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const displayFrom = index === 0 ? tier.from : tier.from + 0.01;
             const rangeLabel = `${formatCurrency(displayFrom)} - ${tier.to === Infinity ? '∞' : formatCurrency(tier.to)}`;
             row.innerHTML = `
-                <td class="p-2">${rangeLabel}</td>
-                <td class="p-2 text-right"><input type="text" data-index="${index}" data-role="diretor" class="w-20 p-1 border rounded text-right spreadsheet-input" value="${(tier.rates.diretor*100).toFixed(3)}"></td>
-                <td class="p-2 text-right"><input type="text" data-index="${index}" data-role="gerente" class="w-20 p-1 border rounded text-right spreadsheet-input" value="${(tier.rates.gerente*100).toFixed(3)}"></td>
-                <td class="p-2 text-right"><input type="text" data-index="${index}" data-role="coordenador" class="w-20 p-1 border rounded text-right spreadsheet-input" value="${(tier.rates.coordenador*100).toFixed(3)}"></td>
-                <td class="p-2 text-right"><input type="text" data-index="${index}" data-role="analista" class="w-20 p-1 border rounded text-right spreadsheet-input" value="${(tier.rates.analista*100).toFixed(3)}"></td>
+                <th class="p-2 border bg-slate-50 whitespace-nowrap">${rangeLabel}</th>
+                <td class="p-2 border text-center"><input id="A${index+1}" type="text" data-index="${index}" data-role="diretor" class="w-full p-1 border rounded text-right spreadsheet-input" value="${(tier.rates.diretor*100).toFixed(3)}"></td>
+                <td class="p-2 border text-center"><input id="B${index+1}" type="text" data-index="${index}" data-role="gerente" class="w-full p-1 border rounded text-right spreadsheet-input" value="${(tier.rates.gerente*100).toFixed(3)}"></td>
+                <td class="p-2 border text-center"><input id="C${index+1}" type="text" data-index="${index}" data-role="coordenador" class="w-full p-1 border rounded text-right spreadsheet-input" value="${(tier.rates.coordenador*100).toFixed(3)}"></td>
+                <td class="p-2 border text-center"><input id="D${index+1}" type="text" data-index="${index}" data-role="analista" class="w-full p-1 border rounded text-right spreadsheet-input" value="${(tier.rates.analista*100).toFixed(3)}"></td>
             `;
             tierSettingsBody.appendChild(row);
         });
