@@ -361,7 +361,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateAllCalculations() {
         const roleTotals = { diretor: 0, gerente: 0, coordenador: 0, analista: 0 };
         const breakdown = [];
-        const tierStats = state.tiers.map(() => ({ contracts: 0, bonus: 0 }));
+        const tierStats = state.tiers.map(() => ({ contracts: 0, bonus: 0, revenue: 0 }));
         let totalRevenue = 0;
         let totalContracts = 0;
 
@@ -384,6 +384,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const groupTotalBonus = Object.values(groupBonusByRole).reduce((a,b) => a + b, 0);
             tierStats[tierIndex].contracts += group.incidence;
             tierStats[tierIndex].bonus += groupTotalBonus;
+            tierStats[tierIndex].revenue += group.value * group.incidence;
             
             breakdown.push({
                 description: `${group.name || `Grupo de ${group.incidence} contrato(s)`} de ${formatCurrency(group.value)}`,
@@ -472,7 +473,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Update charts
         updateCommissionDistributionChart(roleTotals, totalCommission);
-        updateValueVsRateChart(breakdown);
+        updateValueVsRateChart(tierStats);
         updateTierIncidenceChart(tierStats);
 
         // Strategic Insights
@@ -529,9 +530,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function updateValueVsRateChart() {
-         const labels = state.tiers.map(t => `> ${formatCurrency(t.from / 1000)}k`);
-         const data = state.tiers.map(t => (t.rates.diretor + t.rates.gerente + t.rates.coordenador + t.rates.analista));
+    function updateValueVsRateChart(tierStats) {
+         const labels = [];
+         const data = [];
+         const tierIndices = [];
+         tierStats.forEach((stat, idx) => {
+            if (stat.revenue > 0) {
+                labels.push(`> ${formatCurrency(state.tiers[idx].from / 1000)}k`);
+                data.push(stat.bonus / stat.revenue);
+                tierIndices.push(idx);
+            }
+         });
 
          const chartOptions = {
             responsive: true,
@@ -552,7 +561,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 tooltip: {
                      backgroundColor: '#0f172a',
                     callbacks: {
-                        title: (context) => `Contratos de ${context[0].label} até ${state.tiers[context[0].dataIndex].to === Infinity ? '∞' : formatCurrency(state.tiers[context[0].dataIndex].to)}`,
+                        title: (context) => {
+                            const idx = tierIndices[context[0].dataIndex];
+                            const tier = state.tiers[idx];
+                            return `Contratos de ${context[0].label} até ${tier.to === Infinity ? '∞' : formatCurrency(tier.to)}`;
+                        },
                         label: (context) => `Taxa Total: ${formatPercent(context.raw)}`
                     }
                 }
@@ -560,6 +573,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         
         if (valueVsRateChart) {
+            valueVsRateChart.data.labels = labels;
             valueVsRateChart.data.datasets[0].data = data;
             valueVsRateChart.update();
         } else {
