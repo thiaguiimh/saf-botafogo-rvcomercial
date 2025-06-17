@@ -367,10 +367,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 const colLetter = String.fromCharCode(65 + i); // A, B, C, D
                 const cellId = `${colLetter}${index + 1}`;
                 const value = tier.rates[role] * 100;
-                const formula = value.toFixed(4);
+                
+                // Set the initial formula to be the plain value, formatted
+                const initialFormula = value.toFixed(4).replace(',', '.');
                 const displayValue = value.toFixed(4).replace('.', ',');
 
-                cells += `<td class="p-0 border border-slate-300"><input id="${cellId}" type="text" data-index="${index}" data-role="${role}" class="w-full h-full p-1 border-0 rounded-none text-right spreadsheet-input" data-formula="${formula}" value="${displayValue}"></td>`;
+                cells += `<td class="p-0 border border-slate-300"><input id="${cellId}" type="text" data-index="${index}" data-role="${role}" class="w-full h-full p-1 border-0 rounded-none text-right spreadsheet-input" data-formula="${initialFormula}" value="${displayValue}"></td>`;
             });
 
             row.innerHTML = `
@@ -664,7 +666,67 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- EVENT LISTENERS ---
+    // --- SPREADSHEET LOGIC ---
+    function evaluateAllCells() {
+        const allInputs = Array.from(document.querySelectorAll('#tierSettingsBody input'));
+        const parser = math.parser();
+
+        // Iteratively calculate to resolve dependencies
+        for (let i = 0; i < allInputs.length; i++) {
+            parser.clear();
+            allInputs.forEach(input => {
+                const formula = (input.dataset.formula || "0").trim();
+                let value;
+                // If it's a formula, try to evaluate it using currently known values
+                if (formula.startsWith('=')) {
+                    try {
+                        value = parser.evaluate(formula.slice(1).replace(/,/g, '.'));
+                    } catch (e) {
+                        value = NaN; // Set to NaN if it depends on a not-yet-calculated cell
+                    }
+                } else {
+                    value = parseFloat(formula.replace(/,/g, '.'));
+                }
+
+                if (!isNaN(value)) {
+                    parser.set(input.id.toUpperCase(), value);
+                }
+            });
+        }
+
+        // Final pass to update state and display
+        allInputs.forEach(input => {
+            const index = parseInt(input.dataset.index, 10);
+            const role = input.dataset.role;
+            const finalValue = parser.get(input.id.toUpperCase());
+
+            if (finalValue !== undefined && !isNaN(finalValue)) {
+                input.value = finalValue.toFixed(4).replace('.', ',');
+                state.tiers[index].rates[role] = finalValue / 100;
+            } else {
+                // If a value couldn't be computed, show an error or reset
+                input.value = "ERRO!";
+            }
+        });
+        
+        updateAllCalculations();
+    }
+    
+    tierSettingsBody.addEventListener('focusin', (e) => {
+        if (e.target.tagName === 'INPUT' && e.target.dataset.formula) {
+            e.target.value = e.target.dataset.formula;
+        }
+    });
+
+    tierSettingsBody.addEventListener('focusout', (e) => {
+        if (e.target.tagName === 'INPUT') {
+            const raw = e.target.value.trim();
+            e.target.dataset.formula = raw; // Store the raw input as the formula
+            evaluateAllCells(); // Recalculate the entire sheet
+        }
+    });
+
+    // --- OTHER EVENT LISTENERS ---
     addContractGroupBtn.addEventListener('click', () => {
         state.contractGroups.unshift({ id: state.nextGroupId++, name: '', value: 100000, incidence: 1 });
         renderContractGroups();
@@ -674,88 +736,8 @@ document.addEventListener('DOMContentLoaded', () => {
     settingsToggleBtn.addEventListener('click', () => {
         modelSettings.classList.toggle('hidden');
     });
-
-    const evaluateExpression = (expr, visited = new Set()) => {
-        try {
-            let processed = String(expr).trim().replace(/,/g, '.');
-            processed = processed.replace(/[A-Z][0-9]+/gi, (match) => {
-                const id = match.toUpperCase();
-                if (visited.has(id)) {
-                    console.warn(`Circular dependency detected for cell ${id}`);
-                    return '0'; 
-                }
-                visited.add(id);
-                const input = document.getElementById(id);
-                if (!input) return '0';
-                
-                const raw = (input.dataset.formula || input.value).trim();
-                if (raw.startsWith('=')) {
-                    return `(${evaluateExpression(raw.slice(1), new Set(visited))})`;
-                }
-                return raw.replace(/,/g, '.');
-            });
-            return math.evaluate(processed);
-        } catch (err) {
-            // console.error(err); // Can be noisy, enable for deep debugging
-            return NaN;
-        }
-    };
-
-    function evaluateAllCells() {
-        const maxIterations = 10;
-        let iteration = 0;
-        let changedInLastPass = true;
-
-        while (changedInLastPass && iteration < maxIterations) {
-            changedInLastPass = false;
-            iteration++;
-            
-            document.querySelectorAll('#tierSettingsBody input').forEach(input => {
-                const formula = (input.dataset.formula || "0").trim();
-                const index = parseInt(input.dataset.index, 10);
-                const role = input.dataset.role;
-                
-                let value;
-                if (formula.startsWith('=')) {
-                    value = evaluateExpression(formula.slice(1), new Set([input.id.toUpperCase()]));
-                } else {
-                    value = evaluateExpression(formula);
-                }
-                
-                if (!isNaN(value)) {
-                    const oldValue = state.tiers[index].rates[role] * 100;
-                    if (Math.abs(oldValue - value) > 1e-9) { // Compare with tolerance
-                        changedInLastPass = true;
-                        state.tiers[index].rates[role] = value / 100;
-                    }
-                    // Always update the display value to ensure correct formatting
-                    input.value = value.toFixed(4).replace('.', ',');
-                }
-            });
-        }
-        if(iteration === maxIterations) {
-            console.warn("Spreadsheet calculation did not stabilize. Check for circular references.");
-        }
-        updateAllCalculations();
-    }
     
-    tierSettingsBody.addEventListener('focusin', (e) => {
-        if (e.target.tagName === 'INPUT') {
-            if (e.target.dataset.formula !== undefined) {
-                e.target.value = e.target.dataset.formula;
-            }
-        }
-    });
-
-    tierSettingsBody.addEventListener('focusout', (e) => {
-        if (e.target.tagName === 'INPUT') {
-            const raw = e.target.value.trim();
-            e.target.dataset.formula = raw; // Store the raw input as the formula
-            evaluateAllCells();
-        }
-    });
-
-    contractGroupsContainer.addEventListener('input', (e) => { // Use 'input' for real-time updates
+    contractGroupsContainer.addEventListener('input', (e) => {
         if(e.target.tagName === 'INPUT') {
             const id = parseInt(e.target.dataset.id);
             const field = e.target.dataset.field;
@@ -772,15 +754,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     
-    contractGroupsContainer.addEventListener('focusout', (e) => { // Re-format currency on blur
+    contractGroupsContainer.addEventListener('focusout', (e) => {
          if(e.target.tagName === 'INPUT' && e.target.dataset.field === 'value') {
             const id = parseInt(e.target.dataset.id);
             const group = state.contractGroups.find(g => g.id === id);
             e.target.value = new Intl.NumberFormat('pt-BR', {minimumFractionDigits: 2}).format(group.value);
          }
-         updateAllCalculations(); // Recalculate everything on any blur
+         updateAllCalculations();
     });
-
 
     contractGroupsContainer.addEventListener('click', (e) => {
         if (e.target.closest('.remove-btn')) {
@@ -791,22 +772,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Tab switching logic
     tabContainer.addEventListener('click', (e) => {
         if (e.target.classList.contains('tab-btn')) {
             const tabName = e.target.dataset.tab;
-
-            // Update button styles
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
             e.target.classList.add('active');
-            
-            // Update content visibility
             document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
             document.getElementById(tabName).classList.add('active');
-
-            // Ensure charts in the analysis tab are rendered if it's visible now
             if (tabName === 'analysis') {
-                updateAllCalculations(); // This will re-trigger analysis updates and chart rendering
+                updateAllCalculations();
             }
         }
     });
@@ -821,7 +795,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }));
         renderContractGroups();
         renderTierSettings();
-        evaluateAllCells(); // Initial calculation of formulas
+        evaluateAllCells();
     }
 
     initialize();
