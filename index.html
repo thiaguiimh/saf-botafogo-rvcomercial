@@ -254,7 +254,7 @@
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     
-    // --- MODELO DE DADOS E CONSTANTES ---
+    // --- DATA MODEL AND CONSTANTS ---
     const TIERS_DIRECT = [
         { from: 0, to: 1000000, rates: { diretor: 0.01542, gerente: 0.00925, coordenador: 0.00463, analista: 0.00247 } },
         { from: 1000000, to: 3000000, rates: { diretor: 0.01157, gerente: 0.00694, coordenador: 0.00347, analista: 0.00185 } },
@@ -292,7 +292,7 @@ document.addEventListener('DOMContentLoaded', () => {
         tiers: JSON.parse(JSON.stringify(TIERS_DIRECT)) // Deep copy for dynamic settings
     };
 
-    // --- ELEMENTOS DO DOM ---
+    // --- DOM ELEMENTS ---
     const tabContainer = document.getElementById('tabContainer');
     const addContractGroupBtn = document.getElementById('addContractGroupBtn');
     const contractGroupsContainer = document.getElementById('contractGroupsContainer');
@@ -304,14 +304,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const modelSettings = document.getElementById('modelSettings');
     const tierSettingsBody = document.getElementById('tierSettingsBody');
     
-    // Elements for charts
+    // Chart canvases
     const bonusChartCanvas = document.getElementById('bonusSummaryChart');
     const commissionDistributionCanvas = document.getElementById('commissionDistributionChart');
     const valueVsRateCanvas = document.getElementById('valueVsRateChart');
     const tierIncidenceCanvas = document.getElementById('tierIncidenceChart');
     let bonusChart, commissionDistributionChart, valueVsRateChart, tierIncidenceChart = null;
 
-    // --- FUNÇÕES AUXILIARES ---
+    // --- HELPER FUNCTIONS ---
     const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
     const formatPercent = (value) => `${(value * 100).toFixed(2)}%`.replace('.',',');
     const parseCurrency = (value) => {
@@ -320,12 +320,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     function findDirectTier(value) {
-        // Use the dynamic state.tiers for calculation
         const tiers = state.tiers;
         return tiers.find(tier => value > tier.from && value <= tier.to) || tiers[tiers.length - 1];
     }
     
-    // --- LÓGICA DE RENDERIZAÇÃO E CÁLCULO ---
+    // --- RENDER AND CALCULATION LOGIC ---
     function renderContractGroups() {
         contractGroupsContainer.innerHTML = '';
         if (state.contractGroups.length === 0) {
@@ -367,9 +366,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const colLetter = String.fromCharCode(65 + i); // A, B, C, D
                 const cellId = `${colLetter}${index + 1}`;
                 const value = tier.rates[role] * 100;
-                
-                // Set the initial formula to be the plain value, formatted
-                const initialFormula = value.toFixed(4).replace(',', '.');
+                const initialFormula = value.toFixed(4);
                 const displayValue = value.toFixed(4).replace('.', ',');
 
                 cells += `<td class="p-0 border border-slate-300"><input id="${cellId}" type="text" data-index="${index}" data-role="${role}" class="w-full h-full p-1 border-0 rounded-none text-right spreadsheet-input" data-formula="${initialFormula}" value="${displayValue}"></td>`;
@@ -485,12 +482,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- LÓGICA DA ABA DE ANÁLISE ---
+    // --- ANALYSIS TAB LOGIC ---
     function updateAnalysisTab(totalRevenue, roleTotals, breakdown, tierStats) {
         const totalCommission = Object.values(roleTotals).reduce((a, b) => a + b, 0);
         const totalContracts = state.contractGroups.reduce((acc, g) => acc + g.incidence, 0);
 
-        // KPI Updates
         document.getElementById('analysisTotalRevenue').textContent = formatCurrency(totalRevenue);
         document.getElementById('analysisTotalCommission').textContent = formatCurrency(totalCommission);
         const effectiveRate = totalRevenue > 0 ? totalCommission / totalRevenue : 0;
@@ -498,13 +494,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const avgContract = totalContracts > 0 ? totalRevenue / totalContracts : 0;
         document.getElementById('analysisAverageContract').textContent = formatCurrency(avgContract);
 
-        // Update charts
         updateCommissionDistributionChart(roleTotals, totalCommission);
         updateValueVsRateChart(tierStats);
         updateTierIncidenceChart(tierStats);
 
-
-        // Strategic Insights
         const goldenTierBonus = breakdown.filter(b => b.value > 3000000 && b.value <= 5000000).reduce((acc, b) => acc + Object.values(b.bonuses).reduce((t,c) => t+c, 0), 0);
         document.getElementById('goldenTierContribution').textContent = totalCommission > 0 ? formatPercent(goldenTierBonus/totalCommission) : '0,00%';
         
@@ -521,8 +514,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const backgroundColors = ROLES.map(role => ROLE_COLORS[role].bg);
         
         const chartOptions = {
-            responsive: true,
-            maintainAspectRatio: false,
+            responsive: true, maintainAspectRatio: false,
             plugins: {
                 legend: { position: 'bottom', labels: { padding: 20, font: {size: 14} } },
                 tooltip: {
@@ -545,12 +537,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 data: {
                     labels: labels,
                     datasets: [{
-                        label: 'Distribuição de Comissão',
-                        data: data,
-                        backgroundColor: backgroundColors,
+                        label: 'Distribuição de Comissão', data, backgroundColor: backgroundColors,
                         borderColor: ROLES.map(role => ROLE_COLORS[role].border),
-                        borderWidth: 2,
-                        hoverOffset: 4
+                        borderWidth: 2, hoverOffset: 4
                     }]
                 },
                 options: chartOptions
@@ -559,31 +548,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateValueVsRateChart(tierStats) {
-        const labels = [];
-        const data = [];
-        const tierIndices = [];
+        const labels = [], data = [], tierIndices = [];
         tierStats.forEach((stat, idx) => {
-            if (stat.revenue > 0) { // Only show tiers with actual contracts
+            if (stat.revenue > 0) {
                 const start = idx === 0 ? state.tiers[idx].from : state.tiers[idx].from + 0.01;
                 labels.push(`> ${formatCurrency(start / 1000)}k`);
-                data.push(stat.bonus / stat.revenue); // Calculate true effective rate
+                data.push(stat.bonus / stat.revenue);
                 tierIndices.push(idx);
             }
         });
 
         const chartOptions = {
-            responsive: true,
-            maintainAspectRatio: false,
+            responsive: true, maintainAspectRatio: false,
             scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: { callback: value => formatPercent(value) },
-                    title: { display: true, text: 'Taxa de Comissão Efetiva', font: {size: 14} }
-                },
-                x: {
-                    grid: { display: false },
-                     title: { display: true, text: 'Faixa de Contrato (Início)', font: {size: 14} }
-                }
+                y: { beginAtZero: true, ticks: { callback: value => formatPercent(value) }, title: { display: true, text: 'Taxa de Comissão Efetiva', font: {size: 14} } },
+                x: { grid: { display: false }, title: { display: true, text: 'Faixa de Contrato (Início)', font: {size: 14} } }
             },
             plugins: {
                 legend: { display: false },
@@ -609,17 +588,12 @@ document.addEventListener('DOMContentLoaded', () => {
              valueVsRateChart = new Chart(valueVsRateCanvas.getContext('2d'), {
                 type: 'line',
                 data: {
-                    labels: labels,
+                    labels,
                     datasets: [{
-                        label: 'Taxa de Comissão Efetiva',
-                        data: data,
-                        fill: true,
-                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                        borderColor: ROLE_COLORS.diretor.border,
-                        tension: 0.1,
-                        pointBackgroundColor: ROLE_COLORS.diretor.border,
-                        pointRadius: 5,
-                        pointHoverRadius: 7,
+                        label: 'Taxa de Comissão Efetiva', data, fill: true,
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)', borderColor: ROLE_COLORS.diretor.border,
+                        tension: 0.1, pointBackgroundColor: ROLE_COLORS.diretor.border,
+                        pointRadius: 5, pointHoverRadius: 7,
                     }]
                 },
                 options: chartOptions
@@ -636,8 +610,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const bonusData = tierStats.map(t => t.bonus);
 
         const chartOptions = {
-            responsive: true,
-            maintainAspectRatio: false,
+            responsive: true, maintainAspectRatio: false,
             interaction: { mode: 'index', intersect: false },
             scales: {
                 y_contracts: { type: 'linear', display: true, position: 'left', beginAtZero: true, title: { display: true, text: 'Nº de Contratos' }, grid: { drawOnChartArea: false } },
@@ -667,48 +640,66 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- SPREADSHEET LOGIC ---
-    function evaluateAllCells() {
+    function evaluateSheet() {
         const allInputs = Array.from(document.querySelectorAll('#tierSettingsBody input'));
-        const parser = math.parser();
+        const cellFormulas = new Map();
+        allInputs.forEach(input => cellFormulas.set(input.id.toUpperCase(), input.dataset.formula));
 
-        // Iteratively calculate to resolve dependencies
-        for (let i = 0; i < allInputs.length; i++) {
-            parser.clear();
-            allInputs.forEach(input => {
-                const formula = (input.dataset.formula || "0").trim();
-                let value;
-                // If it's a formula, try to evaluate it using currently known values
-                if (formula.startsWith('=')) {
+        const cellValues = new Map();
+        const maxIterations = allInputs.length;
+        let iterations = 0;
+
+        while (iterations < maxIterations) {
+            let changed = false;
+            for (const [id, formula] of cellFormulas.entries()) {
+                if (cellValues.has(id)) continue; // Already calculated
+
+                const expression = formula.startsWith('=') ? formula.slice(1) : formula;
+                const dependencies = [...expression.matchAll(/[A-Z]+\d+/gi)].map(match => match[0].toUpperCase());
+
+                // Check if all dependencies are resolved
+                const allDepsResolved = dependencies.every(dep => cellValues.has(dep));
+
+                if (allDepsResolved) {
+                    const scope = {};
+                    dependencies.forEach(dep => {
+                        scope[dep] = cellValues.get(dep);
+                    });
+                    
                     try {
-                        value = parser.evaluate(formula.slice(1).replace(/,/g, '.'));
+                        const compiled = math.compile(expression);
+                        const result = compiled.evaluate(scope);
+                        if (typeof result !== 'number' || !isFinite(result)) {
+                            throw new Error('Invalid calculation');
+                        }
+                        cellValues.set(id, result);
+                        changed = true;
                     } catch (e) {
-                        value = NaN; // Set to NaN if it depends on a not-yet-calculated cell
+                        cellValues.set(id, NaN); // Mark as error
+                        changed = true;
                     }
-                } else {
-                    value = parseFloat(formula.replace(/,/g, '.'));
                 }
-
-                if (!isNaN(value)) {
-                    parser.set(input.id.toUpperCase(), value);
-                }
-            });
+            }
+            if (!changed) break; // Stable state
+            iterations++;
         }
-
-        // Final pass to update state and display
-        allInputs.forEach(input => {
+        
+        // Final pass to update DOM and state
+        for (const [id, value] of cellValues.entries()) {
+            const input = document.getElementById(id);
+            if (!input) continue;
+            
             const index = parseInt(input.dataset.index, 10);
             const role = input.dataset.role;
-            const finalValue = parser.get(input.id.toUpperCase());
 
-            if (finalValue !== undefined && !isNaN(finalValue)) {
-                input.value = finalValue.toFixed(4).replace('.', ',');
-                state.tiers[index].rates[role] = finalValue / 100;
+            if (isNaN(value)) {
+                input.value = "#ERRO!";
+                state.tiers[index].rates[role] = 0;
             } else {
-                // If a value couldn't be computed, show an error or reset
-                input.value = "ERRO!";
+                input.value = value.toFixed(4).replace('.', ',');
+                state.tiers[index].rates[role] = value / 100;
             }
-        });
-        
+        }
         updateAllCalculations();
     }
     
@@ -720,9 +711,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     tierSettingsBody.addEventListener('focusout', (e) => {
         if (e.target.tagName === 'INPUT') {
-            const raw = e.target.value.trim();
-            e.target.dataset.formula = raw; // Store the raw input as the formula
-            evaluateAllCells(); // Recalculate the entire sheet
+            const raw = e.target.value.trim().replace('.', ',');
+            e.target.dataset.formula = raw;
+            evaluateSheet();
         }
     });
 
@@ -785,7 +776,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // --- INICIALIZAÇÃO ---
+    // --- INITIALIZATION ---
     function initialize() {
         state.contractGroups = initialContracts.map((c, i) => ({
             id: state.nextGroupId++,
@@ -795,7 +786,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }));
         renderContractGroups();
         renderTierSettings();
-        evaluateAllCells();
+        evaluateSheet();
     }
 
     initialize();
