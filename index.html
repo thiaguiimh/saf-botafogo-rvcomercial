@@ -59,6 +59,11 @@
             background: #94a3b8;
         }
         .spreadsheet-input { font-family: monospace; }
+        .spreadsheet-input:focus {
+            outline: 2px solid #3b82f6;
+            z-index: 10;
+            position: relative;
+        }
     </style>
 </head>
 <body class="antialiased">
@@ -83,21 +88,21 @@
             <section class="card">
                 <h2 class="text-2xl font-bold text-slate-900 mb-4 tracking-tight">Configurações do Modelo</h2>
                 <div class="overflow-x-auto">
-                    <table class="w-full text-sm table-fixed border border-slate-200" id="settingsSheet">
+                    <table class="w-full text-sm table-fixed border border-collapse border-slate-200" id="settingsSheet">
                         <thead>
                             <tr class="bg-slate-100 text-slate-600">
-                                <th class="p-2 border"></th>
-                                <th class="p-2 border text-center">A</th>
-                                <th class="p-2 border text-center">B</th>
-                                <th class="p-2 border text-center">C</th>
-                                <th class="p-2 border text-center">D</th>
+                                <th class="p-2 border border-slate-300"></th>
+                                <th class="p-2 border border-slate-300 text-center">A</th>
+                                <th class="p-2 border border-slate-300 text-center">B</th>
+                                <th class="p-2 border border-slate-300 text-center">C</th>
+                                <th class="p-2 border border-slate-300 text-center">D</th>
                             </tr>
                             <tr class="bg-slate-100 text-slate-600">
-                                <th class="p-2 border font-semibold">Faixa (R$)</th>
-                                <th class="p-2 border text-center font-semibold">Diretor (%)</th>
-                                <th class="p-2 border text-center font-semibold">Gerente (%)</th>
-                                <th class="p-2 border text-center font-semibold">Coordenador (%)</th>
-                                <th class="p-2 border text-center font-semibold">Analista (%)</th>
+                                <th class="p-2 border border-slate-300 font-semibold">Faixa (R$)</th>
+                                <th class="p-2 border border-slate-300 text-center font-semibold">Diretor (%)</th>
+                                <th class="p-2 border border-slate-300 text-center font-semibold">Gerente (%)</th>
+                                <th class="p-2 border border-slate-300 text-center font-semibold">Coordenador (%)</th>
+                                <th class="p-2 border border-slate-300 text-center font-semibold">Analista (%)</th>
                             </tr>
                         </thead>
                         <tbody id="tierSettingsBody"></tbody>
@@ -356,12 +361,21 @@ document.addEventListener('DOMContentLoaded', () => {
             const row = document.createElement('tr');
             const displayFrom = index === 0 ? tier.from : tier.from + 0.01;
             const rangeLabel = `${formatCurrency(displayFrom)} - ${tier.to === Infinity ? '∞' : formatCurrency(tier.to)}`;
+            
+            let cells = '';
+            ROLES.forEach((role, i) => {
+                const colLetter = String.fromCharCode(65 + i); // A, B, C, D
+                const cellId = `${colLetter}${index + 1}`;
+                const value = tier.rates[role] * 100;
+                const formula = value.toFixed(4);
+                const displayValue = value.toFixed(4).replace('.', ',');
+
+                cells += `<td class="p-0 border border-slate-300"><input id="${cellId}" type="text" data-index="${index}" data-role="${role}" class="w-full h-full p-1 border-0 rounded-none text-right spreadsheet-input" data-formula="${formula}" value="${displayValue}"></td>`;
+            });
+
             row.innerHTML = `
-                <th class="p-2 border bg-slate-50 whitespace-nowrap">${rangeLabel}</th>
-                <td class="p-0 border"><input id="A${index+1}" type="text" data-index="${index}" data-role="diretor" class="w-full h-full p-1 border-0 rounded-none text-right spreadsheet-input" data-formula="${(tier.rates.diretor*100).toPrecision(3)}" value="${(tier.rates.diretor*100).toPrecision(3)}"></td>
-                <td class="p-0 border"><input id="B${index+1}" type="text" data-index="${index}" data-role="gerente" class="w-full h-full p-1 border-0 rounded-none text-right spreadsheet-input" data-formula="${(tier.rates.gerente*100).toPrecision(3)}" value="${(tier.rates.gerente*100).toPrecision(3)}"></td>
-                <td class="p-0 border"><input id="C${index+1}" type="text" data-index="${index}" data-role="coordenador" class="w-full h-full p-1 border-0 rounded-none text-right spreadsheet-input" data-formula="${(tier.rates.coordenador*100).toPrecision(3)}" value="${(tier.rates.coordenador*100).toPrecision(3)}"></td>
-                <td class="p-0 border"><input id="D${index+1}" type="text" data-index="${index}" data-role="analista" class="w-full h-full p-1 border-0 rounded-none text-right spreadsheet-input" data-formula="${(tier.rates.analista*100).toPrecision(3)}" value="${(tier.rates.analista*100).toPrecision(3)}"></td>
+                <th class="p-2 border border-slate-300 bg-slate-50 whitespace-nowrap">${rangeLabel}</th>
+                ${cells}
             `;
             tierSettingsBody.appendChild(row);
         });
@@ -650,7 +664,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-
     // --- EVENT LISTENERS ---
     addContractGroupBtn.addEventListener('click', () => {
         state.contractGroups.unshift({ id: state.nextGroupId++, name: '', value: 100000, incidence: 1 });
@@ -664,50 +677,65 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const evaluateExpression = (expr, visited = new Set()) => {
         try {
-            let processed = String(expr).replace(/,/g, '.');
-            // Regex to find cell references like A1, B12, etc. Not case sensitive.
+            let processed = String(expr).trim().replace(/,/g, '.');
             processed = processed.replace(/[A-Z][0-9]+/gi, (match) => {
                 const id = match.toUpperCase();
-                // Circular dependency check
                 if (visited.has(id)) {
                     console.warn(`Circular dependency detected for cell ${id}`);
                     return '0'; 
                 }
                 visited.add(id);
                 const input = document.getElementById(id);
-                if (!input) return '0'; // Cell not found
+                if (!input) return '0';
                 
-                // Recursively evaluate if the referenced cell is also a formula
                 const raw = (input.dataset.formula || input.value).trim();
                 if (raw.startsWith('=')) {
-                    return evaluateExpression(raw.slice(1), new Set(visited)); // pass a copy of visited
+                    return `(${evaluateExpression(raw.slice(1), new Set(visited))})`;
                 }
                 return raw.replace(/,/g, '.');
             });
             return math.evaluate(processed);
         } catch (err) {
-            console.error(err);
+            // console.error(err); // Can be noisy, enable for deep debugging
             return NaN;
         }
     };
 
     function evaluateAllCells() {
-        document.querySelectorAll('#tierSettingsBody input').forEach(input => {
-            const formula = (input.dataset.formula || input.value).trim();
-            const index = parseInt(input.dataset.index, 10);
-            const role = input.dataset.role;
-            let value;
-            if (formula.startsWith('=')) {
-                value = evaluateExpression(formula.slice(1), new Set([input.id.toUpperCase()]));
-            } else {
-                value = evaluateExpression(formula);
-            }
+        const maxIterations = 10;
+        let iteration = 0;
+        let changedInLastPass = true;
+
+        while (changedInLastPass && iteration < maxIterations) {
+            changedInLastPass = false;
+            iteration++;
             
-            if (!isNaN(value)) {
-                input.value = value.toPrecision(3).replace('.',',');
-                state.tiers[index].rates[role] = value / 100;
-            }
-        });
+            document.querySelectorAll('#tierSettingsBody input').forEach(input => {
+                const formula = (input.dataset.formula || "0").trim();
+                const index = parseInt(input.dataset.index, 10);
+                const role = input.dataset.role;
+                
+                let value;
+                if (formula.startsWith('=')) {
+                    value = evaluateExpression(formula.slice(1), new Set([input.id.toUpperCase()]));
+                } else {
+                    value = evaluateExpression(formula);
+                }
+                
+                if (!isNaN(value)) {
+                    const oldValue = state.tiers[index].rates[role] * 100;
+                    if (Math.abs(oldValue - value) > 1e-9) { // Compare with tolerance
+                        changedInLastPass = true;
+                        state.tiers[index].rates[role] = value / 100;
+                    }
+                    // Always update the display value to ensure correct formatting
+                    input.value = value.toFixed(4).replace('.', ',');
+                }
+            });
+        }
+        if(iteration === maxIterations) {
+            console.warn("Spreadsheet calculation did not stabilize. Check for circular references.");
+        }
         updateAllCalculations();
     }
     
@@ -794,7 +822,6 @@ document.addEventListener('DOMContentLoaded', () => {
         renderContractGroups();
         renderTierSettings();
         evaluateAllCells(); // Initial calculation of formulas
-        updateAllCalculations();
     }
 
     initialize();
