@@ -359,10 +359,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const rangeLabel = `${formatCurrency(displayFrom)} - ${tier.to === Infinity ? '∞' : formatCurrency(tier.to)}`;
             row.innerHTML = `
                 <th class="p-2 border bg-slate-50 whitespace-nowrap">${rangeLabel}</th>
-                <td class="p-2 border text-center"><input id="A${index+1}" type="text" data-index="${index}" data-role="diretor" class="w-full p-1 border rounded text-right spreadsheet-input" value="${(tier.rates.diretor*100).toFixed(3)}"></td>
-                <td class="p-2 border text-center"><input id="B${index+1}" type="text" data-index="${index}" data-role="gerente" class="w-full p-1 border rounded text-right spreadsheet-input" value="${(tier.rates.gerente*100).toFixed(3)}"></td>
-                <td class="p-2 border text-center"><input id="C${index+1}" type="text" data-index="${index}" data-role="coordenador" class="w-full p-1 border rounded text-right spreadsheet-input" value="${(tier.rates.coordenador*100).toFixed(3)}"></td>
-                <td class="p-2 border text-center"><input id="D${index+1}" type="text" data-index="${index}" data-role="analista" class="w-full p-1 border rounded text-right spreadsheet-input" value="${(tier.rates.analista*100).toFixed(3)}"></td>
+                <td class="p-2 border text-center"><input id="A${index+1}" type="text" data-index="${index}" data-role="diretor" class="w-full p-1 border rounded text-right spreadsheet-input" data-formula="${(tier.rates.diretor*100).toFixed(3)}" value="${(tier.rates.diretor*100).toFixed(3)}"></td>
+                <td class="p-2 border text-center"><input id="B${index+1}" type="text" data-index="${index}" data-role="gerente" class="w-full p-1 border rounded text-right spreadsheet-input" data-formula="${(tier.rates.gerente*100).toFixed(3)}" value="${(tier.rates.gerente*100).toFixed(3)}"></td>
+                <td class="p-2 border text-center"><input id="C${index+1}" type="text" data-index="${index}" data-role="coordenador" class="w-full p-1 border rounded text-right spreadsheet-input" data-formula="${(tier.rates.coordenador*100).toFixed(3)}" value="${(tier.rates.coordenador*100).toFixed(3)}"></td>
+                <td class="p-2 border text-center"><input id="D${index+1}" type="text" data-index="${index}" data-role="analista" class="w-full p-1 border rounded text-right spreadsheet-input" data-formula="${(tier.rates.analista*100).toFixed(3)}" value="${(tier.rates.analista*100).toFixed(3)}"></td>
             `;
             tierSettingsBody.appendChild(row);
         });
@@ -681,15 +681,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function evaluateAllCells() {
         document.querySelectorAll('#tierSettingsBody input').forEach(input => {
-            const raw = input.value.trim();
-            if (raw.startsWith('=')) {
-                const index = parseInt(input.dataset.index, 10);
-                const role = input.dataset.role;
-                const val = evaluateExpression(raw.slice(1), new Set([input.id]));
-                if (!isNaN(val)) {
-                    input.value = val.toFixed(3);
-                    state.tiers[index].rates[role] = val / 100;
-                }
+            const formula = (input.dataset.formula || input.value).trim();
+            const index = parseInt(input.dataset.index, 10);
+            const role = input.dataset.role;
+            let value;
+            if (formula.startsWith('=')) {
+                value = evaluateExpression(formula.slice(1), new Set([input.id]));
+            } else {
+                value = evaluateExpression(formula);
+            }
+            if (!isNaN(value)) {
+                input.value = value.toFixed(3);
+                state.tiers[index].rates[role] = value / 100;
             }
         });
     }
@@ -698,10 +701,20 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.target.tagName === 'INPUT') {
             const index = parseInt(e.target.dataset.index, 10);
             const role = e.target.dataset.role;
-            const value = evaluateExpression(e.target.value, new Set([e.target.id])) / 100;
+            e.target.dataset.formula = e.target.value;
+            const raw = e.target.value.trim();
+            const expr = raw.startsWith('=') ? raw.slice(1) : raw;
+            const value = evaluateExpression(expr, new Set([e.target.id])) / 100;
             if (!isNaN(value)) {
                 state.tiers[index].rates[role] = value;
-                updateAllCalculations();
+            }
+        }
+    });
+
+    tierSettingsBody.addEventListener('focusin', (e) => {
+        if (e.target.tagName === 'INPUT') {
+            if (e.target.dataset.formula !== undefined) {
+                e.target.value = e.target.dataset.formula;
             }
         }
     });
@@ -711,12 +724,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const index = parseInt(e.target.dataset.index, 10);
             const role = e.target.dataset.role;
             const raw = e.target.value.trim();
-            let value;
-            if (raw.startsWith('=')) {
-                value = evaluateExpression(raw.slice(1), new Set([e.target.id]));
-            } else {
-                value = evaluateExpression(raw);
-            }
+            e.target.dataset.formula = raw;
+            const expr = raw.startsWith('=') ? raw.slice(1) : raw;
+            const value = evaluateExpression(expr, new Set([e.target.id]));
             if (!isNaN(value)) {
                 state.tiers[index].rates[role] = value / 100;
                 e.target.value = value.toFixed(3);
@@ -794,6 +804,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }));
         renderContractGroups();
         renderTierSettings();
+        evaluateAllCells();
         updateAllCalculations();
     }
 
