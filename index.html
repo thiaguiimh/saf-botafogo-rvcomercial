@@ -74,8 +74,28 @@
                 <button class="tab-btn active" data-tab="simulator">Calculadora</button>
                 <button class="tab-btn" data-tab="analysis">Análise Executiva</button>
             </div>
+            <button id="settingsToggle" class="ml-4 bg-slate-100 px-4 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-200 transition-colors">Configurações</button>
         </div>
 
+        <div id="modelSettings" class="hidden mb-8">
+            <section class="card">
+                <h2 class="text-2xl font-bold text-slate-900 mb-4 tracking-tight">Configurações do Modelo</h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="bg-slate-100 text-slate-600">
+                            <tr>
+                                <th class="p-2 text-left">Faixa (R$)</th>
+                                <th class="p-2 text-right">Diretor (%)</th>
+                                <th class="p-2 text-right">Gerente (%)</th>
+                                <th class="p-2 text-right">Coordenador (%)</th>
+                                <th class="p-2 text-right">Analista (%)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tierSettingsBody" class="divide-y divide-slate-100"></tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
         <main>
             <!-- Simulator Tab Content -->
             <div id="simulator" class="tab-content active">
@@ -182,6 +202,13 @@
                         </section>
                     </div>
 
+                    <section class="card">
+                        <h2 class="text-2xl font-bold text-slate-900 mb-4 tracking-tight">Incidência e Bônus por Faixa</h2>
+                        <div class="chart-container !h-[350px]">
+                            <canvas id="tierIncidenceChart"></canvas>
+                        </div>
+                    </section>
+
                      <!-- Strategic Insights -->
                     <section class="card">
                         <h2 class="text-2xl font-bold text-slate-900 mb-4 tracking-tight">Insights Estratégicos e Recomendações</h2>
@@ -248,6 +275,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let state = {
         contractGroups: [],
         nextGroupId: 1,
+        tiers: JSON.parse(JSON.stringify(TIERS_DIRECT))
     };
 
     // --- ELEMENTOS DO DOM ---
@@ -258,12 +286,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const totalContractsEl = document.getElementById('totalContracts');
     const calculationBreakdownBody = document.getElementById('calculationBreakdown');
     const finalBonusResultsContainer = document.getElementById('finalBonusResults');
+    const settingsToggleBtn = document.getElementById('settingsToggle');
+    const modelSettings = document.getElementById('modelSettings');
+    const tierSettingsBody = document.getElementById('tierSettingsBody');
     
     // Elements for charts
     const bonusChartCanvas = document.getElementById('bonusSummaryChart');
     const commissionDistributionCanvas = document.getElementById('commissionDistributionChart');
     const valueVsRateCanvas = document.getElementById('valueVsRateChart');
-    let bonusChart, commissionDistributionChart, valueVsRateChart = null;
+    const tierIncidenceCanvas = document.getElementById('tierIncidenceChart');
+    let bonusChart, commissionDistributionChart, valueVsRateChart, tierIncidenceChart = null;
 
     // --- FUNÇÕES AUXILIARES ---
     const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -271,7 +303,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const parseCurrency = (value) => parseFloat(String(value).replace(/[R$\s]/g, '').replace(/\./g, '').replace(',', '.'));
     
     function findDirectTier(value) {
-        return TIERS_DIRECT.find(tier => value > tier.from && value <= tier.to) || TIERS_DIRECT[TIERS_DIRECT.length - 1];
+        const tiers = state.tiers;
+        for (let i = 0; i < tiers.length; i++) {
+            if (value > tiers[i].from && value <= tiers[i].to) {
+                return tiers[i];
+            }
+        }
+        return tiers[tiers.length - 1];
     }
     
     // --- LÓGICA DE RENDERIZAÇÃO E CÁLCULO ---
@@ -303,10 +341,27 @@ document.addEventListener('DOMContentLoaded', () => {
             contractGroupsContainer.appendChild(div);
         });
     }
+
+    function renderTierSettings() {
+        tierSettingsBody.innerHTML = '';
+        state.tiers.forEach((tier, index) => {
+            const row = document.createElement('tr');
+            const rangeLabel = `${formatCurrency(tier.from)} - ${tier.to === Infinity ? '∞' : formatCurrency(tier.to)}`;
+            row.innerHTML = `
+                <td class="p-2">${rangeLabel}</td>
+                <td class="p-2 text-right"><input type="number" step="0.001" data-index="${index}" data-role="diretor" class="w-20 p-1 border rounded text-right" value="${(tier.rates.diretor*100).toFixed(3)}"></td>
+                <td class="p-2 text-right"><input type="number" step="0.001" data-index="${index}" data-role="gerente" class="w-20 p-1 border rounded text-right" value="${(tier.rates.gerente*100).toFixed(3)}"></td>
+                <td class="p-2 text-right"><input type="number" step="0.001" data-index="${index}" data-role="coordenador" class="w-20 p-1 border rounded text-right" value="${(tier.rates.coordenador*100).toFixed(3)}"></td>
+                <td class="p-2 text-right"><input type="number" step="0.001" data-index="${index}" data-role="analista" class="w-20 p-1 border rounded text-right" value="${(tier.rates.analista*100).toFixed(3)}"></td>
+            `;
+            tierSettingsBody.appendChild(row);
+        });
+    }
     
     function updateAllCalculations() {
         const roleTotals = { diretor: 0, gerente: 0, coordenador: 0, analista: 0 };
         const breakdown = [];
+        const tierStats = state.tiers.map(() => ({ contracts: 0, bonus: 0 }));
         let totalRevenue = 0;
         let totalContracts = 0;
 
@@ -317,6 +372,7 @@ document.addEventListener('DOMContentLoaded', () => {
             totalContracts += group.incidence;
             
             const tier = findDirectTier(group.value);
+            const tierIndex = state.tiers.indexOf(tier);
             const groupBonusByRole = { diretor: 0, gerente: 0, coordenador: 0, analista: 0 };
             
             ROLES.forEach(role => {
@@ -324,6 +380,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 roleTotals[role] += bonusForRole;
                 groupBonusByRole[role] = bonusForRole;
             });
+
+            const groupTotalBonus = Object.values(groupBonusByRole).reduce((a,b) => a + b, 0);
+            tierStats[tierIndex].contracts += group.incidence;
+            tierStats[tierIndex].bonus += groupTotalBonus;
             
             breakdown.push({
                 description: `${group.name || `Grupo de ${group.incidence} contrato(s)`} de ${formatCurrency(group.value)}`,
@@ -359,9 +419,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         
         updateBonusSummaryChart(roleTotals);
-        
+
         // Trigger Analysis Tab Update
-        updateAnalysisTab(totalRevenue, roleTotals, breakdown);
+        updateAnalysisTab(totalRevenue, roleTotals, breakdown, tierStats);
     }
     
     function updateBonusSummaryChart(totals) {
@@ -398,7 +458,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- LÓGICA DA ABA DE ANÁLISE ---
-    function updateAnalysisTab(totalRevenue, roleTotals, breakdown) {
+    function updateAnalysisTab(totalRevenue, roleTotals, breakdown, tierStats) {
         const totalCommission = Object.values(roleTotals).reduce((a, b) => a + b, 0);
         const totalContracts = state.contractGroups.reduce((acc, g) => acc + g.incidence, 0);
 
@@ -413,6 +473,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Update charts
         updateCommissionDistributionChart(roleTotals, totalCommission);
         updateValueVsRateChart(breakdown);
+        updateTierIncidenceChart(tierStats);
 
         // Strategic Insights
         const goldenTierBonus = breakdown.filter(b => b.value > 3000000 && b.value <= 5000000).reduce((acc, b) => acc + Object.values(b.bonuses).reduce((t,c) => t+c, 0), 0);
@@ -469,8 +530,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateValueVsRateChart() {
-         const labels = TIERS_DIRECT.map(t => `> ${formatCurrency(t.from / 1000)}k`);
-         const data = TIERS_DIRECT.map(t => (t.rates.diretor + t.rates.gerente + t.rates.coordenador + t.rates.analista));
+         const labels = state.tiers.map(t => `> ${formatCurrency(t.from / 1000)}k`);
+         const data = state.tiers.map(t => (t.rates.diretor + t.rates.gerente + t.rates.coordenador + t.rates.analista));
 
          const chartOptions = {
             responsive: true,
@@ -491,7 +552,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 tooltip: {
                      backgroundColor: '#0f172a',
                     callbacks: {
-                        title: (context) => `Contratos de ${context[0].label} até ${TIERS_DIRECT[context[0].dataIndex].to === Infinity ? '∞' : formatCurrency(TIERS_DIRECT[context[0].dataIndex].to)}`,
+                        title: (context) => `Contratos de ${context[0].label} até ${state.tiers[context[0].dataIndex].to === Infinity ? '∞' : formatCurrency(state.tiers[context[0].dataIndex].to)}`,
                         label: (context) => `Taxa Total: ${formatPercent(context.raw)}`
                     }
                 }
@@ -523,11 +584,62 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function updateTierIncidenceChart(tierStats) {
+        const labels = state.tiers.map(t => `${formatCurrency(t.from)}-${t.to === Infinity ? '∞' : formatCurrency(t.to)}`);
+        const contractData = tierStats.map(t => t.contracts);
+        const bonusData = tierStats.map(t => t.bonus);
+
+        const chartOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: { beginAtZero: true, position: 'left', title: { display: true, text: 'Contratos' } },
+                y1: { beginAtZero: true, position: 'right', grid: { drawOnChartArea: false },
+                      ticks: { callback: v => formatCurrency(v) }, title: { display: true, text: 'Bônus' } }
+            },
+            plugins: { legend: { position: 'bottom' } }
+        };
+
+        if (tierIncidenceChart) {
+            tierIncidenceChart.data.labels = labels;
+            tierIncidenceChart.data.datasets[0].data = contractData;
+            tierIncidenceChart.data.datasets[1].data = bonusData;
+            tierIncidenceChart.update();
+        } else {
+            tierIncidenceChart = new Chart(tierIncidenceCanvas.getContext('2d'), {
+                data: {
+                    labels,
+                    datasets: [
+                        { type: 'bar', label: 'Contratos', data: contractData, backgroundColor: ROLE_COLORS.analista.bg, borderColor: ROLE_COLORS.analista.border, yAxisID: 'y' },
+                        { type: 'line', label: 'Bônus', data: bonusData, borderColor: ROLE_COLORS.diretor.border, backgroundColor: 'rgba(0,0,0,0)', tension: 0.1, yAxisID: 'y1' }
+                    ]
+                },
+                options: chartOptions
+            });
+        }
+    }
+
     // --- EVENT LISTENERS ---
     addContractGroupBtn.addEventListener('click', () => {
         state.contractGroups.unshift({ id: state.nextGroupId++, name: '', value: 100000, incidence: 1 });
         renderContractGroups();
         updateAllCalculations();
+    });
+
+    settingsToggleBtn.addEventListener('click', () => {
+        modelSettings.classList.toggle('hidden');
+    });
+
+    tierSettingsBody.addEventListener('input', (e) => {
+        if (e.target.tagName === 'INPUT') {
+            const index = parseInt(e.target.dataset.index, 10);
+            const role = e.target.dataset.role;
+            const value = parseFloat(e.target.value.replace(',', '.')) / 100;
+            if (!isNaN(value)) {
+                state.tiers[index].rates[role] = value;
+                updateAllCalculations();
+            }
+        }
     });
 
     contractGroupsContainer.addEventListener('input', (e) => { // Use 'input' for real-time updates
@@ -595,6 +707,7 @@ document.addEventListener('DOMContentLoaded', () => {
             incidence: 1
         }));
         renderContractGroups();
+        renderTierSettings();
         updateAllCalculations();
     }
 
