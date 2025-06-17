@@ -7,6 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjs@11/dist/math.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -57,6 +58,7 @@
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
             background: #94a3b8;
         }
+        .spreadsheet-input { font-family: monospace; }
     </style>
 </head>
 <body class="antialiased">
@@ -350,10 +352,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const rangeLabel = `${formatCurrency(displayFrom)} - ${tier.to === Infinity ? '∞' : formatCurrency(tier.to)}`;
             row.innerHTML = `
                 <td class="p-2">${rangeLabel}</td>
-                <td class="p-2 text-right"><input type="number" step="0.001" data-index="${index}" data-role="diretor" class="w-20 p-1 border rounded text-right" value="${(tier.rates.diretor*100).toFixed(3)}"></td>
-                <td class="p-2 text-right"><input type="number" step="0.001" data-index="${index}" data-role="gerente" class="w-20 p-1 border rounded text-right" value="${(tier.rates.gerente*100).toFixed(3)}"></td>
-                <td class="p-2 text-right"><input type="number" step="0.001" data-index="${index}" data-role="coordenador" class="w-20 p-1 border rounded text-right" value="${(tier.rates.coordenador*100).toFixed(3)}"></td>
-                <td class="p-2 text-right"><input type="number" step="0.001" data-index="${index}" data-role="analista" class="w-20 p-1 border rounded text-right" value="${(tier.rates.analista*100).toFixed(3)}"></td>
+                <td class="p-2 text-right"><input type="text" data-index="${index}" data-role="diretor" class="w-20 p-1 border rounded text-right spreadsheet-input" value="${(tier.rates.diretor*100).toFixed(3)}"></td>
+                <td class="p-2 text-right"><input type="text" data-index="${index}" data-role="gerente" class="w-20 p-1 border rounded text-right spreadsheet-input" value="${(tier.rates.gerente*100).toFixed(3)}"></td>
+                <td class="p-2 text-right"><input type="text" data-index="${index}" data-role="coordenador" class="w-20 p-1 border rounded text-right spreadsheet-input" value="${(tier.rates.coordenador*100).toFixed(3)}"></td>
+                <td class="p-2 text-right"><input type="text" data-index="${index}" data-role="analista" class="w-20 p-1 border rounded text-right spreadsheet-input" value="${(tier.rates.analista*100).toFixed(3)}"></td>
             `;
             tierSettingsBody.appendChild(row);
         });
@@ -649,15 +651,38 @@ document.addEventListener('DOMContentLoaded', () => {
         modelSettings.classList.toggle('hidden');
     });
 
+    const evaluateExpression = (expr) => {
+        try {
+            return math.evaluate(String(expr).replace(/,/g, '.'));
+        } catch (err) {
+            return NaN;
+        }
+    };
+
     tierSettingsBody.addEventListener('input', (e) => {
         if (e.target.tagName === 'INPUT') {
             const index = parseInt(e.target.dataset.index, 10);
             const role = e.target.dataset.role;
-            const value = parseFloat(e.target.value.replace(',', '.')) / 100;
+            const value = evaluateExpression(e.target.value) / 100;
             if (!isNaN(value)) {
                 state.tiers[index].rates[role] = value;
                 updateAllCalculations();
             }
+        }
+    });
+
+    tierSettingsBody.addEventListener('focusout', (e) => {
+        if (e.target.tagName === 'INPUT') {
+            const index = parseInt(e.target.dataset.index, 10);
+            const role = e.target.dataset.role;
+            const value = evaluateExpression(e.target.value);
+            if (!isNaN(value)) {
+                state.tiers[index].rates[role] = value / 100;
+                e.target.value = value.toFixed(3);
+            } else {
+                e.target.value = (state.tiers[index].rates[role] * 100).toFixed(3);
+            }
+            updateAllCalculations();
         }
     });
 
