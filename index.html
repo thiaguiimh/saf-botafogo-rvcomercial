@@ -7,7 +7,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
-    <script src="https://cdn.jsdelivr.net/npm/mathjs@11/dist/math.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -321,6 +320,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const parseCurrency = (value) => {
         const cleaned = String(value).replace(/[R$\s]/g, '').replace(/\./g, '').replace(',', '.');
         return parseFloat(cleaned);
+    }
+
+    function basicEvaluate(expression, scope) {
+        const params = Object.keys(scope);
+        const args = Object.values(scope);
+        try {
+            const fn = new Function(...params, `"use strict"; return (${expression});`);
+            const result = fn(...args);
+            if (typeof result !== 'number' || !isFinite(result)) throw new Error('Invalid result');
+            return result;
+        } catch (err) {
+            throw new Error('Eval error');
+        }
     }
     
     function findDirectTier(value) {
@@ -650,50 +662,36 @@ document.addEventListener('DOMContentLoaded', () => {
         const allInputs = Array.from(document.querySelectorAll('#tierSettingsBody input'));
         const formulas = new Map();
         allInputs.forEach(input => formulas.set(input.id.toUpperCase(), input.dataset.formula));
-        
+
         const values = new Map();
-        const pending = new Set(formulas.keys());
-        const maxIterations = allInputs.length + 1;
-        let iterations = 0;
 
-        while (pending.size > 0 && iterations < maxIterations) {
-            let calculatedThisPass = false;
-            
-            pending.forEach(cellId => {
-                const rawFormula = formulas.get(cellId) ?? '';
-                const trimmed = rawFormula.trim();
-                let expression = trimmed === '' ? '0' : (trimmed.startsWith('=') ? trimmed.slice(1) : trimmed);
-                expression = expression.replace(/,/g, '.');
-                
-                const dependencies = [...expression.matchAll(/[A-Z]+\d+/gi)].map(match => match[0].toUpperCase());
-                const allDepsResolved = dependencies.every(dep => values.has(dep));
+        function evalCell(id, stack = new Set()) {
+            if (values.has(id)) return values.get(id);
+            if (stack.has(id)) throw new Error('Circular');
+            stack.add(id);
 
-                if (allDepsResolved) {
-                    const scope = {};
-                    dependencies.forEach(dep => {
-                        scope[dep] = values.get(dep);
-                    });
-                    
-                    try {
-                        const result = math.evaluate(expression, scope);
-                        if (typeof result !== 'number' || !isFinite(result)) throw new Error('Invalid Math.js result');
-                        values.set(cellId, result);
-                        pending.delete(cellId);
-                        calculatedThisPass = true;
-                    } catch (e) {
-                        values.set(cellId, NaN);
-                        pending.delete(cellId);
-                        calculatedThisPass = true;
-                    }
-                }
-            });
+            const rawFormula = formulas.get(id) ?? '';
+            const trimmed = rawFormula.trim();
+            let expression = trimmed === '' ? '0' : (trimmed.startsWith('=') ? trimmed.slice(1) : trimmed);
+            expression = expression.replace(/,/g, '.');
 
-            if (!calculatedThisPass && pending.size > 0) {
-                pending.forEach(cellId => values.set(cellId, NaN)); // Mark unresolved as errors
-                break;
+            const deps = [...expression.matchAll(/[A-Z]+\d+/gi)].map(m => m[0].toUpperCase());
+            const scope = {};
+            deps.forEach(dep => { scope[dep] = evalCell(dep, stack); });
+
+            try {
+                const result = basicEvaluate(expression, scope);
+                values.set(id, result);
+                stack.delete(id);
+                return result;
+            } catch (e) {
+                values.set(id, NaN);
+                stack.delete(id);
+                return NaN;
             }
-            iterations++;
         }
+
+        allInputs.forEach(input => evalCell(input.id.toUpperCase()));
 
         allInputs.forEach(input => {
             const cellId = input.id.toUpperCase();
