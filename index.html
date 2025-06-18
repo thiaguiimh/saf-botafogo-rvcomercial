@@ -64,6 +64,10 @@
             z-index: 10;
             position: relative;
         }
+        .spreadsheet-input.error {
+            color: #ef4444;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body class="antialiased">
@@ -366,8 +370,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const colLetter = String.fromCharCode(65 + i); // A, B, C, D
                 const cellId = `${colLetter}${index + 1}`;
                 const value = tier.rates[role] * 100;
-                const initialFormula = value.toFixed(4);
-                const displayValue = value.toFixed(4).replace('.', ',');
+                const initialFormula = value.toFixed(4).replace('.',',');
+                const displayValue = initialFormula;
 
                 cells += `<td class="p-0 border border-slate-300"><input id="${cellId}" type="text" data-index="${index}" data-role="${role}" class="w-full h-full p-1 border-0 rounded-none text-right spreadsheet-input" data-formula="${initialFormula}" value="${displayValue}"></td>`;
             });
@@ -398,7 +402,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const groupBonusByRole = { diretor: 0, gerente: 0, coordenador: 0, analista: 0 };
             
             ROLES.forEach(role => {
-                const bonusForRole = group.value * tier.rates[role] * group.incidence;
+                // Ensure tier.rates[role] is a valid number before calculating
+                const rate = typeof state.tiers[tierIndex]?.rates[role] === 'number' ? state.tiers[tierIndex].rates[role] : 0;
+                const bonusForRole = group.value * rate * group.incidence;
                 roleTotals[role] += bonusForRole;
                 groupBonusByRole[role] = bonusForRole;
             });
@@ -642,64 +648,67 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- SPREADSHEET LOGIC ---
     function evaluateSheet() {
         const allInputs = Array.from(document.querySelectorAll('#tierSettingsBody input'));
-        const cellFormulas = new Map();
-        allInputs.forEach(input => cellFormulas.set(input.id.toUpperCase(), input.dataset.formula));
-
-        const cellValues = new Map();
-        const maxIterations = allInputs.length;
+        const formulas = new Map();
+        allInputs.forEach(input => formulas.set(input.id.toUpperCase(), input.dataset.formula));
+        
+        const values = new Map();
+        const pending = new Set(formulas.keys());
+        const maxIterations = allInputs.length + 1;
         let iterations = 0;
 
-        while (iterations < maxIterations) {
-            let changed = false;
-            for (const [id, formula] of cellFormulas.entries()) {
-                if (cellValues.has(id)) continue; // Already calculated
-
-                const expression = formula.startsWith('=') ? formula.slice(1) : formula;
+        while (pending.size > 0 && iterations < maxIterations) {
+            let calculatedThisPass = false;
+            
+            pending.forEach(cellId => {
+                const formula = (formulas.get(cellId) || '0').trim();
+                const expression = (formula.startsWith('=') ? formula.slice(1) : formula).replace(/,/g, '.');
+                
                 const dependencies = [...expression.matchAll(/[A-Z]+\d+/gi)].map(match => match[0].toUpperCase());
-
-                // Check if all dependencies are resolved
-                const allDepsResolved = dependencies.every(dep => cellValues.has(dep));
+                const allDepsResolved = dependencies.every(dep => values.has(dep));
 
                 if (allDepsResolved) {
                     const scope = {};
                     dependencies.forEach(dep => {
-                        scope[dep] = cellValues.get(dep);
+                        scope[dep] = values.get(dep);
                     });
                     
                     try {
-                        const compiled = math.compile(expression);
-                        const result = compiled.evaluate(scope);
-                        if (typeof result !== 'number' || !isFinite(result)) {
-                            throw new Error('Invalid calculation');
-                        }
-                        cellValues.set(id, result);
-                        changed = true;
+                        const result = math.evaluate(expression, scope);
+                        if (typeof result !== 'number' || !isFinite(result)) throw new Error('Invalid Math.js result');
+                        values.set(cellId, result);
+                        pending.delete(cellId);
+                        calculatedThisPass = true;
                     } catch (e) {
-                        cellValues.set(id, NaN); // Mark as error
-                        changed = true;
+                        values.set(cellId, NaN);
+                        pending.delete(cellId);
+                        calculatedThisPass = true;
                     }
                 }
+            });
+
+            if (!calculatedThisPass && pending.size > 0) {
+                pending.forEach(cellId => values.set(cellId, NaN)); // Mark unresolved as errors
+                break;
             }
-            if (!changed) break; // Stable state
             iterations++;
         }
-        
-        // Final pass to update DOM and state
-        for (const [id, value] of cellValues.entries()) {
-            const input = document.getElementById(id);
-            if (!input) continue;
-            
+
+        allInputs.forEach(input => {
+            const cellId = input.id.toUpperCase();
+            const value = values.get(cellId);
             const index = parseInt(input.dataset.index, 10);
             const role = input.dataset.role;
 
-            if (isNaN(value)) {
+            if (value === undefined || isNaN(value)) {
                 input.value = "#ERRO!";
+                input.classList.add('error');
                 state.tiers[index].rates[role] = 0;
             } else {
                 input.value = value.toFixed(4).replace('.', ',');
+                input.classList.remove('error');
                 state.tiers[index].rates[role] = value / 100;
             }
-        }
+        });
         updateAllCalculations();
     }
     
@@ -711,8 +720,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     tierSettingsBody.addEventListener('focusout', (e) => {
         if (e.target.tagName === 'INPUT') {
-            const raw = e.target.value.trim().replace('.', ',');
-            e.target.dataset.formula = raw;
+            e.target.dataset.formula = e.target.value.trim();
             evaluateSheet();
         }
     });
