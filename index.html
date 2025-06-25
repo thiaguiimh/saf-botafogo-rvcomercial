@@ -80,9 +80,10 @@
 
         <!-- Tab Navigation -->
         <div class="relative flex justify-center mb-8 border-b border-slate-200">
-            <div id="tabContainer" class="flex space-x-2">
+            <div id="tabContainer" class="flex flex-wrap justify-center space-x-2">
                 <button class="tab-btn active" data-tab="simulator">Calculadora</button>
                 <button class="tab-btn" data-tab="analysis">Análise Executiva</button>
+                <button class="tab-btn" data-tab="sensitivity">Análise de Sensibilidade</button>
             </div>
             <button id="settingsToggle" class="absolute right-0 top-1/2 -translate-y-1/2 p-2 text-slate-500 hover:text-slate-700 text-2xl">⚙️</button>
         </div>
@@ -177,7 +178,7 @@
             <!-- Analysis Tab Content -->
             <div id="analysis" class="tab-content">
                 <div class="space-y-12">
-                     <!-- Executive Summary -->
+                       <!-- Executive Summary -->
                     <section class="card bg-slate-800 text-white">
                         <h2 class="text-2xl font-bold tracking-tight mb-6 text-white border-b border-slate-600 pb-4">Análise Executiva do Portfólio de Contratos</h2>
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 text-center">
@@ -205,8 +206,8 @@
                         <section class="card">
                              <h2 class="text-2xl font-bold text-slate-900 mb-4 tracking-tight">Distribuição da Comissão por Cargo</h2>
                              <div class="chart-container !h-[350px]">
-                                <canvas id="commissionDistributionChart"></canvas>
-                            </div>
+                                 <canvas id="commissionDistributionChart"></canvas>
+                             </div>
                         </section>
                         
                         <!-- Contract Value vs. Commission Rate -->
@@ -226,26 +227,41 @@
                         </div>
                     </section>
 
-                     <!-- Strategic Insights -->
-                    <section class="card">
-                        <h2 class="text-2xl font-bold text-slate-900 mb-4 tracking-tight">Insights Estratégicos e Recomendações</h2>
-                        <div class="space-y-6">
-                            <div class="p-5 rounded-xl bg-blue-50 border border-blue-200">
-                                <h3 class="font-bold text-lg text-blue-800">🎯 Foco em Contratos de Alto Valor ("Golden Tier")</h3>
-                                <p class="text-blue-700 mt-2">Contratos na faixa de <strong>R$ 3M a R$ 5M</strong> representam o "ponto ótimo" do portfólio, gerando <strong id="goldenTierContribution"></strong> do bônus total. Embora as taxas percentuais diminuam, o volume absoluto gerado por esses negócios é o motor principal da comissão. <strong>Recomendação:</strong> Priorizar a prospecção e negociação de clientes com potencial para fechar contratos nesta faixa de valor.</p>
-                            </div>
-                             <div class="p-5 rounded-xl bg-amber-50 border border-amber-200">
-                                <h3 class="font-bold text-lg text-amber-800">⚖️ A Cauda Longa de Contratos Menores</h3>
-                                <p class="text-amber-700 mt-2">Contratos com valor abaixo de <strong>R$ 1M</strong>, embora numerosos, contribuem com apenas <strong id="smallTierContribution"></strong> do bônus. Eles possuem as maiores taxas percentuais, mas seu impacto individual é baixo. <strong>Recomendação:</strong> Avaliar o custo de aquisição (esforço vs. recompensa) para esses contratos. Buscar padronizar e automatizar o processo de vendas para este segmento para maximizar a eficiência.</p>
-                            </div>
-                             <div class="p-5 rounded-xl bg-green-50 border border-green-200">
-                                <h3 class="font-bold text-lg text-green-800">🚀 Potencial Inexplorado: Aceleradores de Bônus</h3>
-                                <p class="text-green-700 mt-2">O bônus para <strong>Diretor</strong> é desproporcionalmente maior, recebendo <strong id="directorShare"></strong> do total. Isso cria um forte incentivo para a liderança se envolver diretamente no fechamento de grandes contas. <strong>Recomendação:</strong> Estruturar metas de equipe que alinhem os objetivos de Analistas e Coordenadores com o fechamento de contratos que maximizem o bônus do Diretor, criando um ciclo virtuoso de mentoria e resultados.</p>
+                </div>
+            </div>
+            
+            <!-- Sensitivity Analysis Tab Content -->
+            <div id="sensitivity" class="tab-content">
+                <section class="card">
+                    <h2 class="text-2xl font-bold text-slate-900 mb-4 tracking-tight">Análise de Sensibilidade do Bônus</h2>
+                    <p class="text-sm text-slate-500 mb-6">Esta análise mostra como o bônus final de cada cargo reage a mudanças na receita total e na sua taxa de comissão efetiva, com base no cenário atual. Use os gráficos para entender quais fatores têm maior impacto na remuneração.</p>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        <div id="sensitivity-diretor" class="border p-4 rounded-xl">
+                            <h3 class="text-lg font-bold text-slate-800 text-center mb-4">Diretor</h3>
+                            <div class="chart-container !h-[250px]">
+                                <canvas id="sensitivityChartDiretor"></canvas>
                             </div>
                         </div>
-                    </section>
-
-                </div>
+                        <div id="sensitivity-gerente" class="border p-4 rounded-xl">
+                            <h3 class="text-lg font-bold text-slate-800 text-center mb-4">Gerente</h3>
+                            <div class="chart-container !h-[250px]">
+                                <canvas id="sensitivityChartGerente"></canvas>
+                            </div>
+                        </div>
+                        <div id="sensitivity-coordenador" class="border p-4 rounded-xl">
+                             <h3 class="text-lg font-bold text-slate-800 text-center mb-4">Coordenador</h3>
+                            <div class="chart-container !h-[250px]">
+                                <canvas id="sensitivityChartCoordenador"></canvas>
+                            </div>
+                        </div>
+                        <div id="sensitivity-analista" class="border p-4 rounded-xl">
+                            <h3 class="text-lg font-bold text-slate-800 text-center mb-4">Analista</h3>
+                           <div class="chart-container !h-[250px]">
+                                <canvas id="sensitivityChartAnalista"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </section>
             </div>
         </main>
         
@@ -313,6 +329,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const valueVsRateCanvas = document.getElementById('valueVsRateChart');
     const tierIncidenceCanvas = document.getElementById('tierIncidenceChart');
     let bonusChart, commissionDistributionChart, valueVsRateChart, tierIncidenceChart = null;
+    let sensitivityCharts = {};
+
 
     // --- HELPER FUNCTIONS ---
     const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -321,6 +339,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const cleaned = String(value).replace(/[R$\s]/g, '').replace(/\./g, '').replace(',', '.');
         return parseFloat(cleaned);
     }
+    const formatForChart = (value) => {
+        if (value >= 1000000) {
+            return (value / 1000000).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 1 }) + 'M';
+        } else if (value >= 1000) {
+            return (value / 1000).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + 'k';
+        }
+        return value.toLocaleString('pt-BR');
+    };
 
     function basicEvaluate(expression, scope) {
         const params = Object.keys(scope);
@@ -465,6 +491,9 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Trigger Analysis Tab Update
         updateAnalysisTab(totalRevenue, roleTotals, breakdown, tierStats);
+        
+        // Trigger Sensitivity Analysis Update
+        updateSensitivityAnalysis(totalRevenue, roleTotals);
     }
     
     function updateBonusSummaryChart(totals) {
@@ -515,15 +544,6 @@ document.addEventListener('DOMContentLoaded', () => {
         updateCommissionDistributionChart(roleTotals, totalCommission);
         updateValueVsRateChart(tierStats);
         updateTierIncidenceChart(tierStats);
-
-        const goldenTierBonus = breakdown.filter(b => b.value > 3000000 && b.value <= 5000000).reduce((acc, b) => acc + Object.values(b.bonuses).reduce((t,c) => t+c, 0), 0);
-        document.getElementById('goldenTierContribution').textContent = totalCommission > 0 ? formatPercent(goldenTierBonus/totalCommission) : '0,00%';
-        
-        const smallTierBonus = breakdown.filter(b => b.value <= 1000000).reduce((acc, b) => acc + Object.values(b.bonuses).reduce((t,c) => t+c, 0), 0);
-        document.getElementById('smallTierContribution').textContent = totalCommission > 0 ? formatPercent(smallTierBonus/totalCommission) : '0,00%';
-
-        const directorShare = totalCommission > 0 ? formatPercent(roleTotals.diretor / totalCommission) : '0,00%';
-        document.getElementById('directorShare').textContent = directorShare;
     }
     
     function updateCommissionDistributionChart(roleTotals, totalCommission) {
@@ -539,7 +559,8 @@ document.addEventListener('DOMContentLoaded', () => {
                      backgroundColor: '#0f172a',
                     callbacks: {
                         label: function(context) {
-                            return ` ${context.label}: ${context.formattedValue}% (${formatCurrency(roleTotals[context.label.toLowerCase()])})`;
+                            const roleKey = ROLES[context.dataIndex];
+                            return ` ${context.label}: ${context.formattedValue}% (${formatCurrency(roleTotals[roleKey])})`;
                         }
                     }
                 }
@@ -570,7 +591,7 @@ document.addEventListener('DOMContentLoaded', () => {
         tierStats.forEach((stat, idx) => {
             if (stat.revenue > 0) {
                 const start = idx === 0 ? state.tiers[idx].from : state.tiers[idx].from + 0.01;
-                labels.push(`> ${formatCurrency(start / 1000)}k`);
+                labels.push(`> ${formatForChart(start)}`);
                 data.push(stat.bonus / stat.revenue);
                 tierIndices.push(idx);
             }
@@ -588,9 +609,9 @@ document.addEventListener('DOMContentLoaded', () => {
                      backgroundColor: '#0f172a',
                     callbacks: {
                         title: (context) => {
-                           const idx = tierIndices[context[0].dataIndex];
-                           const tier = state.tiers[idx];
-                           return `Contratos de ${context[0].label} até ${tier.to === Infinity ? '∞' : formatCurrency(tier.to)}`;
+                            const idx = tierIndices[context[0].dataIndex];
+                            const tier = state.tiers[idx];
+                            return `Contratos de ${context[0].label} até ${tier.to === Infinity ? '∞' : formatCurrency(tier.to)}`;
                         },
                         label: (context) => `Taxa Efetiva: ${formatPercent(context.raw)}`
                     }
@@ -622,7 +643,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateTierIncidenceChart(tierStats) {
         const labels = state.tiers.map((t, idx) => {
             const displayFrom = idx === 0 ? t.from : t.from + 0.01;
-            return `${formatCurrency(displayFrom / 1000)}k - ${t.to === Infinity ? '∞' : formatCurrency(t.to / 1000) + 'k'}`;
+            return `${formatForChart(displayFrom)} - ${t.to === Infinity ? '∞' : formatForChart(t.to)}`;
         });
         const contractData = tierStats.map(t => t.contracts);
         const bonusData = tierStats.map(t => t.bonus);
@@ -656,6 +677,90 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
     }
+    
+    // --- SENSITIVITY ANALYSIS LOGIC ---
+    function updateSensitivityAnalysis(totalRevenue, roleTotals) {
+        const REVENUE_DELTA = 10000000;
+        const RATE_DELTA = 0.001; // 0.1%
+
+        ROLES.forEach(role => {
+            const baselineBonus = roleTotals[role];
+            const effectiveRate = totalRevenue > 0 ? baselineBonus / totalRevenue : 0;
+            
+            // 1. Revenue Impact
+            const lowRevenueBonus = (totalRevenue - REVENUE_DELTA) * effectiveRate;
+            const highRevenueBonus = (totalRevenue + REVENUE_DELTA) * effectiveRate;
+            const revenueImpact = [lowRevenueBonus - baselineBonus, highRevenueBonus - baselineBonus];
+
+            // 2. Rate Impact
+            const lowRateBonus = totalRevenue * (effectiveRate - RATE_DELTA);
+            const highRateBonus = totalRevenue * (effectiveRate + RATE_DELTA);
+            const rateImpact = [lowRateBonus - baselineBonus, highRateBonus - baselineBonus];
+
+            const data = {
+                labels: [`Variação na Receita (±${formatForChart(REVENUE_DELTA)})`, `Variação na Taxa (±0.1%)`],
+                datasets: [{
+                    label: 'Impacto Negativo',
+                    data: [revenueImpact[0], rateImpact[0]],
+                    backgroundColor: 'rgba(239, 68, 68, 0.7)',
+                    borderColor: '#ef4444',
+                    borderWidth: 1,
+                    borderRadius: 3,
+                }, {
+                    label: 'Impacto Positivo',
+                    data: [revenueImpact[1], rateImpact[1]],
+                    backgroundColor: 'rgba(34, 197, 94, 0.7)',
+                    borderColor: '#10b981',
+                    borderWidth: 1,
+                    borderRadius: 3,
+                }]
+            };
+
+            const options = {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        stacked: true,
+                        ticks: { callback: value => formatCurrency(value) },
+                        title: { display: true, text: 'Variação no Bônus' }
+                    },
+                    y: { stacked: true, grid: { display: false } }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: '#0f172a',
+                        callbacks: {
+                            label: function(context) {
+                                const change = context.raw;
+                                const finalValue = baselineBonus + change;
+                                const label = context.dataset.label || '';
+                                return `${label}: ${formatCurrency(change)} (Final: ${formatCurrency(finalValue)})`;
+                            }
+                        }
+                    }
+                }
+            };
+            
+            const canvasId = `sensitivityChart${ROLE_NAMES[role]}`;
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+
+            if (sensitivityCharts[role]) {
+                sensitivityCharts[role].data = data;
+                sensitivityCharts[role].update();
+            } else {
+                sensitivityCharts[role] = new Chart(canvas.getContext('2d'), {
+                    type: 'bar',
+                    data: data,
+                    options: options
+                });
+            }
+        });
+    }
+
 
     // --- SPREADSHEET LOGIC ---
     function evaluateSheet() {
@@ -761,9 +866,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     contractGroupsContainer.addEventListener('focusout', (e) => {
          if(e.target.tagName === 'INPUT' && e.target.dataset.field === 'value') {
-            const id = parseInt(e.target.dataset.id);
-            const group = state.contractGroups.find(g => g.id === id);
-            e.target.value = new Intl.NumberFormat('pt-BR', {minimumFractionDigits: 2}).format(group.value);
+             const id = parseInt(e.target.dataset.id);
+             const group = state.contractGroups.find(g => g.id === id);
+             e.target.value = new Intl.NumberFormat('pt-BR', {minimumFractionDigits: 2}).format(group.value);
          }
          updateAllCalculations();
     });
@@ -784,9 +889,9 @@ document.addEventListener('DOMContentLoaded', () => {
             e.target.classList.add('active');
             document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
             document.getElementById(tabName).classList.add('active');
-            if (tabName === 'analysis') {
-                updateAllCalculations();
-            }
+            
+            // Recalculate and redraw all charts when switching tabs to ensure they are up to date
+            updateAllCalculations();
         }
     });
 
