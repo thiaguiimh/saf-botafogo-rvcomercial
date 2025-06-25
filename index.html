@@ -75,15 +75,22 @@
         
         <header class="text-center mb-10">
             <h1 class="text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tight">Simulador e Análise de Comissão</h1>
-            <p class="mt-4 text-xl text-slate-600">Construa cenários e extraia insights estratégicos do modelo "Por Contrato".</p>
+            <p class="mt-4 text-xl text-slate-600">Construa cenários e extraia insights estratégicos dos modelos de comissão.</p>
         </header>
+
+        <!-- Model Toggle Switch -->
+        <div class="flex justify-center mb-8">
+            <div id="modelToggle" class="flex p-1 bg-slate-200 rounded-full">
+                <button data-model="progressive" class="px-6 py-2 text-sm font-semibold rounded-full transition-colors">Progressivo</button>
+                <button data-model="direct" class="px-6 py-2 text-sm font-semibold rounded-full transition-colors bg-white text-blue-600 shadow">Por Contrato</button>
+            </div>
+        </div>
 
         <!-- Tab Navigation -->
         <div class="relative flex justify-center mb-8 border-b border-slate-200">
             <div id="tabContainer" class="flex flex-wrap justify-center space-x-2">
                 <button class="tab-btn active" data-tab="simulator">Calculadora</button>
                 <button class="tab-btn" data-tab="analysis">Análise Executiva</button>
-                <button class="tab-btn" data-tab="sensitivity">Análise de Sensibilidade</button>
             </div>
             <button id="settingsToggle" class="absolute right-0 top-1/2 -translate-y-1/2 p-2 text-slate-500 hover:text-slate-700 text-2xl">⚙️</button>
         </div>
@@ -213,55 +220,13 @@
                         <!-- Contract Value vs. Commission Rate -->
                         <section class="card">
                             <h2 class="text-2xl font-bold text-slate-900 mb-4 tracking-tight">Valor do Contrato vs. % Comissão Efetiva</h2>
-                            <p class="text-sm text-slate-500 mb-4">Análise da taxa de comissão real por faixa de valor, baseada nos contratos do cenário.</p>
+                            <p class="text-sm text-slate-500 mb-4">Análise da taxa de comissão real por faixa de valor, baseada nos contratos e no modelo selecionado.</p>
                             <div class="chart-container !h-[350px]">
                                 <canvas id="valueVsRateChart"></canvas>
                             </div>
                         </section>
                     </div>
-
-                    <section class="card">
-                        <h2 class="text-2xl font-bold text-slate-900 mb-4 tracking-tight">Incidência e Bônus por Faixa</h2>
-                        <div class="chart-container !h-[350px]">
-                            <canvas id="tierIncidenceChart"></canvas>
-                        </div>
-                    </section>
-
                 </div>
-            </div>
-            
-            <!-- Sensitivity Analysis Tab Content -->
-            <div id="sensitivity" class="tab-content">
-                <section class="card">
-                    <h2 class="text-2xl font-bold text-slate-900 mb-4 tracking-tight">Análise de Sensibilidade do Bônus</h2>
-                    <p class="text-sm text-slate-500 mb-6">Esta análise mostra como o bônus final de cada cargo reage a mudanças na receita total e na sua taxa de comissão efetiva, com base no cenário atual. Use os gráficos para entender quais fatores têm maior impacto na remuneração.</p>
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                        <div id="sensitivity-diretor" class="border p-4 rounded-xl">
-                            <h3 class="text-lg font-bold text-slate-800 text-center mb-4">Diretor</h3>
-                            <div class="chart-container !h-[250px]">
-                                <canvas id="sensitivityChartDiretor"></canvas>
-                            </div>
-                        </div>
-                        <div id="sensitivity-gerente" class="border p-4 rounded-xl">
-                            <h3 class="text-lg font-bold text-slate-800 text-center mb-4">Gerente</h3>
-                            <div class="chart-container !h-[250px]">
-                                <canvas id="sensitivityChartGerente"></canvas>
-                            </div>
-                        </div>
-                        <div id="sensitivity-coordenador" class="border p-4 rounded-xl">
-                             <h3 class="text-lg font-bold text-slate-800 text-center mb-4">Coordenador</h3>
-                            <div class="chart-container !h-[250px]">
-                                <canvas id="sensitivityChartCoordenador"></canvas>
-                            </div>
-                        </div>
-                        <div id="sensitivity-analista" class="border p-4 rounded-xl">
-                            <h3 class="text-lg font-bold text-slate-800 text-center mb-4">Analista</h3>
-                           <div class="chart-container !h-[250px]">
-                                <canvas id="sensitivityChartAnalista"></canvas>
-                            </div>
-                        </div>
-                    </div>
-                </section>
             </div>
         </main>
         
@@ -308,10 +273,12 @@ document.addEventListener('DOMContentLoaded', () => {
     let state = {
         contractGroups: [],
         nextGroupId: 1,
-        tiers: JSON.parse(JSON.stringify(TIERS_DIRECT)) // Deep copy for dynamic settings
+        tiers: JSON.parse(JSON.stringify(TIERS_DIRECT)), // Deep copy
+        calculationModel: 'direct' // 'direct' or 'progressive'
     };
 
     // --- DOM ELEMENTS ---
+    const modelToggle = document.getElementById('modelToggle');
     const tabContainer = document.getElementById('tabContainer');
     const addContractGroupBtn = document.getElementById('addContractGroupBtn');
     const contractGroupsContainer = document.getElementById('contractGroupsContainer');
@@ -327,10 +294,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const bonusChartCanvas = document.getElementById('bonusSummaryChart');
     const commissionDistributionCanvas = document.getElementById('commissionDistributionChart');
     const valueVsRateCanvas = document.getElementById('valueVsRateChart');
-    const tierIncidenceCanvas = document.getElementById('tierIncidenceChart');
-    let bonusChart, commissionDistributionChart, valueVsRateChart, tierIncidenceChart = null;
-    let sensitivityCharts = {};
-
+    let bonusChart, commissionDistributionChart, valueVsRateChart = null;
 
     // --- HELPER FUNCTIONS ---
     const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -361,12 +325,43 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
+    // --- CALCULATION MODELS ---
+
+    /**
+     * Finds the single commission tier for a given value. (Model: Por Contrato)
+     */
     function findDirectTier(value) {
-        const tiers = state.tiers;
-        return tiers.find(tier => value > tier.from && value <= tier.to) || tiers[tiers.length - 1];
+        return state.tiers.find(tier => value > tier.from && value <= tier.to) || state.tiers[state.tiers.length - 1];
     }
-    
-    // --- RENDER AND CALCULATION LOGIC ---
+
+    /**
+     * Calculates bonus by breaking down the value across multiple tiers. (Model: Progressivo)
+     */
+    function calculateProgressiveBonusForRole(value, role) {
+        let totalBonus = 0;
+        const tiers = state.tiers;
+
+        for (const tier of tiers) {
+            // If the contract value doesn't even reach the start of this tier, we're done.
+            if (value <= tier.from) {
+                break;
+            }
+
+            // Determine the portion of the value to be calculated in this tier.
+            const taxableAmountInTier = Math.min(value, tier.to) - tier.from;
+
+            const rate = tier.rates[role] || 0;
+            totalBonus += taxableAmountInTier * rate;
+            
+            // If the contract value is fully contained within this tier's upper bound, we can stop.
+            if (value <= tier.to) {
+                break;
+            }
+        }
+        return totalBonus;
+    }
+
+    // --- RENDER AND MAIN CALCULATION LOGIC ---
     function renderContractGroups() {
         contractGroupsContainer.innerHTML = '';
         if (state.contractGroups.length === 0) {
@@ -435,23 +430,32 @@ document.addEventListener('DOMContentLoaded', () => {
             totalRevenue += group.value * group.incidence;
             totalContracts += group.incidence;
             
-            const tier = findDirectTier(group.value);
-            const tierIndex = state.tiers.indexOf(tier);
             const groupBonusByRole = { diretor: 0, gerente: 0, coordenador: 0, analista: 0 };
             
             ROLES.forEach(role => {
-                // Ensure tier.rates[role] is a valid number before calculating
-                const rate = typeof state.tiers[tierIndex]?.rates[role] === 'number' ? state.tiers[tierIndex].rates[role] : 0;
-                const bonusForRole = group.value * rate * group.incidence;
-                roleTotals[role] += bonusForRole;
-                groupBonusByRole[role] = bonusForRole;
+                let singleContractBonus = 0;
+                if (state.calculationModel === 'direct') {
+                    const tier = findDirectTier(group.value);
+                    const rate = tier.rates[role] || 0;
+                    singleContractBonus = group.value * rate;
+                } else { // progressive
+                    singleContractBonus = calculateProgressiveBonusForRole(group.value, role);
+                }
+                // Update role totals and breakdown group totals
+                roleTotals[role] += singleContractBonus * group.incidence;
+                groupBonusByRole[role] = singleContractBonus * group.incidence;
             });
 
-            const groupTotalBonus = Object.values(groupBonusByRole).reduce((a,b) => a + b, 0);
+            // For the valueVsRate chart, we want to show the effective rate.
+            // We group contracts by the tier they would fall into in the 'direct' model for simplicity.
+            const directTierForGrouping = findDirectTier(group.value);
+            const tierIndex = state.tiers.indexOf(directTierForGrouping);
+            const groupTotalBonus = Object.values(groupBonusByRole).reduce((a, b) => a + b, 0);
+
             if (tierIndex !== -1) {
-              tierStats[tierIndex].contracts += group.incidence;
-              tierStats[tierIndex].bonus += groupTotalBonus;
-              tierStats[tierIndex].revenue += group.value * group.incidence;
+                tierStats[tierIndex].contracts += group.incidence;
+                tierStats[tierIndex].bonus += groupTotalBonus; 
+                tierStats[tierIndex].revenue += group.value * group.incidence;
             }
             
             breakdown.push({
@@ -461,7 +465,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
         
-        // Update Simulator Tab
+        // Update Simulator Tab UI
         totalRevenueEl.textContent = formatCurrency(totalRevenue);
         totalContractsEl.textContent = totalContracts;
 
@@ -488,12 +492,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         
         updateBonusSummaryChart(roleTotals);
-        
-        // Trigger Analysis Tab Update
-        updateAnalysisTab(totalRevenue, roleTotals, breakdown, tierStats);
-        
-        // Trigger Sensitivity Analysis Update
-        updateSensitivityAnalysis(totalRevenue, roleTotals);
+        updateAnalysisTab(totalRevenue, roleTotals, tierStats);
     }
     
     function updateBonusSummaryChart(totals) {
@@ -530,7 +529,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- ANALYSIS TAB LOGIC ---
-    function updateAnalysisTab(totalRevenue, roleTotals, breakdown, tierStats) {
+    function updateAnalysisTab(totalRevenue, roleTotals, tierStats) {
         const totalCommission = Object.values(roleTotals).reduce((a, b) => a + b, 0);
         const totalContracts = state.contractGroups.reduce((acc, g) => acc + g.incidence, 0);
 
@@ -543,7 +542,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         updateCommissionDistributionChart(roleTotals, totalCommission);
         updateValueVsRateChart(tierStats);
-        updateTierIncidenceChart(tierStats);
     }
     
     function updateCommissionDistributionChart(roleTotals, totalCommission) {
@@ -569,6 +567,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (commissionDistributionChart) {
             commissionDistributionChart.data.datasets[0].data = data;
+            commissionDistributionChart.options = chartOptions; // BUG FIX: Update options to refresh tooltip callback
             commissionDistributionChart.update();
         } else {
             commissionDistributionChart = new Chart(commissionDistributionCanvas.getContext('2d'), {
@@ -622,6 +621,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (valueVsRateChart) {
             valueVsRateChart.data.labels = labels;
             valueVsRateChart.data.datasets[0].data = data;
+            valueVsRateChart.options = chartOptions; // BUG FIX: Update options to refresh tooltip callback
             valueVsRateChart.update();
         } else {
              valueVsRateChart = new Chart(valueVsRateCanvas.getContext('2d'), {
@@ -639,129 +639,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
     }
-
-    function updateTierIncidenceChart(tierStats) {
-        const labels = state.tiers.map((t, idx) => {
-            const displayFrom = idx === 0 ? t.from : t.from + 0.01;
-            return `${formatForChart(displayFrom)} - ${t.to === Infinity ? '∞' : formatForChart(t.to)}`;
-        });
-        const contractData = tierStats.map(t => t.contracts);
-        const bonusData = tierStats.map(t => t.bonus);
-
-        const chartOptions = {
-            responsive: true, maintainAspectRatio: false,
-            interaction: { mode: 'index', intersect: false },
-            scales: {
-                y_contracts: { type: 'linear', display: true, position: 'left', beginAtZero: true, title: { display: true, text: 'Nº de Contratos' }, grid: { drawOnChartArea: false } },
-                y_bonus: { type: 'linear', display: true, position: 'right', beginAtZero: true, title: { display: true, text: 'Bônus Total' }, ticks: { callback: v => formatCurrency(v)} }
-            },
-            plugins: { legend: { position: 'bottom' } }
-        };
-
-        if (tierIncidenceChart) {
-            tierIncidenceChart.data.labels = labels;
-            tierIncidenceChart.data.datasets[0].data = contractData;
-            tierIncidenceChart.data.datasets[1].data = bonusData;
-            tierIncidenceChart.update();
-        } else {
-            tierIncidenceChart = new Chart(tierIncidenceCanvas.getContext('2d'), {
-                type: 'bar',
-                data: {
-                    labels,
-                    datasets: [
-                        { label: 'Nº Contratos', data: contractData, backgroundColor: ROLE_COLORS.analista.bg, borderColor: ROLE_COLORS.analista.border, yAxisID: 'y_contracts' },
-                        { type: 'line', label: 'Bônus Gerado', data: bonusData, borderColor: ROLE_COLORS.diretor.border, backgroundColor: 'rgba(0,0,0,0)', tension: 0.2, yAxisID: 'y_bonus' }
-                    ]
-                },
-                options: chartOptions
-            });
-        }
-    }
     
-    // --- SENSITIVITY ANALYSIS LOGIC ---
-    function updateSensitivityAnalysis(totalRevenue, roleTotals) {
-        const REVENUE_DELTA = 10000000;
-        const RATE_DELTA = 0.001; // 0.1%
-
-        ROLES.forEach(role => {
-            const baselineBonus = roleTotals[role];
-            const effectiveRate = totalRevenue > 0 ? baselineBonus / totalRevenue : 0;
-            
-            // 1. Revenue Impact
-            const lowRevenueBonus = (totalRevenue - REVENUE_DELTA) * effectiveRate;
-            const highRevenueBonus = (totalRevenue + REVENUE_DELTA) * effectiveRate;
-            const revenueImpact = [lowRevenueBonus - baselineBonus, highRevenueBonus - baselineBonus];
-
-            // 2. Rate Impact
-            const lowRateBonus = totalRevenue * (effectiveRate - RATE_DELTA);
-            const highRateBonus = totalRevenue * (effectiveRate + RATE_DELTA);
-            const rateImpact = [lowRateBonus - baselineBonus, highRateBonus - baselineBonus];
-
-            const data = {
-                labels: [`Variação na Receita (±${formatForChart(REVENUE_DELTA)})`, `Variação na Taxa (±0.1%)`],
-                datasets: [{
-                    label: 'Impacto Negativo',
-                    data: [revenueImpact[0], rateImpact[0]],
-                    backgroundColor: 'rgba(239, 68, 68, 0.7)',
-                    borderColor: '#ef4444',
-                    borderWidth: 1,
-                    borderRadius: 3,
-                }, {
-                    label: 'Impacto Positivo',
-                    data: [revenueImpact[1], rateImpact[1]],
-                    backgroundColor: 'rgba(34, 197, 94, 0.7)',
-                    borderColor: '#10b981',
-                    borderWidth: 1,
-                    borderRadius: 3,
-                }]
-            };
-
-            const options = {
-                indexAxis: 'y',
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    x: {
-                        stacked: true,
-                        ticks: { callback: value => formatCurrency(value) },
-                        title: { display: true, text: 'Variação no Bônus' }
-                    },
-                    y: { stacked: true, grid: { display: false } }
-                },
-                plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        backgroundColor: '#0f172a',
-                        callbacks: {
-                            label: function(context) {
-                                const change = context.raw;
-                                const finalValue = baselineBonus + change;
-                                const label = context.dataset.label || '';
-                                return `${label}: ${formatCurrency(change)} (Final: ${formatCurrency(finalValue)})`;
-                            }
-                        }
-                    }
-                }
-            };
-            
-            const canvasId = `sensitivityChart${ROLE_NAMES[role]}`;
-            const canvas = document.getElementById(canvasId);
-            if (!canvas) return;
-
-            if (sensitivityCharts[role]) {
-                sensitivityCharts[role].data = data;
-                sensitivityCharts[role].update();
-            } else {
-                sensitivityCharts[role] = new Chart(canvas.getContext('2d'), {
-                    type: 'bar',
-                    data: data,
-                    options: options
-                });
-            }
-        });
-    }
-
-
     // --- SPREADSHEET LOGIC ---
     function evaluateSheet() {
         const allInputs = Array.from(document.querySelectorAll('#tierSettingsBody input'));
@@ -837,6 +715,23 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // --- OTHER EVENT LISTENERS ---
+    modelToggle.addEventListener('click', (e) => {
+        if (e.target.tagName !== 'BUTTON') return;
+        
+        const selectedModel = e.target.dataset.model;
+        if (selectedModel === state.calculationModel) return; // No change
+        
+        state.calculationModel = selectedModel;
+        
+        // Update button styles
+        modelToggle.querySelectorAll('button').forEach(btn => {
+            btn.classList.remove('bg-white', 'text-blue-600', 'shadow');
+        });
+        e.target.classList.add('bg-white', 'text-blue-600', 'shadow');
+        
+        updateAllCalculations();
+    });
+
     addContractGroupBtn.addEventListener('click', () => {
         state.contractGroups.unshift({ id: state.nextGroupId++, name: '', value: 100000, incidence: 1 });
         renderContractGroups();
@@ -889,8 +784,6 @@ document.addEventListener('DOMContentLoaded', () => {
             e.target.classList.add('active');
             document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
             document.getElementById(tabName).classList.add('active');
-            
-            // Recalculate and redraw all charts when switching tabs to ensure they are up to date
             updateAllCalculations();
         }
     });
