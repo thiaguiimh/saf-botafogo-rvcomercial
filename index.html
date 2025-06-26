@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Análise de Comissões - Ferramenta de Gestão v2.0</title>
+    <title>Análise de Comissões - Ferramenta de Gestão v2.1</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -11,69 +11,37 @@
     <style>
         body { 
             font-family: 'Inter', sans-serif; 
-            background-color: #f5f5f7; /* Apple-like light gray background */
+            background-color: #f5f5f7;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
         }
         .panel { 
             background-color: white; 
-            border-radius: 1rem; /* Softer, larger radius */
+            border-radius: 1rem;
             padding: 1.5rem; 
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05); /* Softer shadow */
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
         }
         .btn {
-            padding: 0.625rem 1.25rem; /* 10px 20px */
-            border-radius: 0.75rem; /* 12px */
+            padding: 0.625rem 1.25rem;
+            border-radius: 0.75rem;
             font-weight: 600;
             transition: all 0.2s ease-in-out;
             border: none;
             cursor: pointer;
         }
         .btn-dark {
-            background-color: #1d1d1f; /* Apple's dark color */
+            background-color: #1d1d1f;
             color: white;
         }
-        .btn-dark:hover {
-            background-color: #333;
-        }
-        .btn-dark:disabled {
-            background-color: #555;
-            color: #aaa;
-            cursor: not-allowed;
-        }
-        .btn-light {
-            background-color: #e8e8ed;
-            color: #1d1d1f;
-        }
-        .btn-light:hover {
-            background-color: #ddd;
-        }
-        h1, h2, h3 {
-            color: #1d1d1f;
-        }
-        .table-header th {
-            color: #6e6e73; /* Apple's secondary text color */
-            text-transform: none;
-            font-size: 0.875rem;
-            letter-spacing: normal;
-            border-bottom: 1px solid #e8e8ed;
-        }
-        .table-row td {
-            color: #1d1d1f;
-            border-bottom: 1px solid #f5f5f7;
-        }
-        .form-input {
-            width: 100%;
-            background-color: #f5f5f7;
-            border: 1px solid #f5f5f7;
-            border-radius: 0.75rem;
-            padding: 0.625rem 1rem;
-            transition: border-color 0.2s ease;
-        }
-        .form-input:focus {
-            outline: none;
-            border-color: #0071e3; /* Apple's blue */
-        }
+        .btn-dark:hover { background-color: #333; }
+        .btn-dark:disabled { background-color: #555; color: #aaa; cursor: not-allowed; }
+        .btn-light { background-color: #e8e8ed; color: #1d1d1f; }
+        .btn-light:hover { background-color: #ddd; }
+        h1, h2, h3 { color: #1d1d1f; }
+        .table-header th { color: #6e6e73; text-transform: none; font-size: 0.875rem; letter-spacing: normal; border-bottom: 1px solid #e8e8ed; }
+        .table-row td { color: #1d1d1f; border-bottom: 1px solid #f5f5f7; }
+        .form-input { width: 100%; background-color: #f5f5f7; border: 1px solid #f5f5f7; border-radius: 0.75rem; padding: 0.625rem 1rem; transition: border-color 0.2s ease; }
+        .form-input:focus { outline: none; border-color: #0071e3; }
         #auth-status { text-align: center; padding: 0.75rem; border-radius: 0.75rem; margin-bottom: 1.5rem; font-weight: 500;}
         .auth-success { background-color: rgba(49, 207, 120, 0.1); color: #1e874f; }
         .auth-fail { background-color: rgba(255, 59, 48, 0.1); color: #d1272b; }
@@ -120,13 +88,12 @@
                     </div>
                 </div>
             </div>
-
-            <div class="panel">
+             <div class="panel">
                 <h2 class="text-2xl font-bold mb-6">Adicionar Funcionário</h2>
                 <form id="team-form" class="space-y-4">
-                    <div><label for="team-name" class="block text-sm font-medium text-gray-600 mb-1">Nome do Funcionário</label><input type="text" id="team-name" required class="form-input"></div>
-                    <div><label for="team-role" class="block text-sm font-medium text-gray-600 mb-1">Cargo</label><input type="text" id="team-role" required class="form-input"></div>
-                    <div><label for="team-salary" class="block text-sm font-medium text-gray-600 mb-1">Salário (R$)</label><input type="number" id="team-salary" required class="form-input"></div>
+                    <div><label for="team-name" class="block text-sm font-medium text-gray-600 mb-1">Nome</label><input type="text" id="team-name" placeholder="Nome do funcionário" required class="form-input"></div>
+                    <div><label for="team-role" class="block text-sm font-medium text-gray-600 mb-1">Cargo</label><input type="text" id="team-role" placeholder="Cargo do funcionário" required class="form-input"></div>
+                    <div><label for="team-salary" class="block text-sm font-medium text-gray-600 mb-1">Salário (R$)</label><input type="number" id="team-salary" placeholder="35000" required class="form-input"></div>
                     <div><label for="team-hire" class="block text-sm font-medium text-gray-600 mb-1">Data de Admissão</label><input type="date" id="team-hire" required class="form-input"></div>
                     <button type="submit" class="w-full btn btn-dark">Adicionar Funcionário</button>
                 </form>
@@ -142,7 +109,7 @@
                 </form>
                 <hr class="my-6 border-gray-100">
                 <div>
-                     <h3 class="text-lg font-semibold text-gray-900 mb-2">Importar CSV</h3>
+                     <h3 class="text-lg font-semibold text-gray-900 mb-2">Importar CSV de Contratos</h3>
                      <p class="text-sm text-gray-500 mb-4">Arquivo com 3 colunas: Cliente, Valor, Data (AAAA-MM-DD).</p>
                      <label for="csv-file" class="w-full btn btn-light flex items-center justify-center gap-2">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-upload" viewBox="0 0 16 16"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 1.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 2.707V11.5a.5.5 0 0 1-1 0V2.707L5.354 4.854a.5.5 0 1 1-.708-.708l3-3z"/></svg>
@@ -158,7 +125,7 @@
         <main class="lg:col-span-8 xl:col-span-9 flex flex-col gap-8 mt-8 lg:mt-0">
             <header>
                 <h1 class="text-5xl font-bold tracking-tight">Dashboard</h1>
-                <p class="text-lg text-gray-500 mt-2">Visão geral de performance e comissões da equipe.</p>
+                <p class="text-lg text-gray-500 mt-2">Visão geral de performance e comissões da equipa.</p>
                 <div id="auth-status" class="mt-4"></div>
             </header>
 
@@ -167,13 +134,13 @@
                     <h3 class="font-semibold text-gray-900 mb-1">Contratos Pré-2025</h3>
                     <p class="text-4xl font-bold text-gray-800" id="vgv-pre2025">R$ 0,00</p>
                     <p class="text-sm text-gray-500 mt-2">Faixa: <span class="font-bold text-gray-700" id="faixa-pre2025">Nenhuma</span></p>
-                    <p class="text-sm text-gray-500">Bônus: <span class="font-bold text-green-600" id="bonus-pre2025">R$ 0,00</span></p>
+                    <p class="text-sm text-gray-500">Bónus: <span class="font-bold text-green-600" id="bonus-pre2025">R$ 0,00</span></p>
                 </div>
                 <div class="panel">
                     <h3 class="font-semibold text-gray-900 mb-1">Contratos 2025+</h3>
                     <p class="text-4xl font-bold text-gray-800" id="vgv-2025">R$ 0,00</p>
                     <p class="text-sm text-gray-500 mt-2">Faixa: <span class="font-bold text-gray-700" id="faixa-2025">Nenhuma</span></p>
-                    <p class="text-sm text-gray-500">Bônus: <span class="font-bold text-green-600" id="bonus-2025">R$ 0,00</span></p>
+                    <p class="text-sm text-gray-500">Bónus: <span class="font-bold text-green-600" id="bonus-2025">R$ 0,00</span></p>
                 </div>
             </div>
 
@@ -187,7 +154,7 @@
                                 <th class="px-4 py-3 text-left">Comissão Pré-2025</th>
                                 <th class="px-4 py-3 text-left">Comissão 2025+</th>
                                 <th class="px-4 py-3 text-left">Comissão Total</th>
-                                <th class="px-4 py-3 text-left">Bônus (x Salários)</th>
+                                <th class="px-4 py-3 text-left">Bónus (x Salários)</th>
                             </tr>
                         </thead>
                         <tbody id="commission-results"></tbody>
@@ -196,10 +163,10 @@
             </div>
             
             <div class="panel">
-                 <h2 class="text-2xl font-bold mb-4">Registros</h2>
+                 <h2 class="text-2xl font-bold mb-4">Registos</h2>
                  <div class="grid grid-cols-1 xl:grid-cols-2 gap-x-8 gap-y-6">
                     <div>
-                        <h3 class="text-lg font-semibold text-gray-900 mb-3">Equipe</h3>
+                        <h3 class="text-lg font-semibold text-gray-900 mb-3">Equipa</h3>
                         <div id="team-container" class="overflow-x-auto max-h-96"></div>
                     </div>
                      <div>
@@ -220,7 +187,7 @@
     </div>
     <div id="loading-screen" class="fixed inset-0 flex flex-col items-center justify-center bg-gray-100">
         <div class="loader"></div>
-        <p id="loading-message" class="mt-4 text-gray-600">Conectando ao banco de dados...</p>
+        <p id="loading-message" class="mt-4 text-gray-600">A ligar à base de dados...</p>
     </div>
 
     <script type="module">
@@ -253,22 +220,28 @@
             { id: "10", name: "Gabriel Assis", role: "Gerente de Branding", hireDate: "2024-12-31", salary: 15015.00 }
         ];
 
-const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+        const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
         async function signIn() {
+            const loadingMessage = document.getElementById('loading-message');
+            loadingMessage.textContent = 'A autenticar...';
             const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
             try {
-                if (token) await signInWithCustomToken(auth, token); else await signInAnonymously(auth);
-            } catch (e) {
-                console.error("Auth error:", e);
-                document.getElementById('loading-message').innerHTML = 'Erro de autenticação. <a href="#" onclick="location.reload()" class="underline">Tentar novamente</a>.';
+                if (token) {
+                    await signInWithCustomToken(auth, token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("Auth error:", error);
+                loadingMessage.innerHTML = 'Erro de autenticação. Verifique a consola e a configuração do Firebase. <a href="#" onclick="location.reload()" class="underline">Tentar novamente</a>.';
             }
         }
 
         async function initializeFirebase() {
             const authStatusEl = document.getElementById('auth-status');
             const loadingMessage = document.getElementById('loading-message');
-            const authTimeout = setTimeout(() => { loadingMessage.innerHTML = 'A conexão está demorando... <a href="#" onclick="location.reload()" class="underline">Tentar novamente</a>.'; }, 10000);
+            const authTimeout = setTimeout(() => { loadingMessage.innerHTML = 'A ligação está a demorar... <a href="#" onclick="location.reload()" class="underline">Tentar novamente</a>.'; }, 10000);
 
             try {
                 const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
@@ -291,17 +264,16 @@ const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'curre
                     if (user) {
                         state.userId = user.uid;
                         state.isAuthReady = true;
-                        authStatusEl.textContent = `Status: Conectado`;
+                        authStatusEl.textContent = `Status: Ligado`;
                         authStatusEl.className = "auth-success";
                         listenToData();
                     } else {
-                        loadingMessage.textContent = 'Autenticando...';
-                        signIn();
+                       await signIn();
                     }
                 });
             } catch (error) {
                 console.error("Firebase Init Error:", error);
-                document.getElementById('loading-screen').innerHTML = `<p class="auth-fail">Erro fatal ao conectar ao Firebase.</p>`;
+                document.getElementById('loading-screen').innerHTML = `<p class="auth-fail">Erro fatal ao ligar ao Firebase.</p>`;
             }
         }
         
@@ -319,10 +291,10 @@ const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'curre
 
             if (unsubscribeTeam) unsubscribeTeam();
             unsubscribeTeam = onSnapshot(teamCollection, (snapshot) => {
-                state.team = snapshot.docs.map(doc => ({ ...doc.data() }));
+                state.team = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 state.isDataReady = true;
                 loadingScreen.style.display = 'none';
-                appContainer.style.display = 'grid'; // Use grid to match the layout
+                appContainer.style.display = 'grid';
                 renderTeamList();
                 calculateAndRenderAll();
             }, (error) => console.error("Team listener error:", error));
@@ -330,7 +302,7 @@ const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'curre
 
         async function populateInitialTeam() {
             const button = document.getElementById('populate-team-btn');
-            button.textContent = 'Carregando...';
+            button.textContent = 'A carregar...';
             button.disabled = true;
             const batch = writeBatch(db);
             initialTeamData.forEach(member => {
@@ -341,8 +313,8 @@ const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'curre
                 await batch.commit();
             } catch (error) {
                 console.error("Populate team error:", error);
-                alert("Falha ao carregar a equipe. Verifique as permissões de escrita.");
-                button.textContent = 'Carregar equipe padrão';
+                alert("Falha ao carregar a equipa. Verifique as permissões de escrita.");
+                button.textContent = 'Carregar equipa padrão';
                 button.disabled = false;
             }
         }
@@ -351,22 +323,21 @@ const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'curre
             const teamContainer = document.getElementById('team-container');
             if (!teamContainer) return;
             if (state.isDataReady && state.team.length === 0) {
-                teamContainer.innerHTML = `<div class="p-4 text-center"><p class="text-gray-600">Equipe não encontrada no banco de dados.</p><button id="populate-team-btn" class="btn btn-dark mt-2">Carregar equipe padrão</button></div>`;
+                teamContainer.innerHTML = `<div class="p-4 text-center"><p class="text-gray-600">Equipa não encontrada na base de dados.</p><button id="populate-team-btn" class="btn btn-dark mt-2">Carregar equipa padrão</button></div>`;
                 document.getElementById('populate-team-btn').addEventListener('click', populateInitialTeam);
                 return;
             }
             teamContainer.innerHTML = `<table class="min-w-full">
-                <thead class="table-header sticky top-0 bg-white"><tr><th class="px-4 py-3 text-left">Nome</th><th class="px-4 py-3 text-left">Cargo</th><th class="px-4 py-3 text-left">Salário</th><th class="px-4 py-3 text-left">Admissão</th></tr></thead>
+                <thead class="table-header sticky top-0 bg-white"><tr><th class="px-4 py-3 text-left">Nome</th><th class="px-4 py-3 text-left">Cargo</th><th class="px-4 py-3 text-left"></th></tr></thead>
                 <tbody id="team-list-body"></tbody>
             </table>`;
             const teamListBody = document.getElementById('team-list-body');
             teamListBody.innerHTML = '';
-            state.team.forEach(member => {
+            state.team.sort((a, b) => a.name.localeCompare(b.name)).forEach(member => {
                 teamListBody.innerHTML += `<tr class="table-row">
-                    <td class="p-4 whitespace-nowrap"><div class="text-sm font-semibold">${member.name}</div><div class="text-xs text-gray-500">${new Date(member.hireDate) < new Date('2025-01-01') ? 'Elegível Pré-2025' : 'Não Elegível'}</div></td>
-                    <td class="p-4 whitespace-nowrap text-sm text-gray-600">${member.role}</td>
+                    <td class="p-4 whitespace-nowrap"><div class="text-sm font-semibold">${member.name}</div><div class="text-xs text-gray-500">${member.role}</div></td>
                     <td class="p-4 whitespace-nowrap text-sm font-mono">${formatCurrency(member.salary)}</td>
-                    <td class="p-4 whitespace-nowrap text-sm text-gray-600">${new Date(member.hireDate + 'T00:00:00').toLocaleDateString('pt-BR')}</td>
+                    <td class="p-4 whitespace-nowrap text-sm text-center"><button onclick="window.deleteTeamMember('${member.id}')" class="text-gray-400 hover:text-red-500 transition-colors">✖</button></td>
                 </tr>`;
             });
         }
@@ -428,10 +399,12 @@ const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'curre
             document.getElementById('bonus-2025').textContent = formatCurrency(bonusPoolFrom2025);
         }
         
-        async function addContract(contractData) { try { await addDoc(contractsCollection, contractData); } catch (e) { console.error(e); alert("Falha ao salvar contrato."); } }
-        async function addTeamMember(memberData) { try { await addDoc(teamCollection, memberData); } catch (e) { console.error(e); alert("Falha ao salvar funcionário."); } }
+        async function addContract(contractData) { if(!contractData.client || !contractData.date || isNaN(contractData.value)) {alert("Preencha todos os campos do contrato."); return;} try { await addDoc(contractsCollection, contractData); } catch (e) { console.error(e); alert("Falha ao salvar contrato."); } }
+        async function addTeamMember(memberData) { if(!memberData.name || !memberData.role || !memberData.hireDate || isNaN(memberData.salary)) {alert("Preencha todos os campos do funcionário."); return;} try { await addDoc(teamCollection, memberData); } catch (e) { console.error(e); alert("Falha ao salvar funcionário."); } }
         async function deleteContract(contractId) { if (!confirm("Excluir este contrato?")) return; try { await deleteDoc(doc(db, contractsCollection.path, contractId)); } catch (e) { console.error(e); alert("Falha ao excluir contrato."); } }
+        async function deleteTeamMember(memberId) { if (!confirm("Remover este membro da equipa?")) return; try { await deleteDoc(doc(db, teamCollection.path, memberId)); } catch (e) { console.error(e); alert("Falha ao remover membro da equipa."); } }
         window.deleteContract = deleteContract;
+        window.deleteTeamMember = deleteTeamMember;
 
         document.getElementById('contract-form').addEventListener('submit', function(e) { e.preventDefault(); addContract({client: document.getElementById('contract-client').value, value: parseFloat(document.getElementById('contract-value').value), date: document.getElementById('contract-date').value }); this.reset(); });
         document.getElementById('team-form').addEventListener('submit', function(e) { e.preventDefault(); addTeamMember({name: document.getElementById('team-name').value, role: document.getElementById('team-role').value, salary: parseFloat(document.getElementById('team-salary').value), hireDate: document.getElementById('team-hire').value}); this.reset(); });
