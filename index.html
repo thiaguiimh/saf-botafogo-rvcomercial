@@ -122,6 +122,17 @@
             </div>
 
             <div class="panel">
+                <h2 class="text-2xl font-bold mb-6">Adicionar Funcionário</h2>
+                <form id="team-form" class="space-y-4">
+                    <div><label for="team-name" class="block text-sm font-medium text-gray-600 mb-1">Nome do Funcionário</label><input type="text" id="team-name" required class="form-input"></div>
+                    <div><label for="team-role" class="block text-sm font-medium text-gray-600 mb-1">Cargo</label><input type="text" id="team-role" required class="form-input"></div>
+                    <div><label for="team-salary" class="block text-sm font-medium text-gray-600 mb-1">Salário (R$)</label><input type="number" id="team-salary" required class="form-input"></div>
+                    <div><label for="team-hire" class="block text-sm font-medium text-gray-600 mb-1">Data de Admissão</label><input type="date" id="team-hire" required class="form-input"></div>
+                    <button type="submit" class="w-full btn btn-dark">Adicionar Funcionário</button>
+                </form>
+            </div>
+
+            <div class="panel">
                 <h2 class="text-2xl font-bold mb-6">Lançar Contratos</h2>
                 <form id="contract-form" class="space-y-4">
                     <div><label for="contract-client" class="block text-sm font-medium text-gray-600 mb-1">Cliente</label><input type="text" id="contract-client" placeholder="Nome do cliente" required class="form-input"></div>
@@ -242,7 +253,17 @@
             { id: "10", name: "Gabriel Assis", role: "Gerente de Branding", hireDate: "2024-12-31", salary: 15015.00 }
         ];
 
-        const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+
+        async function signIn() {
+            const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+            try {
+                if (token) await signInWithCustomToken(auth, token); else await signInAnonymously(auth);
+            } catch (e) {
+                console.error("Auth error:", e);
+                document.getElementById('loading-message').innerHTML = 'Erro de autenticação. <a href="#" onclick="location.reload()" class="underline">Tentar novamente</a>.';
+            }
+        }
 
         async function initializeFirebase() {
             const authStatusEl = document.getElementById('auth-status');
@@ -275,9 +296,7 @@
                         listenToData();
                     } else {
                         loadingMessage.textContent = 'Autenticando...';
-                        const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-                        if (token) await signInWithCustomToken(auth, token);
-                        else await signInAnonymously(auth);
+                        signIn();
                     }
                 });
             } catch (error) {
@@ -337,7 +356,7 @@
                 return;
             }
             teamContainer.innerHTML = `<table class="min-w-full">
-                <thead class="table-header sticky top-0 bg-white"><tr><th class="px-4 py-3 text-left">Nome</th><th class="px-4 py-3 text-left">Cargo</th><th class="px-4 py-3 text-left">Salário</th></tr></thead>
+                <thead class="table-header sticky top-0 bg-white"><tr><th class="px-4 py-3 text-left">Nome</th><th class="px-4 py-3 text-left">Cargo</th><th class="px-4 py-3 text-left">Salário</th><th class="px-4 py-3 text-left">Admissão</th></tr></thead>
                 <tbody id="team-list-body"></tbody>
             </table>`;
             const teamListBody = document.getElementById('team-list-body');
@@ -347,6 +366,7 @@
                     <td class="p-4 whitespace-nowrap"><div class="text-sm font-semibold">${member.name}</div><div class="text-xs text-gray-500">${new Date(member.hireDate) < new Date('2025-01-01') ? 'Elegível Pré-2025' : 'Não Elegível'}</div></td>
                     <td class="p-4 whitespace-nowrap text-sm text-gray-600">${member.role}</td>
                     <td class="p-4 whitespace-nowrap text-sm font-mono">${formatCurrency(member.salary)}</td>
+                    <td class="p-4 whitespace-nowrap text-sm text-gray-600">${new Date(member.hireDate + 'T00:00:00').toLocaleDateString('pt-BR')}</td>
                 </tr>`;
             });
         }
@@ -409,10 +429,12 @@
         }
         
         async function addContract(contractData) { try { await addDoc(contractsCollection, contractData); } catch (e) { console.error(e); alert("Falha ao salvar contrato."); } }
+        async function addTeamMember(memberData) { try { await addDoc(teamCollection, memberData); } catch (e) { console.error(e); alert("Falha ao salvar funcionário."); } }
         async function deleteContract(contractId) { if (!confirm("Excluir este contrato?")) return; try { await deleteDoc(doc(db, contractsCollection.path, contractId)); } catch (e) { console.error(e); alert("Falha ao excluir contrato."); } }
         window.deleteContract = deleteContract;
 
         document.getElementById('contract-form').addEventListener('submit', function(e) { e.preventDefault(); addContract({client: document.getElementById('contract-client').value, value: parseFloat(document.getElementById('contract-value').value), date: document.getElementById('contract-date').value }); this.reset(); });
+        document.getElementById('team-form').addEventListener('submit', function(e) { e.preventDefault(); addTeamMember({name: document.getElementById('team-name').value, role: document.getElementById('team-role').value, salary: parseFloat(document.getElementById('team-salary').value), hireDate: document.getElementById('team-hire').value}); this.reset(); });
         document.getElementById('import-csv-btn').addEventListener('click', () => { const fileInput = document.getElementById('csv-file'); if(fileInput.files[0]) importContractsFromCSV(fileInput.files[0]); else alert("Selecione um arquivo CSV."); });
         document.querySelectorAll('.panel input[type=number]').forEach(input => input.addEventListener('change', calculateAndRenderAll));
         
