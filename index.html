@@ -3,261 +3,81 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Análise de Comissões - Ferramenta de Gestão v2.1</title>
+    <title>RV Comercial - Análise de Comissões</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body { 
-            font-family: 'Inter', sans-serif; 
-            background-color: #f5f5f7;
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
-        }
-        .panel {
-            background-color: white;
-            border-radius: 1rem;
-            padding: 1rem;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-        }
-        .btn {
-            padding: 0.5rem 1rem;
-            border-radius: 0.5rem;
-            font-weight: 500;
-            font-size: 0.875rem;
-            transition: all 0.2s ease-in-out;
-            border: none;
-            cursor: pointer;
-        }
-        .btn-dark {
-            background-color: #1d1d1f;
-            color: white;
-        }
+        :root { --cor-fundo: #f5f5f7; --cor-painel: #ffffff; --cor-texto-primario: #1d1d1f; --cor-texto-secundario: #6e6e73; --cor-input-fundo: #f5f5f7; --cor-borda: #d2d2d7; --cor-azul-apple: #0071e3; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--cor-fundo); color: var(--cor-texto-primario); -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+        .panel { background-color: var(--cor-painel); border-radius: 1rem; padding: 1.5rem; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid rgba(0,0,0,0.05); }
+        .btn { padding: 0.625rem 1.25rem; border-radius: 0.75rem; font-weight: 600; transition: all 0.2s ease-in-out; border: none; cursor: pointer; }
+        .btn-dark { background-color: var(--cor-texto-primario); color: var(--cor-painel); }
         .btn-dark:hover { background-color: #333; }
         .btn-dark:disabled { background-color: #555; color: #aaa; cursor: not-allowed; }
-        .btn-light { background-color: #e8e8ed; color: #1d1d1f; }
+        .btn-light { background-color: #e8e8ed; color: var(--cor-texto-primario); }
         .btn-light:hover { background-color: #ddd; }
-        h1, h2, h3 { color: #1d1d1f; }
-        .table-header th { color: #6e6e73; text-transform: none; font-size: 0.875rem; letter-spacing: normal; border-bottom: 1px solid #e8e8ed; }
-        .table-row td { color: #1d1d1f; border-bottom: 1px solid #f5f5f7; }
-        .form-input { width: 100%; background-color: #f5f5f7; border: 1px solid #f5f5f7; border-radius: 0.75rem; padding: 0.5rem 0.75rem; transition: border-color 0.2s ease; }
-        .form-input:focus { outline: none; border-color: #0071e3; }
-        #auth-status { text-align: center; padding: 0.75rem; border-radius: 0.75rem; margin-bottom: 1.5rem; font-weight: 500;}
+        h1, h2, h3 { color: var(--cor-texto-primario); }
+        .table-header th { color: var(--cor-texto-secundario); text-transform: none; font-size: 0.875rem; border-bottom: 1px solid #e8e8ed; }
+        .table-row td { color: var(--cor-texto-primario); border-bottom: 1px solid var(--cor-fundo); }
+        .form-input { width: 100%; background-color: var(--cor-input-fundo); border: 1px solid var(--cor-input-fundo); border-radius: 0.75rem; padding: 0.625rem 1rem; transition: border-color 0.2s ease; }
+        .form-input:focus { outline: none; border-color: var(--cor-azul-apple); box-shadow: 0 0 0 2px rgba(0, 113, 227, 0.2); }
+        #auth-status { text-align: center; padding: 0.75rem; border-radius: 0.75rem; font-weight: 500;}
         .auth-success { background-color: rgba(49, 207, 120, 0.1); color: #1e874f; }
         .auth-fail { background-color: rgba(255, 59, 48, 0.1); color: #d1272b; }
-        .loader { border: 4px solid #e8e8ed; border-top: 4px solid #1d1d1f; border-radius: 50%; width: 28px; height: 28px; animation: spin 1s linear infinite; margin: 0 auto; }
+        .loader { border: 4px solid #e8e8ed; border-top: 4px solid var(--cor-texto-primario); border-radius: 50%; width: 28px; height: 28px; animation: spin 1s linear infinite; margin: 0 auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
-<body class="text-gray-800">
+<body>
 
-    <div id="login-container" class="min-h-screen flex items-center justify-center p-4">
-        <div class="panel w-full max-w-sm space-y-4">
-            <h2 class="text-xl font-semibold text-center">Login</h2>
-            <input id="login-email" type="email" class="form-input" placeholder="Email">
-            <input id="login-password" type="password" class="form-input" placeholder="Senha">
-            <div id="login-error" class="text-red-600 text-sm"></div>
-            <button id="login-btn" class="w-full btn btn-dark">Entrar</button>
-        </div>
+    <div id="app-container" class="hidden">
+        <header id="app-header" class="bg-white/80 backdrop-blur-md shadow-sm border-b border-gray-200 p-4 sticky top-0 z-40">
+            <div class="max-w-screen-2xl mx-auto flex justify-between items-center">
+                <h1 class="text-xl font-semibold text-gray-800">RV <span class="text-blue-600">Comercial</span></h1>
+                <div id="user-info-header" class="flex items-center space-x-4"></div>
+            </div>
+        </header>
+
+        <main id="app-content" class="max-w-screen-2xl mx-auto"></main>
     </div>
 
-    <div id="app-container" class="min-h-screen lg:grid lg:grid-cols-12 gap-8 p-4 lg:p-8" style="display: none;">
-        
-        <!-- Coluna de Controles (Esquerda) -->
-        <aside class="lg:col-span-4 xl:col-span-3 flex flex-col gap-8">
-            <div class="panel">
-                 <h2 class="text-xl font-bold mb-4">Parâmetros</h2>
-                <div class="space-y-6">
-                    <div>
-                        <h3 class="text-lg font-semibold text-gray-900 mb-3">Pesos por Cargo</h3>
-                        <div class="space-y-3">
-                            <div class="flex justify-between items-center"><label for="peso_diretor" class="text-gray-600">Diretor</label><input type="number" id="peso_diretor" value="44" class="form-input w-20 text-center"></div>
-                            <div class="flex justify-between items-center"><label for="peso_gerente" class="text-gray-600">Gerente</label><input type="number" id="peso_gerente" value="8" class="form-input w-20 text-center"></div>
-                            <div class="flex justify-between items-center"><label for="peso_especialista" class="text-gray-600">Especialista</label><input type="number" id="peso_especialista" value="4" class="form-input w-20 text-center"></div>
-                            <div class="flex justify-between items-center"><label for="peso_pleno" class="text-gray-600">Designer Pleno</label><input type="number" id="peso_pleno" value="2" class="form-input w-20 text-center"></div>
-                            <div class="flex justify-between items-center"><label for="peso_junior" class="text-gray-600">Analista Júnior</label><input type="number" id="peso_junior" value="1" class="form-input w-20 text-center"></div>
-                        </div>
-                    </div>
-                    <hr class="border-gray-100">
-                    <div>
-                        <h3 class="text-lg font-semibold text-gray-900 mb-3">Comissão 2025+ (%)</h3>
-                        <div class="space-y-3">
-                           <div class="flex justify-between items-center"><label for="perc_2025_f1" class="text-gray-600">Faixa 1</label><input type="number" id="perc_2025_f1" value="1.0" step="0.01" class="form-input w-20 text-center"></div>
-                           <div class="flex justify-between items-center"><label for="perc_2025_f2" class="text-gray-600">Faixa 2</label><input type="number" id="perc_2025_f2" value="2.0" step="0.01" class="form-input w-20 text-center"></div>
-                           <div class="flex justify-between items-center"><label for="perc_2025_f3" class="text-gray-600">Faixa 3</label><input type="number" id="perc_2025_f3" value="3.4" step="0.01" class="form-input w-20 text-center"></div>
-                        </div>
-                    </div>
-                     <hr class="border-gray-100">
-                    <div>
-                        <h3 class="text-lg font-semibold text-gray-900 mb-3">Comissão Pré-2025 (%)</h3>
-                        <div class="space-y-3">
-                           <div class="flex justify-between items-center"><label for="perc_pre2025_f1" class="text-gray-600">Faixa 1</label><input type="number" id="perc_pre2025_f1" value="0.75" step="0.01" class="form-input w-20 text-center"></div>
-                           <div class="flex justify-between items-center"><label for="perc_pre2025_f2" class="text-gray-600">Faixa 2</label><input type="number" id="perc_pre2025_f2" value="1.0" step="0.01" class="form-input w-20 text-center"></div>
-                           <div class="flex justify-between items-center"><label for="perc_pre2025_f3" class="text-gray-600">Faixa 3</label><input type="number" id="perc_pre2025_f3" value="1.5" step="0.01" class="form-input w-20 text-center"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-             <div class="panel">
-                <h2 class="text-xl font-bold mb-4">Adicionar Funcionário</h2>
-                <form id="team-form" class="space-y-4">
-                    <div><label for="team-name" class="block text-sm font-medium text-gray-600 mb-1">Nome</label><input type="text" id="team-name" placeholder="Nome do funcionário" required class="form-input"></div>
-                    <div><label for="team-role" class="block text-sm font-medium text-gray-600 mb-1">Cargo</label><input type="text" id="team-role" placeholder="Cargo do funcionário" required class="form-input"></div>
-                    <div><label for="team-salary" class="block text-sm font-medium text-gray-600 mb-1">Salário (R$)</label><input type="number" id="team-salary" placeholder="35000" required class="form-input"></div>
-                    <div><label for="team-hire" class="block text-sm font-medium text-gray-600 mb-1">Data de Admissão</label><input type="date" id="team-hire" required class="form-input"></div>
-                    <button type="submit" class="w-full btn btn-dark">Adicionar Funcionário</button>
-                </form>
-            </div>
-
-            <div class="panel">
-                <h2 class="text-xl font-bold mb-4">Lançar Contratos</h2>
-                <form id="contract-form" class="space-y-4">
-                    <div><label for="contract-client" class="block text-sm font-medium text-gray-600 mb-1">Cliente</label><input type="text" id="contract-client" placeholder="Nome do cliente" required class="form-input"></div>
-                    <div><label for="contract-value" class="block text-sm font-medium text-gray-600 mb-1">Valor (R$)</label><input type="number" id="contract-value" placeholder="500000" required class="form-input"></div>
-                    <div><label for="contract-date" class="block text-sm font-medium text-gray-600 mb-1">Data</label><input type="date" id="contract-date" required class="form-input"></div>
-                    <button type="submit" class="w-full btn btn-dark">Adicionar Contrato</button>
-                </form>
-                <hr class="my-6 border-gray-100">
-                <div>
-                     <h3 class="text-lg font-semibold text-gray-900 mb-2">Importar CSV de Contratos</h3>
-                     <p class="text-sm text-gray-500 mb-4">Arquivo com 3 colunas: Cliente, Valor, Data (AAAA-MM-DD).</p>
-                     <label for="csv-file" class="w-full btn btn-light flex items-center justify-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-upload" viewBox="0 0 16 16"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 1.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 2.707V11.5a.5.5 0 0 1-1 0V2.707L5.354 4.854a.5.5 0 1 1-.708-.708l3-3z"/></svg>
-                        <span>Selecionar Arquivo</span>
-                     </label>
-                     <input type="file" id="csv-file" accept=".csv" class="hidden"/>
-                     <button id="import-csv-btn" class="w-full btn btn-dark mt-3">Importar</button>
-                </div>
-            </div>
-        </aside>
-
-        <!-- Conteúdo Principal (Direita) -->
-        <main class="lg:col-span-8 xl:col-span-9 flex flex-col gap-8 mt-8 lg:mt-0">
-            <header>
-                <h1 class="text-3xl font-bold tracking-tight">Dashboard</h1>
-                <p class="text-base text-gray-500 mt-1">Visão geral de performance e comissões da equipa.</p>
-                <div class="mt-4 flex items-center gap-2">
-                    <div id="auth-status"></div>
-                    <button id="logout-btn" class="btn btn-light hidden">Sair</button>
-                </div>
-            </header>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div class="panel">
-                    <h3 class="font-semibold text-gray-900 mb-1">Contratos Pré-2025</h3>
-                    <p class="text-2xl font-bold text-gray-800" id="vgv-pre2025">R$ 0,00</p>
-                    <p class="text-sm text-gray-500 mt-2">Faixa: <span class="font-bold text-gray-700" id="faixa-pre2025">Nenhuma</span></p>
-                    <p class="text-sm text-gray-500">Bónus: <span class="font-bold text-green-600" id="bonus-pre2025">R$ 0,00</span></p>
-                </div>
-                <div class="panel">
-                    <h3 class="font-semibold text-gray-900 mb-1">Contratos 2025+</h3>
-                    <p class="text-2xl font-bold text-gray-800" id="vgv-2025">R$ 0,00</p>
-                    <p class="text-sm text-gray-500 mt-2">Faixa: <span class="font-bold text-gray-700" id="faixa-2025">Nenhuma</span></p>
-                    <p class="text-sm text-gray-500">Bónus: <span class="font-bold text-green-600" id="bonus-2025">R$ 0,00</span></p>
-                </div>
-            </div>
-
-            <div class="panel">
-                <h2 class="text-xl font-bold mb-3">Resultado de Comissões</h2>
-                <div class="overflow-x-auto">
-                    <table class="min-w-full">
-                        <thead class="table-header">
-                            <tr>
-                                <th class="px-4 py-3 text-left">Funcionário</th>
-                                <th class="px-4 py-3 text-left">Comissão Pré-2025</th>
-                                <th class="px-4 py-3 text-left">Comissão 2025+</th>
-                                <th class="px-4 py-3 text-left">Comissão Total</th>
-                                <th class="px-4 py-3 text-left">Bónus (x Salários)</th>
-                            </tr>
-                        </thead>
-                        <tbody id="commission-results"></tbody>
-                    </table>
-                </div>
-            </div>
-            
-            <div class="panel">
-                 <h2 class="text-xl font-bold mb-3">Registos</h2>
-                 <div class="grid grid-cols-1 xl:grid-cols-2 gap-x-8 gap-y-6">
-                    <div>
-                        <h3 class="text-lg font-semibold text-gray-900 mb-3">Equipa</h3>
-                        <div id="team-container" class="overflow-x-auto max-h-96"></div>
-                    </div>
-                     <div>
-                        <h3 class="text-lg font-semibold text-gray-900 mb-3">Contratos Lançados</h3>
-                        <div class="overflow-x-auto max-h-96">
-                            <table class="min-w-full">
-                                 <thead class="table-header sticky top-0 bg-white">
-                                    <tr><th class="px-4 py-3 text-left">Cliente</th><th class="px-4 py-3 text-left">Valor</th><th class="px-4 py-3 text-left">Data</th><th class="px-4 py-3 text-left"></th></tr>
-                                </thead>
-                                <tbody id="contracts-list"></tbody>
-                            </table>
-                        </div>
-                    </div>
-                 </div>
-            </div>
-
-        </main>
-    </div>
-    <div id="loading-screen" class="fixed inset-0 flex flex-col items-center justify-center bg-gray-100" style="display:none;">
+    <div id="loading-screen" class="fixed inset-0 flex flex-col items-center justify-center bg-gray-100">
         <div class="loader"></div>
-        <p id="loading-message" class="mt-4 text-gray-600">A ligar à base de dados...</p>
+        <p id="loading-message" class="mt-4 text-gray-600">A iniciar...</p>
     </div>
+    
+    <div id="modal-container" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4 hidden">
+        <div id="modal-content" class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-lg"></div>
+    </div>
+    
+    <div id="notification-container" class="fixed top-6 right-6 z-[100] space-y-3 w-full max-w-sm"></div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, onSnapshot, addDoc, doc, deleteDoc, writeBatch, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithEmailAndPassword, signOut, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, onSnapshot, addDoc, doc, deleteDoc, writeBatch, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         let db, auth;
-        let contractsCollection, teamCollection;
-        let unsubscribeContracts = null, unsubscribeTeam = null;
+        let contractsCollection, teamCollection, usersProfileCollection;
+        let unsubscribers = [];
 
         const state = {
-            team: [], contracts: [], isAuthReady: false, isDataReady: false, userId: null,
+            currentUser: null,
+            userProfile: null,
+            team: [], 
+            contracts: [], 
+            isAuthReady: false,
+            currentView: 'login',
             targets: {
                 pre2025: [{ faixa: 3, value: 90000000 }, { faixa: 2, value: 63000000 }, { faixa: 1, value: 36000000 }],
                 from2025: [{ faixa: 3, value: 30000000 }, { faixa: 2, value: 21000000 }, { faixa: 1, value: 12000000 }]
             }
         };
-        
-        const initialTeamData = [
-            { id: "1", name: "Marcelo Furtado", role: "Diretor Comercial", hireDate: "2025-01-01", salary: 35000.00 },
-            { id: "2", name: "Paula Young", role: "Gerente Comercial", hireDate: "2025-01-01", salary: 17088.75 },
-            { id: "3", name: "Carolina Chrispim", role: "Especialista", hireDate: "2024-12-31", salary: 9000.00 },
-            { id: "4", name: "Nathan Lemos", role: "Especialista", hireDate: "2024-12-31", salary: 8804.98 },
-            { id: "5", name: "Milena Franco", role: "Designer Pleno", hireDate: "2024-12-31", salary: 5775.00 },
-            { id: "6", name: "Nathalia Carvalho", role: "Analista Júnior", hireDate: "2024-12-31", salary: 3780.00 },
-            { id: "7", name: "Vitoria Damacena", role: "Analista Júnior", hireDate: "2024-12-31", salary: 3541.67 },
-            { id: "8", name: "Julio Gracco", role: "Diretor de Comunicação & Branding", hireDate: "2024-12-31", salary: 38000.00 },
-            { id: "9", name: "Pedro Souto", role: "Diretor de Marketing & Merchandising", hireDate: "2024-12-31", salary: 30000.00 },
-            { id: "10", name: "Gabriel Assis", role: "Gerente de Branding", hireDate: "2024-12-31", salary: 15015.00 }
-        ];
 
         const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
-        async function signIn(email, password) {
-            const loadingMessage = document.getElementById('loading-message');
-            loadingMessage.textContent = 'A autenticar...';
-            try {
-                await signInWithEmailAndPassword(auth, email, password);
-            } catch (error) {
-                console.error('Auth error:', error);
-                document.getElementById('login-error').textContent = 'Credenciais inválidas';
-                document.getElementById('loading-screen').style.display = 'none';
-                document.getElementById('login-container').style.display = 'flex';
-            }
-        }
-
-        function signOutUser() {
-            signOut(auth);
-        }
-
         async function initializeFirebase() {
-            const authStatusEl = document.getElementById('auth-status');
             const loadingMessage = document.getElementById('loading-message');
-            const authTimeout = setTimeout(() => { loadingMessage.innerHTML = 'A ligação está a demorar... <a href="#" onclick="location.reload()" class="underline">Tentar novamente</a>.'; }, 10000);
-
             try {
                 const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
                     apiKey: "AIzaSyAs9tsz3wsSjYlmbu8_7NnEbKxqsFV2ATo",
@@ -267,126 +87,304 @@
                     messagingSenderId: "373252435120",
                     appId: "1:373252435120:web:817b4e65f46a2a572adf75"
                 };
-                const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
                 const app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
-                contractsCollection = collection(db, `artifacts/${appId}/public/data/contracts`);
-                teamCollection = collection(db, `artifacts/${appId}/public/data/team`);
+                
+                usersProfileCollection = collection(db, 'users_profile');
+                // Path fix: Removed appId from public data paths for simplicity as per new rules
+                teamCollection = collection(db, 'public_data', 'rv_comercial', 'team');
+                contractsCollection = collection(db, 'public_data', 'rv_comercial', 'contracts');
 
-                onAuthStateChanged(auth, async (user) => {
-                    clearTimeout(authTimeout);
-                    if (user) {
-                        state.userId = user.uid;
-                        state.isAuthReady = true;
-                        authStatusEl.textContent = `Status: Ligado`;
-                        authStatusEl.className = "auth-success";
-                        document.getElementById('login-container').style.display = 'none';
-                        document.getElementById('logout-btn').classList.remove('hidden');
-                        listenToData();
-                    } else {
-                        document.getElementById('loading-screen').style.display = 'none';
-                        document.getElementById('login-container').style.display = 'flex';
-                        document.getElementById('logout-btn').classList.add('hidden');
-                    }
-                });
+                onAuthStateChanged(auth, handleAuthStateChange);
+
             } catch (error) {
                 console.error("Firebase Init Error:", error);
-                document.getElementById('loading-screen').innerHTML = `<p class="auth-fail">Erro fatal ao ligar ao Firebase.</p>`;
+                loadingMessage.innerHTML = `<div class="auth-fail p-4">Erro fatal ao iniciar. Verifique a consola.</div>`;
             }
         }
         
+        async function handleAuthStateChange(user) {
+            const loadingMessage = document.getElementById('loading-message');
+            if (user) {
+                state.currentUser = user;
+                const userDoc = await getDoc(doc(usersProfileCollection, user.uid));
+                if (userDoc.exists() && userDoc.data().isAdmin) {
+                    state.userProfile = { id: user.uid, ...userDoc.data() };
+                    state.isAuthReady = true;
+                    listenToData();
+                    state.currentView = 'dashboard';
+                } else {
+                     showNotification("Acesso negado. Apenas administradores podem usar esta ferramenta.", "error", 10000);
+                     await handleLogout(); // Log out non-admin users
+                }
+            } else {
+                state.currentUser = null;
+                state.userProfile = null;
+                state.isAuthReady = false;
+                state.currentView = 'login';
+                unsubscribers.forEach(unsub => unsub());
+                unsubscribers = [];
+            }
+            renderApp();
+        }
+
         function listenToData() {
-            if (!state.isAuthReady) return;
+            if (!state.isAuthReady || unsubscribers.length > 0) return;
+            
+            const contractsUnsub = onSnapshot(contractsCollection, snap => {
+                state.contracts = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                if (state.currentView === 'dashboard') calculateAndRenderAll();
+            }, err => {
+                console.error("Contracts listener error:", err.code, err.message);
+                showNotification(`Erro ao carregar contratos (${err.code}). Verifique as regras de segurança.`, 'error');
+            });
+            unsubscribers.push(contractsUnsub);
+
+            const teamUnsub = onSnapshot(teamCollection, snap => {
+                state.team = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                 if (state.currentView === 'dashboard' || state.currentView === 'manageTeam') renderApp();
+            }, err => {
+                console.error("Team listener error:", err.code, err.message);
+                showNotification(`Erro ao carregar equipa (${err.code}). Verifique as regras de segurança.`, 'error');
+            });
+            unsubscribers.push(teamUnsub);
+        }
+        
+        async function handleLogin(email, password) {
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+            } catch (error) {
+                console.error("Login failed:", error.code);
+                showNotification(`Falha no login (${error.code})`, 'error');
+                throw error;
+            }
+        }
+        
+        async function handleLogout() {
+            await signOut(auth);
+        }
+        
+        function renderApp() {
             const appContainer = document.getElementById('app-container');
             const loadingScreen = document.getElementById('loading-screen');
-
-            if (unsubscribeContracts) unsubscribeContracts();
-            unsubscribeContracts = onSnapshot(contractsCollection, (snapshot) => {
-                state.contracts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                renderContractsList();
-                calculateAndRenderAll();
-            }, (error) => console.error("Contract listener error:", error));
-
-            if (unsubscribeTeam) unsubscribeTeam();
-            unsubscribeTeam = onSnapshot(teamCollection, (snapshot) => {
-                state.team = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                state.isDataReady = true;
+            const appContent = document.getElementById('app-content');
+            
+            if (appContent) appContent.innerHTML = '';
+            
+            if (state.currentUser && state.userProfile) {
                 loadingScreen.style.display = 'none';
-                appContainer.style.display = 'grid';
-                renderTeamList();
-                calculateAndRenderAll();
-            }, (error) => console.error("Team listener error:", error));
-        }
+                appContainer.style.display = 'block';
+                renderHeader();
 
-        async function populateInitialTeam() {
-            const button = document.getElementById('populate-team-btn');
-            button.textContent = 'A carregar...';
-            button.disabled = true;
-            const batch = writeBatch(db);
-            initialTeamData.forEach(member => {
-                const docRef = doc(teamCollection, member.id);
-                batch.set(docRef, member);
+                switch (state.currentView) {
+                    case 'dashboard': renderDashboard(); break;
+                    case 'manageTeam': renderManageTeamPage(); break;
+                }
+            } else {
+                appContainer.style.display = 'none';
+                loadingScreen.style.display = 'flex';
+                loadingScreen.innerHTML = ''; // Clear previous messages
+                renderLoginPage(loadingScreen);
+            }
+        }
+        
+        function renderLoginPage(container) {
+            container.innerHTML = `
+                <div class="w-full max-w-sm bg-white shadow-xl rounded-xl p-8 border border-gray-200">
+                    <h2 class="text-2xl font-semibold text-gray-800 text-center mb-6">RV Comercial</h2>
+                    <form id="login-form" class="space-y-5">
+                        <div>
+                            <label for="email" class="block text-xs font-medium text-gray-600 mb-1">Email</label>
+                            <input id="email" type="email" required class="form-input" placeholder="seu.email@exemplo.com">
+                        </div>
+                        <div>
+                            <label for="password" class="block text-xs font-medium text-gray-600 mb-1">Senha</label>
+                            <input id="password" type="password" required class="form-input" placeholder="••••••••">
+                        </div>
+                        <button type="submit" class="w-full btn btn-dark">Entrar</button>
+                    </form>
+                </div>`;
+            document.getElementById('login-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const btn = e.target.querySelector('button');
+                btn.disabled = true;
+                btn.textContent = 'A entrar...';
+                try {
+                    const email = document.getElementById('email').value;
+                    const password = document.getElementById('password').value;
+                    await handleLogin(email, password);
+                } catch(error) {
+                    btn.disabled = false;
+                    btn.textContent = 'Entrar';
+                }
             });
-            try {
-                await batch.commit();
-            } catch (error) {
-                console.error("Populate team error:", error);
-                alert("Falha ao carregar a equipa. Verifique as permissões de escrita.");
-                button.textContent = 'Carregar equipa padrão';
-                button.disabled = false;
-            }
         }
-
-        function renderTeamList() {
-            const teamContainer = document.getElementById('team-container');
-            if (!teamContainer) return;
-            if (state.isDataReady && state.team.length === 0) {
-                teamContainer.innerHTML = `<div class="p-4 text-center"><p class="text-gray-600">Equipa não encontrada na base de dados.</p><button id="populate-team-btn" class="btn btn-dark mt-2">Carregar equipa padrão</button></div>`;
-                document.getElementById('populate-team-btn').addEventListener('click', populateInitialTeam);
-                return;
-            }
-            teamContainer.innerHTML = `<table class="min-w-full">
-                <thead class="table-header sticky top-0 bg-white"><tr><th class="px-4 py-3 text-left">Nome</th><th class="px-4 py-3 text-left">Cargo</th><th class="px-4 py-3 text-left"></th></tr></thead>
-                <tbody id="team-list-body"></tbody>
-            </table>`;
-            const teamListBody = document.getElementById('team-list-body');
-            teamListBody.innerHTML = '';
-            state.team.sort((a, b) => a.name.localeCompare(b.name)).forEach(member => {
-                teamListBody.innerHTML += `<tr class="table-row">
+        
+        function renderHeader() {
+            const userInfoHeader = document.getElementById('user-info-header');
+            userInfoHeader.innerHTML = `
+                 <button id="nav-dashboard" class="text-sm font-medium text-gray-600 hover:text-blue-600">Dashboard</button>
+                 <button id="nav-manage-team" class="text-sm font-medium text-gray-600 hover:text-blue-600">Gerir Equipa</button>
+                 <span class="text-gray-300">|</span>
+                 <span class="text-sm text-gray-600">${state.userProfile.name}</span>
+                 <button id="logout-btn" class="text-sm font-medium text-blue-600 hover:text-blue-700">Sair</button>`;
+            document.getElementById('logout-btn').onclick = handleLogout;
+            document.getElementById('nav-dashboard').onclick = () => { state.currentView = 'dashboard'; renderApp(); };
+            document.getElementById('nav-manage-team').onclick = () => { state.currentView = 'manageTeam'; renderApp(); };
+        }
+        
+        function renderDashboard() {
+            const appContent = document.getElementById('app-content');
+            appContent.innerHTML = `<div class="min-h-screen lg:grid lg:grid-cols-12 gap-8 p-4 lg:p-8">
+                <aside class="lg:col-span-4 xl:col-span-3 flex flex-col gap-8">
+                    ${renderControlsPanel()}
+                </aside>
+                <main class="lg:col-span-8 xl:col-span-9 flex flex-col gap-8 mt-8 lg:mt-0">
+                    ${renderResultsPanel()}
+                </main>
+            </div>`;
+            attachDashboardListeners();
+            calculateAndRenderAll();
+        }
+        
+        function renderControlsPanel() {
+             return `
+                <div class="panel">
+                     <h2 class="text-2xl font-bold mb-6">Parâmetros</h2>
+                     <div class="space-y-6">
+                         <div><h3 class="text-lg font-semibold mb-3">Pesos por Cargo</h3><div class="space-y-3">
+                            <div class="flex justify-between items-center"><label for="peso_diretor" class="text-gray-600">Diretor</label><input type="number" id="peso_diretor" value="44" class="form-input w-20 text-center"></div>
+                            <div class="flex justify-between items-center"><label for="peso_gerente" class="text-gray-600">Gerente</label><input type="number" id="peso_gerente" value="8" class="form-input w-20 text-center"></div>
+                            <div class="flex justify-between items-center"><label for="peso_especialista" class="text-gray-600">Especialista</label><input type="number" id="peso_especialista" value="4" class="form-input w-20 text-center"></div>
+                            <div class="flex justify-between items-center"><label for="peso_pleno" class="text-gray-600">Designer Pleno</label><input type="number" id="peso_pleno" value="2" class="form-input w-20 text-center"></div>
+                            <div class="flex justify-between items-center"><label for="peso_junior" class="text-gray-600">Analista Júnior</label><input type="number" id="peso_junior" value="1" class="form-input w-20 text-center"></div>
+                         </div></div>
+                         <hr class="border-gray-100">
+                         <div><h3 class="text-lg font-semibold mb-3">Comissão 2025+ (%)</h3><div class="space-y-3">
+                            <div class="flex justify-between items-center"><label for="perc_2025_f1" class="text-gray-600">Faixa 1</label><input type="number" id="perc_2025_f1" value="1.0" step="0.01" class="form-input w-20 text-center"></div>
+                            <div class="flex justify-between items-center"><label for="perc_2025_f2" class="text-gray-600">Faixa 2</label><input type="number" id="perc_2025_f2" value="2.0" step="0.01" class="form-input w-20 text-center"></div>
+                            <div class="flex justify-between items-center"><label for="perc_2025_f3" class="text-gray-600">Faixa 3</label><input type="number" id="perc_2025_f3" value="3.4" step="0.01" class="form-input w-20 text-center"></div>
+                         </div></div>
+                          <hr class="border-gray-100">
+                         <div><h3 class="text-lg font-semibold mb-3">Comissão Pré-2025 (%)</h3><div class="space-y-3">
+                            <div class="flex justify-between items-center"><label for="perc_pre2025_f1" class="text-gray-600">Faixa 1</label><input type="number" id="perc_pre2025_f1" value="0.75" step="0.01" class="form-input w-20 text-center"></div>
+                            <div class="flex justify-between items-center"><label for="perc_pre2025_f2" class="text-gray-600">Faixa 2</label><input type="number" id="perc_pre2025_f2" value="1.0" step="0.01" class="form-input w-20 text-center"></div>
+                            <div class="flex justify-between items-center"><label for="perc_pre2025_f3" class="text-gray-600">Faixa 3</label><input type="number" id="perc_pre2025_f3" value="1.5" step="0.01" class="form-input w-20 text-center"></div>
+                         </div></div>
+                     </div>
+                </div>
+                <div class="panel">
+                    <h2 class="text-2xl font-bold mb-6">Lançar Contrato</h2>
+                    <form id="contract-form" class="space-y-4">
+                        <div><label for="contract-client" class="block text-sm font-medium text-gray-600 mb-1">Cliente</label><input type="text" id="contract-client" required class="form-input"></div>
+                        <div><label for="contract-value" class="block text-sm font-medium text-gray-600 mb-1">Valor (R$)</label><input type="number" id="contract-value" required class="form-input"></div>
+                        <div><label for="contract-date" class="block text-sm font-medium text-gray-600 mb-1">Data</label><input type="date" id="contract-date" required class="form-input"></div>
+                        <button type="submit" class="w-full btn btn-dark">Adicionar Contrato</button>
+                    </form>
+                </div>`;
+        }
+        
+        function renderResultsPanel() {
+            return `
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div class="panel"><h3 class="font-semibold mb-1">Contratos Pré-2025</h3><p class="text-4xl font-bold" id="vgv-pre2025">R$ 0,00</p><p class="text-sm text-gray-500 mt-2">Faixa: <span class="font-bold" id="faixa-pre2025">Nenhuma</span></p><p class="text-sm text-gray-500">Bónus: <span class="font-bold text-green-600" id="bonus-pre2025">R$ 0,00</span></p></div>
+                    <div class="panel"><h3 class="font-semibold mb-1">Contratos 2025+</h3><p class="text-4xl font-bold" id="vgv-2025">R$ 0,00</p><p class="text-sm text-gray-500 mt-2">Faixa: <span class="font-bold" id="faixa-2025">Nenhuma</span></p><p class="text-sm text-gray-500">Bónus: <span class="font-bold text-green-600" id="bonus-2025">R$ 0,00</span></p></div>
+                </div>
+                <div class="panel"><h2 class="text-2xl font-bold mb-4">Resultado de Comissões</h2><div class="overflow-x-auto"><table class="min-w-full"><thead class="table-header"><tr><th class="px-4 py-3 text-left">Funcionário</th><th class="px-4 py-3 text-left">Comissão Pré-2025</th><th class="px-4 py-3 text-left">Comissão 2025+</th><th class="px-4 py-3 text-left">Comissão Total</th><th class="px-4 py-3 text-left">Bónus (x Salários)</th></tr></thead><tbody id="commission-results"></tbody></table></div></div>
+                <div class="panel"><h2 class="text-2xl font-bold mb-4">Contratos Lançados</h2><div class="overflow-x-auto max-h-96"><table class="min-w-full"><thead class="table-header sticky top-0 bg-white"><tr><th class="px-4 py-3 text-left">Cliente</th><th class="px-4 py-3 text-left">Valor</th><th class="px-4 py-3 text-left">Data</th><th class="px-4 py-3 text-left"></th></tr></thead><tbody id="contracts-list"></tbody></table></div></div>`;
+        }
+        
+        function attachDashboardListeners() {
+            document.getElementById('contract-form').addEventListener('submit', (e) => { e.preventDefault(); addContract({client: document.getElementById('contract-client').value, value: parseFloat(document.getElementById('contract-value').value), date: document.getElementById('contract-date').value }); e.target.reset(); });
+            document.querySelectorAll('.panel input[type=number]').forEach(input => input.addEventListener('change', calculateAndRenderAll));
+            const contractList = document.getElementById('contracts-list');
+            if(contractList) contractList.addEventListener('click', e => {
+                const button = e.target.closest('.delete-contract-btn');
+                if (button) {
+                    const id = button.dataset.id;
+                    deleteContract(id);
+                }
+            });
+        }
+        
+        function renderManageTeamPage() {
+            const appContent = document.getElementById('app-content');
+            const teamRows = state.team.sort((a, b) => a.name.localeCompare(b.name)).map(member => `
+                <tr class="table-row">
                     <td class="p-4 whitespace-nowrap"><div class="text-sm font-semibold">${member.name}</div><div class="text-xs text-gray-500">${member.role}</div></td>
                     <td class="p-4 whitespace-nowrap text-sm font-mono">${formatCurrency(member.salary)}</td>
-                    <td class="p-4 whitespace-nowrap text-sm text-center"><button onclick="window.deleteTeamMember('${member.id}')" class="text-gray-400 hover:text-red-500 transition-colors">✖</button></td>
-                </tr>`;
+                    <td class="p-4 whitespace-nowrap text-sm text-gray-600">${new Date(member.hireDate + 'T00:00:00').toLocaleDateString('pt-BR')}</td>
+                    <td class="p-4 whitespace-nowrap text-sm text-center"><button class="delete-team-btn text-gray-400 hover:text-red-500" data-id="${member.id}">✖</button></td>
+                </tr>`).join('');
+            
+            appContent.innerHTML = `<div class="p-4 lg:p-8">
+                <div class="panel">
+                    <h2 class="text-2xl font-bold mb-4">Gerir Equipa</h2>
+                     <div class="overflow-x-auto max-h-[60vh]">
+                        <table class="min-w-full">
+                             <thead class="table-header sticky top-0 bg-white">
+                                <tr>
+                                    <th class="px-4 py-3 text-left">Nome</th>
+                                    <th class="px-4 py-3 text-left">Salário</th>
+                                    <th class="px-4 py-3 text-left">Admissão</th>
+                                    <th class="px-4 py-3 text-left">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="team-list-body">${teamRows}</tbody>
+                        </table>
+                    </div>
+                     ${state.team.length === 0 ? `<div class="text-center p-8 text-gray-500">Nenhum membro na equipa. Adicione um abaixo.</div>`: ''}
+                </div>
+                 <div class="panel mt-8">
+                    <h2 class="text-2xl font-bold mb-6">Adicionar Novo Funcionário</h2>
+                    <form id="team-form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div><label for="team-name" class="block text-sm font-medium text-gray-600 mb-1">Nome</label><input type="text" id="team-name" required class="form-input"></div>
+                        <div><label for="team-role" class="block text-sm font-medium text-gray-600 mb-1">Cargo</label><input type="text" id="team-role" required class="form-input"></div>
+                        <div><label for="team-salary" class="block text-sm font-medium text-gray-600 mb-1">Salário (R$)</label><input type="number" id="team-salary" required class="form-input"></div>
+                        <div><label for="team-hire" class="block text-sm font-medium text-gray-600 mb-1">Data de Admissão</label><input type="date" id="team-hire" required class="form-input"></div>
+                        <div class="md:col-span-2"><button type="submit" class="w-full btn btn-dark">Adicionar à Equipa</button></div>
+                    </form>
+                </div>
+            </div>`;
+            document.getElementById('team-list-body').addEventListener('click', e => {
+                const button = e.target.closest('.delete-team-btn');
+                if (button) {
+                    const id = button.dataset.id;
+                    deleteTeamMember(id);
+                }
             });
+            document.getElementById('team-form').addEventListener('submit', (e) => { e.preventDefault(); addTeamMember({name: document.getElementById('team-name').value, role: document.getElementById('team-role').value, salary: parseFloat(document.getElementById('team-salary').value), hireDate: document.getElementById('team-hire').value }); e.target.reset(); });
         }
         
-        function renderContractsList() {
-            const contractsListEl = document.getElementById('contracts-list');
-            if(!contractsListEl) return;
-            contractsListEl.innerHTML = '';
-            state.contracts.sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(contract => {
-                contractsListEl.innerHTML += `<tr class="table-row">
-                    <td class="p-4 whitespace-nowrap text-sm font-semibold">${contract.client}</td>
-                    <td class="p-4 whitespace-nowrap text-sm text-gray-600 font-mono">${formatCurrency(contract.value)}</td>
-                    <td class="p-4 whitespace-nowrap text-sm text-gray-600">${new Date(contract.date + 'T00:00:00').toLocaleDateString('pt-BR')}</td>
-                    <td class="p-4 whitespace-nowrap text-sm text-center"><button onclick="window.deleteContract('${contract.id}')" class="text-gray-400 hover:text-red-500 transition-colors">✖</button></td>
-                </tr>`;
-            });
+        function showNotification(message, type = 'info', duration = 4000) {
+            const container = document.getElementById('notification-container');
+            const id = `notif-${Date.now()}`;
+            const notif = document.createElement('div');
+            notif.id = id;
+            let styles = 'p-4 rounded-lg shadow-lg flex items-start space-x-3 transition-opacity duration-300';
+            if (type === 'error') styles += ' bg-red-50 text-red-700';
+            else if (type === 'success') styles += ' bg-green-50 text-green-700';
+            else styles += ' bg-blue-50 text-blue-700';
+            notif.className = styles;
+            notif.innerHTML = `<p class="flex-1">${message}</p><button onclick="document.getElementById('${id}').remove()" class="text-gray-400 hover:text-gray-600">✖</button>`;
+            container.appendChild(notif);
+            setTimeout(() => { notif.style.opacity = '0'; setTimeout(() => notif.remove(), 300); }, duration);
         }
-        
+
         function getParameters() {
+            const safeParse = (id) => parseFloat(document.getElementById(id)?.value) || 0;
             return {
                 percentages: {
-                    pre2025: {1:parseFloat(document.getElementById('perc_pre2025_f1').value)/100||0, 2:parseFloat(document.getElementById('perc_pre2025_f2').value)/100||0, 3:parseFloat(document.getElementById('perc_pre2025_f3').value)/100||0},
-                    from2025: {1:parseFloat(document.getElementById('perc_2025_f1').value)/100||0, 2:parseFloat(document.getElementById('perc_2025_f2').value)/100||0, 3:parseFloat(document.getElementById('perc_2025_f3').value)/100||0}
+                    pre2025: {1:safeParse('perc_pre2025_f1')/100, 2:safeParse('perc_pre2025_f2')/100, 3:safeParse('perc_pre2025_f3')/100},
+                    from2025: {1:safeParse('perc_2025_f1')/100, 2:safeParse('perc_2025_f2')/100, 3:safeParse('perc_2025_f3')/100}
                 },
-                weights: { "Diretor Comercial": parseFloat(document.getElementById('peso_diretor').value)||0, "Diretor de Comunicação & Branding": parseFloat(document.getElementById('peso_diretor').value)||0, "Diretor de Marketing & Merchandising": parseFloat(document.getElementById('peso_diretor').value)||0, "Gerente Comercial": parseFloat(document.getElementById('peso_gerente').value)||0, "Gerente de Branding": parseFloat(document.getElementById('peso_gerente').value)||0, "Especialista": parseFloat(document.getElementById('peso_especialista').value)||0, "Designer Pleno": parseFloat(document.getElementById('peso_pleno').value)||0, "Analista Júnior": parseFloat(document.getElementById('peso_junior').value)||0 }
+                weights: { "Diretor Comercial": safeParse('peso_diretor'), "Diretor de Comunicação & Branding": safeParse('peso_diretor'), "Diretor de Marketing & Merchandising": safeParse('peso_diretor'), "Gerente Comercial": safeParse('peso_gerente'), "Gerente de Branding": safeParse('peso_gerente'), "Especialista": safeParse('peso_especialista'), "Designer Pleno": safeParse('peso_pleno'), "Analista Júnior": safeParse('peso_junior'), }
             };
         }
 
         function calculateAndRenderAll() {
-            if (!state.isDataReady) return;
+            if (!document.getElementById('commission-results') || !state.isAuthReady) return;
             const params = getParameters();
             const vgvPre2025 = state.contracts.filter(c => new Date(c.date) < new Date('2025-01-01')).reduce((sum, c) => sum + c.value, 0);
             const vgvFrom2025 = state.contracts.filter(c => new Date(c.date) >= new Date('2025-01-01')).reduce((sum, c) => sum + c.value, 0);
@@ -408,7 +406,7 @@
                 const commissionFrom2025 = totalWeightFrom2025 > 0 ? (weight / totalWeightFrom2025) * bonusPoolFrom2025 : 0;
                 const totalCommission = commissionPre2025 + commissionFrom2025;
                 const bonusInSalaries = member.salary > 0 ? totalCommission / member.salary : 0;
-                resultsEl.innerHTML += `<tr class="table-row ${totalCommission > 0 ? 'highlight' : ''}"><td class="p-4"><div class="text-sm font-semibold">${member.name}</div><div class="text-xs text-gray-500">${member.role}</div></td><td class="p-4 text-sm text-gray-600 font-mono">${formatCurrency(commissionPre2025)}</td><td class="p-4 text-sm text-gray-600 font-mono">${formatCurrency(commissionFrom2025)}</td><td class="p-4 text-sm font-semibold font-mono">${formatCurrency(totalCommission)}</td><td class="p-4 text-sm font-semibold text-blue-600">${bonusInSalaries.toFixed(2)}x</td></tr>`;
+                resultsEl.innerHTML += `<tr class="table-row ${totalCommission > 0 ? 'bg-green-50' : ''}"><td class="p-4"><div class="text-sm font-semibold">${member.name}</div><div class="text-xs text-gray-500">${member.role}</div></td><td class="p-4 text-sm font-mono">${formatCurrency(commissionPre2025)}</td><td class="p-4 text-sm font-mono">${formatCurrency(commissionFrom2025)}</td><td class="p-4 text-sm font-semibold font-mono">${formatCurrency(totalCommission)}</td><td class="p-4 text-sm font-semibold text-blue-600">${bonusInSalaries.toFixed(2)}x</td></tr>`;
             });
             document.getElementById('vgv-pre2025').textContent = formatCurrency(vgvPre2025);
             document.getElementById('faixa-pre2025').textContent = faixaPre2025 > 0 ? `Faixa ${faixaPre2025}` : 'Nenhuma';
@@ -416,20 +414,25 @@
             document.getElementById('vgv-2025').textContent = formatCurrency(vgvFrom2025);
             document.getElementById('faixa-2025').textContent = faixaFrom2025 > 0 ? `Faixa ${faixaFrom2025}` : 'Nenhuma';
             document.getElementById('bonus-2025').textContent = formatCurrency(bonusPoolFrom2025);
+            renderContractsList();
         }
-        
-        async function addContract(contractData) { if(!contractData.client || !contractData.date || isNaN(contractData.value)) {alert("Preencha todos os campos do contrato."); return;} try { await addDoc(contractsCollection, contractData); } catch (e) { console.error(e); alert("Falha ao salvar contrato."); } }
-        async function addTeamMember(memberData) { if(!memberData.name || !memberData.role || !memberData.hireDate || isNaN(memberData.salary)) {alert("Preencha todos os campos do funcionário."); return;} try { await addDoc(teamCollection, memberData); } catch (e) { console.error(e); alert("Falha ao salvar funcionário."); } }
-        async function deleteContract(contractId) { if (!confirm("Excluir este contrato?")) return; try { await deleteDoc(doc(db, contractsCollection.path, contractId)); } catch (e) { console.error(e); alert("Falha ao excluir contrato."); } }
-        async function deleteTeamMember(memberId) { if (!confirm("Remover este membro da equipa?")) return; try { await deleteDoc(doc(db, teamCollection.path, memberId)); } catch (e) { console.error(e); alert("Falha ao remover membro da equipa."); } }
-        window.deleteContract = deleteContract;
-        window.deleteTeamMember = deleteTeamMember;
 
-        document.getElementById('contract-form').addEventListener('submit', function(e) { e.preventDefault(); addContract({client: document.getElementById('contract-client').value, value: parseFloat(document.getElementById('contract-value').value), date: document.getElementById('contract-date').value }); this.reset(); });
-        document.getElementById('team-form').addEventListener('submit', function(e) { e.preventDefault(); addTeamMember({name: document.getElementById('team-name').value, role: document.getElementById('team-role').value, salary: parseFloat(document.getElementById('team-salary').value), hireDate: document.getElementById('team-hire').value}); this.reset(); });
-        document.getElementById('import-csv-btn').addEventListener('click', () => { const fileInput = document.getElementById('csv-file'); if(fileInput.files[0]) importContractsFromCSV(fileInput.files[0]); else alert("Selecione um arquivo CSV."); });
-        document.querySelectorAll('.panel input[type=number]').forEach(input => input.addEventListener('change', calculateAndRenderAll));
-        
+        function renderContractsList() {
+            const listEl = document.getElementById('contracts-list');
+            if(!listEl) return;
+            listEl.innerHTML = state.contracts.sort((a,b) => new Date(b.date) - new Date(a.date)).map(c => `
+                <tr class="table-row">
+                    <td class="p-4 whitespace-nowrap text-sm font-semibold">${c.client}</td>
+                    <td class="p-4 whitespace-nowrap text-sm font-mono">${formatCurrency(c.value)}</td>
+                    <td class="p-4 whitespace-nowrap text-sm">${new Date(c.date + 'T00:00:00').toLocaleDateString('pt-BR')}</td>
+                    <td class="p-4 text-center"><button class="delete-contract-btn text-gray-400 hover:text-red-500" data-id="${c.id}">✖</button></td>
+                </tr>`).join('');
+        }
+
+        async function addContract(data) { if(!data.client || !data.date || isNaN(data.value)) {showNotification("Preencha todos os campos do contrato.", "error"); return;} try { await addDoc(contractsCollection, data); showNotification("Contrato adicionado!", "success");} catch (e) { console.error(e); showNotification("Falha ao salvar contrato.", "error"); } }
+        async function addTeamMember(data) { if(!data.name || !data.role || !data.hireDate || isNaN(data.salary)) {showNotification("Preencha todos os campos do funcionário.", "error"); return;} try { await addDoc(teamCollection, data); showNotification("Funcionário adicionado!", "success"); } catch (e) { console.error(e); showNotification("Falha ao salvar funcionário.", "error"); } }
+        async function deleteContract(id) { if (confirm("Excluir este contrato?")) try { await deleteDoc(doc(contractsCollection, id)); showNotification("Contrato excluído.", "success"); } catch (e) { console.error(e); showNotification("Falha ao excluir.", "error"); } }
+        async function deleteTeamMember(id) { if (confirm("Remover este membro?")) try { await deleteDoc(doc(teamCollection, id)); showNotification("Membro removido.", "success"); } catch (e) { console.error(e); showNotification("Falha ao remover.", "error"); } }
         async function importContractsFromCSV(file) {
             const reader = new FileReader();
             reader.onload = async (event) => {
@@ -441,26 +444,12 @@
                     const contract = { client: parts[0].trim(), value: parseFloat(parts[1]), date: parts[2].trim() };
                     if(contract.client && !isNaN(contract.value) && contract.date) { batch.set(doc(contractsCollection), contract); }
                 });
-                try { await batch.commit(); alert(`${lines.length} contratos importados com sucesso!`); } catch (e) { console.error("CSV import error:", e); alert("Erro na importação."); }
+                try { await batch.commit(); showNotification(`${lines.length} contratos importados com sucesso!`, "success"); } catch (e) { console.error("CSV import error:", e); showNotification("Erro na importação.", "error"); }
             };
             reader.readAsText(file);
         }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('login-btn').addEventListener('click', () => {
-                const email = document.getElementById('login-email').value;
-                const password = document.getElementById('login-password').value;
-                if (!email || !password) { document.getElementById('login-error').textContent = 'Preencha email e senha'; return; }
-                document.getElementById('login-error').textContent = '';
-                document.getElementById('login-container').style.display = 'none';
-                document.getElementById('loading-screen').style.display = 'flex';
-                signIn(email, password);
-            });
-            document.getElementById('logout-btn').addEventListener('click', () => {
-                signOutUser();
-            });
-            initializeFirebase();
-        });
+        
+        document.addEventListener('DOMContentLoaded', initializeFirebase);
     </script>
 </body>
 </html>
