@@ -3,807 +3,474 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simulador e Análise de Comissão - SAF Botafogo</title>
+    <title>Análise de Comissões - Ferramenta de Gestão com Firebase</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #0f172a; }
-        .chart-container { position: relative; width: 100%; margin-left: auto; margin-right: auto; height: 300px; max-height: 40vh; }
-        .card {
-            background-color: white;
-            border-radius: 1.5rem;
-            padding: 2rem;
-            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.05), 0 4px 6px -4px rgb(0 0 0 / 0.05);
-            border: 1px solid #e2e8f0;
-        }
-        /* Tab Styling */
-        .tab-btn {
-            padding: 0.75rem 1.5rem;
-            font-size: 1rem;
-            font-weight: 600;
-            border-radius: 0.75rem;
-            cursor: pointer;
-            transition: all 0.2s ease-in-out;
-            color: #475569;
-            background-color: transparent;
-            border: 2px solid transparent;
-        }
-        .tab-btn.active {
-            color: #2563eb;
-            background-color: #dbeafe;
-        }
-        .tab-btn:hover:not(.active) {
-            background-color: #f1f5f9;
-        }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
-
-        /* Custom scrollbar for better aesthetics */
-        .custom-scrollbar::-webkit-scrollbar {
-            width: 8px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-            background: #f1f5f9;
-            border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-            background: #94a3b8;
-        }
-        .spreadsheet-input { font-family: monospace; }
-        .spreadsheet-input:focus {
-            outline: 2px solid #3b82f6;
-            z-index: 10;
-            position: relative;
-        }
-        .spreadsheet-input.error {
-            color: #ef4444;
-            font-weight: bold;
-        }
+        body { font-family: 'Inter', sans-serif; background-color: #f0f2f5; }
+        .card { background-color: white; border-radius: 0.75rem; padding: 1.5rem; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1); }
+        .btn-primary { background-color: #4f46e5; color: white; font-weight: 600; padding: 0.75rem 1.5rem; border-radius: 0.5rem; transition: background-color 0.3s; }
+        .btn-primary:hover { background-color: #4338ca; }
+        .btn-secondary { background-color: #10b981; color: white; font-weight: 600; padding: 0.5rem 1rem; border-radius: 0.5rem; transition: background-color 0.3s; }
+        .btn-secondary:hover { background-color: #059669; }
+        h2 { font-size: 1.5rem; font-weight: 700; color: #111827; border-bottom: 2px solid #e5e7eb; padding-bottom: 0.5rem; margin-bottom: 1.5rem; }
+        .table-header { background-color: #f3f4f6; color: #374151; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+        .highlight { background-color: #ecfdf5; }
+        .highlight-bonus { color: #1d4ed8; font-weight: 600; }
+        #auth-status { text-align: center; padding: 0.5rem; border-radius: 0.5rem; margin-bottom: 1rem; }
+        .auth-success { background-color: #dcfce7; color: #166534; }
+        .auth-fail { background-color: #fee2e2; color: #991b1b; }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #4f46e5; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; margin: 0 auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
-<body class="antialiased">
-
-    <div class="container mx-auto p-4 md:p-8 max-w-7xl">
-        
-        <header class="text-center mb-10">
-            <h1 class="text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tight">Simulador e Análise de Comissão</h1>
-            <p class="mt-4 text-xl text-slate-600">Construa cenários e extraia insights estratégicos dos modelos de comissão.</p>
+<body class="p-4 md:p-8">
+    <div id="app-container" class="max-w-7xl mx-auto" style="display: none;">
+        <header class="text-center mb-6">
+            <h1 class="text-4xl font-bold text-gray-800">Ferramenta de Análise de Comissões</h1>
+            <p class="text-lg text-gray-600 mt-2">Gerencie sua equipe, contratos e calcule as comissões de forma dinâmica.</p>
         </header>
 
-        <!-- Model Toggle Switch -->
-        <div class="flex justify-center mb-8">
-            <div id="modelToggle" class="flex p-1 bg-slate-200 rounded-full">
-                <button data-model="progressive" class="px-6 py-2 text-sm font-semibold rounded-full transition-colors">Progressivo</button>
-                <button data-model="direct" class="px-6 py-2 text-sm font-semibold rounded-full transition-colors bg-white text-blue-600 shadow">Por Contrato</button>
-            </div>
-        </div>
+        <div id="auth-status"></div>
 
-        <!-- Tab Navigation -->
-        <div class="relative flex justify-center mb-8 border-b border-slate-200">
-            <div id="tabContainer" class="flex flex-wrap justify-center space-x-2">
-                <button class="tab-btn active" data-tab="simulator">Calculadora</button>
-                <button class="tab-btn" data-tab="analysis">Análise Detalhada</button>
-            </div>
-            <button id="settingsToggle" class="absolute right-0 top-1/2 -translate-y-1/2 p-2 text-slate-500 hover:text-slate-700 text-2xl">⚙️</button>
-        </div>
-
-        <div id="modelSettings" class="hidden mb-8">
-            <section class="card">
-                <h2 class="text-2xl font-bold text-slate-900 mb-4 tracking-tight">Configurações do Modelo</h2>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-sm table-fixed border border-collapse border-slate-200" id="settingsSheet">
-                        <thead>
-                            <tr class="bg-slate-100 text-slate-600">
-                                <th class="p-2 border border-slate-300"></th>
-                                <th class="p-2 border border-slate-300 text-center">A</th>
-                                <th class="p-2 border border-slate-300 text-center">B</th>
-                                <th class="p-2 border border-slate-300 text-center">C</th>
-                                <th class="p-2 border border-slate-300 text-center">D</th>
-                            </tr>
-                            <tr class="bg-slate-100 text-slate-600">
-                                <th class="p-2 border border-slate-300 font-semibold">Faixa (R$)</th>
-                                <th class="p-2 border border-slate-300 text-center font-semibold">Diretor (%)</th>
-                                <th class="p-2 border border-slate-300 text-center font-semibold">Gerente (%)</th>
-                                <th class="p-2 border border-slate-300 text-center font-semibold">Coordenador (%)</th>
-                                <th class="p-2 border border-slate-300 text-center font-semibold">Analista (%)</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tierSettingsBody"></tbody>
-                    </table>
+        <main class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Coluna de Configurações e Lançamentos -->
+            <div class="lg:col-span-1 flex flex-col gap-8">
+                <!-- Card de Parâmetros -->
+                <div class="card">
+                     <h2>Parâmetros de Comissão</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <h3 class="font-semibold text-gray-700 mb-2">Comissão sobre Contratos (%)</h3>
+                            <div class="grid grid-cols-2 gap-x-4 gap-y-2">
+                                <span class="font-medium text-sm text-gray-500">Faixa</span><span class="font-medium text-sm text-gray-500">Percentual (%)</span>
+                                <label for="perc_pre2025_f1" class="text-sm">Pré-2025 F1</label><input type="number" id="perc_pre2025_f1" value="0.75" step="0.01" class="input-field border rounded-md px-2 py-1">
+                                <label for="perc_pre2025_f2" class="text-sm">Pré-2025 F2</label><input type="number" id="perc_pre2025_f2" value="1.0" step="0.01" class="input-field border rounded-md px-2 py-1">
+                                <label for="perc_pre2025_f3" class="text-sm">Pré-2025 F3</label><input type="number" id="perc_pre2025_f3" value="1.5" step="0.01" class="input-field border rounded-md px-2 py-1">
+                                <label for="perc_2025_f1" class="text-sm">2025+ F1</label><input type="number" id="perc_2025_f1" value="1.0" step="0.01" class="input-field border rounded-md px-2 py-1">
+                                <label for="perc_2025_f2" class="text-sm">2025+ F2</label><input type="number" id="perc_2025_f2" value="2.0" step="0.01" class="input-field border rounded-md px-2 py-1">
+                                <label for="perc_2025_f3" class="text-sm">2025+ F3</label><input type="number" id="perc_2025_f3" value="3.4" step="0.01" class="input-field border rounded-md px-2 py-1">
+                            </div>
+                        </div>
+                        <div>
+                            <h3 class="font-semibold text-gray-700 mb-2">Pesos por Cargo para Distribuição</h3>
+                            <div class="grid grid-cols-2 gap-x-4 gap-y-2">
+                                <span class="font-medium text-sm text-gray-500">Cargo</span><span class="font-medium text-sm text-gray-500">Peso</span>
+                                <label for="peso_diretor" class="text-sm">Diretor</label><input type="number" id="peso_diretor" value="44" class="input-field border rounded-md px-2 py-1">
+                                <label for="peso_gerente" class="text-sm">Gerente</label><input type="number" id="peso_gerente" value="8" class="input-field border rounded-md px-2 py-1">
+                                <label for="peso_especialista" class="text-sm">Especialista</label><input type="number" id="peso_especialista" value="4" class="input-field border rounded-md px-2 py-1">
+                                <label for="peso_pleno" class="text-sm">Designer Pleno</label><input type="number" id="peso_pleno" value="2" class="input-field border rounded-md px-2 py-1">
+                                <label for="peso_junior" class="text-sm">Analista Júnior</label><input type="number" id="peso_junior" value="1" class="input-field border rounded-md px-2 py-1">
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </section>
-        </div>
-        <main>
-            <!-- Simulator Tab Content -->
-            <div id="simulator" class="tab-content active">
-                <div class="space-y-8">
-                    <div class="grid grid-cols-1 lg:grid-cols-5 gap-8">
-                        <section class="card lg:col-span-3">
-                            <div class="flex justify-between items-center mb-6">
-                                <h2 class="text-2xl font-bold text-slate-900 tracking-tight">1. Construa o Cenário</h2>
-                                <button id="addContractGroupBtn" class="bg-blue-600 text-white px-4 py-2 text-sm rounded-lg hover:bg-blue-700 transition-colors">+ Adicionar Grupo</button>
-                            </div>
-                            <p class="text-sm text-slate-500 mb-4">Adicione grupos de contratos com o mesmo valor ou insira contratos individuais.</p>
-                            <div id="contractGroupsContainer" class="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-                            </div>
-                        </section>
 
-                        <div class="lg:col-span-2 space-y-8">
-                            <section class="card">
-                                <h2 class="text-2xl font-bold text-slate-900 mb-4 tracking-tight">2. Resumo do Cenário</h2>
-                                <div class="space-y-4">
-                                    <div class="bg-slate-50 p-4 rounded-xl">
-                                        <p class="text-sm text-slate-600">Receita Total Gerada</p>
-                                        <p id="totalRevenue" class="text-3xl font-bold text-blue-600">R$ 0,00</p>
-                                    </div>
-                                    <div class="bg-slate-50 p-4 rounded-xl">
-                                        <p class="text-sm text-slate-600">Número Total de Contratos</p>
-                                        <p id="totalContracts" class="text-3xl font-bold text-blue-600">0</p>
-                                    </div>
-                                </div>
-                            </section>
-                            
-                            <section class="card">
-                                <h2 class="text-2xl font-bold text-slate-900 mb-4 tracking-tight">3. Bônus Final por Cargo</h2>
-                                <div id="finalBonusResults" class="space-y-3 text-lg"></div>
-                                <div class="mt-6 chart-container">
-                                    <canvas id="bonusSummaryChart"></canvas>
-                                </div>
-                            </section>
+                <!-- Card de Lançamento de Contratos -->
+                <div class="card">
+                    <h2>Lançar Contratos</h2>
+                    <form id="contract-form" class="space-y-4">
+                        <h3 class="font-semibold text-gray-700 -mb-2">Adicionar Manualmente</h3>
+                        <div>
+                            <label for="contract-client" class="block text-sm font-medium text-gray-700">Nome do Cliente</label>
+                            <input type="text" id="contract-client" placeholder="Ex: Empresa Exemplo" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                        </div>
+                        <div>
+                            <label for="contract-value" class="block text-sm font-medium text-gray-700">Valor do Contrato (R$)</label>
+                            <input type="number" id="contract-value" placeholder="Ex: 30000000" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                        </div>
+                        <div>
+                            <label for="contract-date" class="block text-sm font-medium text-gray-700">Data de Assinatura</label>
+                            <input type="date" id="contract-date" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                        </div>
+                        <button type="submit" class="w-full btn-primary">Adicionar Contrato</button>
+                    </form>
+                    <hr class="my-6">
+                    <div>
+                         <h3 class="font-semibold text-gray-700 mb-2">Importar de Planilha (CSV)</h3>
+                         <p class="text-xs text-gray-500 mb-2">O arquivo deve ter 3 colunas, sem cabeçalho: Cliente, Valor, Data (AAAA-MM-DD).</p>
+                         <input type="file" id="csv-file" accept=".csv" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100"/>
+                         <button id="import-csv-btn" class="w-full btn-secondary mt-3">Importar CSV</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Coluna de Resultados -->
+            <div class="lg:col-span-2 flex flex-col gap-8">
+                <!-- Card do Dashboard -->
+                <div class="card">
+                    <h2>Dashboard de Resultados</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                        <div class="p-4 border rounded-lg bg-gray-50">
+                            <h3 class="font-semibold text-gray-800">Contratos Pré-2025</h3>
+                            <p class="text-2xl font-bold text-indigo-600" id="vgv-pre2025">R$ 0,00</p>
+                            <p class="text-sm text-gray-500">Faixa Atingida: <span class="font-bold text-gray-700" id="faixa-pre2025">Nenhuma</span></p>
+                            <p class="text-sm text-gray-500">Bônus Total: <span class="font-bold text-green-600" id="bonus-pre2025">R$ 0,00</span></p>
+                        </div>
+                        <div class="p-4 border rounded-lg bg-gray-50">
+                            <h3 class="font-semibold text-gray-800">Contratos 2025+</h3>
+                            <p class="text-2xl font-bold text-indigo-600" id="vgv-2025">R$ 0,00</p>
+                            <p class="text-sm text-gray-500">Faixa Atingida: <span class="font-bold text-gray-700" id="faixa-2025">Nenhuma</span></p>
+                            <p class="text-sm text-gray-500">Bônus Total: <span class="font-bold text-green-600" id="bonus-2025">R$ 0,00</span></p>
                         </div>
                     </div>
 
-                    <section class="card">
-                        <h2 class="text-2xl font-bold text-slate-900 mb-4 tracking-tight">4. Demonstração do Cálculo</h2>
-                        <p class="text-sm text-slate-500 mb-4">Veja como cada contrato contribui para o bônus total de cada cargo.</p>
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-sm">
-                                <thead class="bg-slate-100 text-slate-600">
-                                    <tr>
-                                        <th class="p-3 text-left font-semibold tracking-wider">Descrição do Contrato</th>
-                                        <th class="p-3 text-right font-semibold tracking-wider">Bônus Diretor</th>
-                                        <th class="p-3 text-right font-semibold tracking-wider">Bônus Gerente</th>
-                                        <th class="p-3 text-right font-semibold tracking-wider">Bônus Coordenador</th>
-                                        <th class="p-3 text-right font-semibold tracking-wider">Bônus Analista</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="calculationBreakdown" class="divide-y divide-slate-100"></tbody>
-                            </table>
-                        </div>
-                    </section>
+                    <h3 class="font-semibold text-lg text-gray-800 mb-4">Comissões por Funcionário</h3>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="table-header">
+                                <tr>
+                                    <th class="px-4 py-3 text-left">Funcionário</th>
+                                    <th class="px-4 py-3 text-left">Comissão (Pré-2025)</th>
+                                    <th class="px-4 py-3 text-left">Comissão (2025+)</th>
+                                    <th class="px-4 py-3 text-left">Comissão Total</th>
+                                    <th class="px-4 py-3 text-left">Bônus (x Salários)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="commission-results" class="bg-white divide-y divide-gray-200"></tbody>
+                        </table>
+                    </div>
                 </div>
-            </div>
 
-            <!-- Analysis Tab Content -->
-            <div id="analysis" class="tab-content">
-                <div class="space-y-12">
-                       <!-- Executive Summary -->
-                    <section class="card bg-slate-800 text-white">
-                        <h2 class="text-2xl font-bold tracking-tight mb-6 text-white border-b border-slate-600 pb-4">Análise Detalhada do Portfólio de Contratos</h2>
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 text-center">
-                            <div class="bg-slate-700 p-4 rounded-xl flex flex-col items-center justify-center">
-                                <p class="text-xs text-slate-300 uppercase tracking-wider">Receita Total</p>
-                                <p id="analysisTotalRevenue" class="text-2xl font-bold text-cyan-400">R$ 0,00</p>
-                            </div>
-                            <div class="bg-slate-700 p-4 rounded-xl flex flex-col items-center justify-center">
-                                <p class="text-xs text-slate-300 uppercase tracking-wider">Comissão Total</p>
-                                <p id="analysisTotalCommission" class="text-2xl font-bold text-green-400">R$ 0,00</p>
-                            </div>
-                             <div class="bg-slate-700 p-4 rounded-xl flex flex-col items-center justify-center">
-                                <p class="text-xs text-slate-300 uppercase tracking-wider">% Comissão Efetiva</p>
-                                <p id="analysisEffectiveCommissionRate" class="text-2xl font-bold text-amber-400">0.00%</p>
-                            </div>
-                            <div class="bg-slate-700 p-4 rounded-xl flex flex-col items-center justify-center">
-                                <p class="text-xs text-slate-300 uppercase tracking-wider">Contrato Médio</p>
-                                <p id="analysisAverageContract" class="text-2xl font-bold text-violet-400">R$ 0,00</p>
+                <!-- Card da Equipe e Contratos -->
+                <div class="card">
+                    <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                        <div>
+                            <h2 class="!border-0 !mb-4">Equipe</h2>
+                            <div class="overflow-x-auto max-h-96">
+                                <table class="min-w-full divide-y divide-gray-200">
+                                    <thead class="table-header sticky top-0">
+                                        <tr><th class="px-4 py-3 text-left">Nome</th><th class="px-4 py-3 text-left">Cargo</th><th class="px-4 py-3 text-left">Salário</th></tr>
+                                    </thead>
+                                    <tbody id="team-list" class="bg-white divide-y divide-gray-200"></tbody>
+                                </table>
                             </div>
                         </div>
-                    </section>
-                    
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                        <!-- Commission Distribution by Role -->
-                        <section class="card">
-                             <h2 class="text-2xl font-bold text-slate-900 mb-4 tracking-tight">Distribuição da Comissão por Cargo</h2>
-                             <div class="chart-container !h-[350px]">
-                                 <canvas id="commissionDistributionChart"></canvas>
-                             </div>
-                        </section>
-                        
-                        <!-- Contract Value vs. Commission Rate -->
-                        <section class="card">
-                            <h2 class="text-2xl font-bold text-slate-900 mb-4 tracking-tight">Valor do Contrato vs. % Comissão Efetiva</h2>
-                            <p class="text-sm text-slate-500 mb-4">Análise da taxa de comissão real por faixa de valor, baseada nos contratos e no modelo selecionado.</p>
-                            <div class="chart-container !h-[350px]">
-                                <canvas id="valueVsRateChart"></canvas>
+                        <div>
+                            <h2 class="!border-0 !mb-4">Contratos Lançados</h2>
+                            <div class="overflow-x-auto max-h-96">
+                                <table class="min-w-full divide-y divide-gray-200">
+                                     <thead class="table-header sticky top-0">
+                                        <tr><th class="px-4 py-3 text-left">Cliente</th><th class="px-4 py-3 text-left">Valor</th><th class="px-4 py-3 text-left">Data</th><th class="px-4 py-3 text-left">Ações</th></tr>
+                                    </thead>
+                                    <tbody id="contracts-list" class="bg-white divide-y divide-gray-200"></tbody>
+                                </table>
                             </div>
-                        </section>
+                        </div>
                     </div>
                 </div>
             </div>
         </main>
-        
-        <footer class="text-center text-slate-500 text-sm pt-12 mt-16 border-t border-slate-200">
-            <p>Análise e simulação baseadas no modelo de comissão "Por Contrato". Todos os valores são ilustrativos.</p>
-        </footer>
     </div>
+    <div id="loading-screen" class="text-center p-10"><div class="loader"></div><p class="mt-4 text-gray-600">Conectando ao banco de dados...</p></div>
 
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    
-    // --- DATA MODEL AND CONSTANTS ---
-    const TIERS_DIRECT = [
-        { from: 0, to: 1000000, rates: { diretor: 0.01542, gerente: 0.00925, coordenador: 0.00463, analista: 0.00247 } },
-        { from: 1000000, to: 3000000, rates: { diretor: 0.01157, gerente: 0.00694, coordenador: 0.00347, analista: 0.00185 } },
-        { from: 3000000, to: 5000000, rates: { diretor: 0.00925, gerente: 0.00555, coordenador: 0.00278, analista: 0.00148 } },
-        { from: 5000000, to: 10000000, rates: { diretor: 0.00771, gerente: 0.00463, coordenador: 0.00231, analista: 0.00123 } },
-        { from: 10000000, to: 30000000, rates: { diretor: 0.00667, gerente: 0.00400, coordenador: 0.00200, analista: 0.00106 } },
-        { from: 30000000, to: 100000000, rates: { diretor: 0.00308, gerente: 0.00185, coordenador: 0.00093, analista: 0.00049 } },
-        { from: 100000000, to: Infinity, rates: { diretor: 0.00154, gerente: 0.00093, coordenador: 0.00046, analista: 0.00025 } }
-    ];
-    
-    const ROLES = ['diretor', 'gerente', 'coordenador', 'analista'];
-    const ROLE_NAMES = { diretor: 'Diretor', gerente: 'Gerente', coordenador: 'Coordenador', analista: 'Analista' };
-    const ROLE_COLORS = {
-        diretor: { bg: 'rgba(59, 130, 246, 0.7)', border: '#3b82f6' },
-        gerente: { bg: 'rgba(34, 197, 94, 0.7)', border: '#10b981' },
-        coordenador: { bg: 'rgba(234, 179, 8, 0.7)', border: '#eab308' },
-        analista: { bg: 'rgba(239, 68, 68, 0.7)', border: '#ef4444' },
-    };
+    <script type="module">
+        // --- SDKs do Firebase ---
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, onSnapshot, addDoc, doc, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-    const initialContracts = [
-        { name: "Costas Superior", value: 3550000.00 }, { name: "Costas Inferior", value: 2325000.00 },
-        { name: "Omoplata", value: 3500000.00 }, { name: "Short", value: 1825000.00 },
-        { name: "Meião", value: 2125000.00 }, { name: "Uniforme base Masculino", value: 225000.00 },
-        { name: "Uniforme Feminino Profissional (Treino e Jogo)", value: 187500.00 }, { name: "Botafogo TV", value: 120000.00 },
-        { name: "Camisa 6", value: 5000000.00 }, { name: "Ativações Mundial (ex: Casa Botafogo)", value: 500000.00 },
-        { name: "Patrocínio Spot", value: 400000.00 }, { name: "Testeira digital", value: 120000.00 },
-        { name: "Publicidade no telão de LED", value: 120000.00 }, { name: "Firezone", value: 413111.40 },
-        { name: "Número Uniforme", value: 3000000.00 }, { name: "Wizard", value: 1400000.00 },
-        { name: "Philips", value: 1250000.00 }, { name: "Outros", value: 5000000.00 }
-    ];
+        // --- Variáveis de estado e configuração ---
+        let db, auth;
+        let contractsCollection, teamCollection;
+        let unsubscribeContracts = null;
+        let unsubscribeTeam = null;
 
-    let state = {
-        contractGroups: [],
-        nextGroupId: 1,
-        tiers: JSON.parse(JSON.stringify(TIERS_DIRECT)), // Deep copy
-        calculationModel: 'direct' // 'direct' or 'progressive'
-    };
-
-    // --- DOM ELEMENTS ---
-    const modelToggle = document.getElementById('modelToggle');
-    const tabContainer = document.getElementById('tabContainer');
-    const addContractGroupBtn = document.getElementById('addContractGroupBtn');
-    const contractGroupsContainer = document.getElementById('contractGroupsContainer');
-    const totalRevenueEl = document.getElementById('totalRevenue');
-    const totalContractsEl = document.getElementById('totalContracts');
-    const calculationBreakdownBody = document.getElementById('calculationBreakdown');
-    const finalBonusResultsContainer = document.getElementById('finalBonusResults');
-    const settingsToggleBtn = document.getElementById('settingsToggle');
-    const modelSettings = document.getElementById('modelSettings');
-    const tierSettingsBody = document.getElementById('tierSettingsBody');
-    
-    // Chart canvases
-    const bonusChartCanvas = document.getElementById('bonusSummaryChart');
-    const commissionDistributionCanvas = document.getElementById('commissionDistributionChart');
-    const valueVsRateCanvas = document.getElementById('valueVsRateChart');
-    let bonusChart, commissionDistributionChart, valueVsRateChart = null;
-
-    // --- HELPER FUNCTIONS ---
-    const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-    const formatPercent = (value) => `${(value * 100).toFixed(2)}%`.replace('.',',');
-    const parseCurrency = (value) => {
-        const cleaned = String(value).replace(/[R$\s]/g, '').replace(/\./g, '').replace(',', '.');
-        return parseFloat(cleaned);
-    }
-    const formatForChart = (value) => {
-        if (value >= 1000000) {
-            return (value / 1000000).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 1 }) + 'M';
-        } else if (value >= 1000) {
-            return (value / 1000).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + 'k';
-        }
-        return value.toLocaleString('pt-BR');
-    };
-
-    function basicEvaluate(expression, scope) {
-        const params = Object.keys(scope);
-        const args = Object.values(scope);
-        try {
-            const fn = new Function(...params, `"use strict"; return (${expression});`);
-            const result = fn(...args);
-            if (typeof result !== 'number' || !isFinite(result)) throw new Error('Invalid result');
-            return result;
-        } catch (err) {
-            throw new Error('Eval error');
-        }
-    }
-    
-    // --- CALCULATION MODELS ---
-
-    /**
-     * Finds the single commission tier for a given value. (Model: Por Contrato)
-     */
-    function findDirectTier(value) {
-        return state.tiers.find(tier => value > tier.from && value <= tier.to) || state.tiers[state.tiers.length - 1];
-    }
-
-    /**
-     * Calculates bonus by breaking down the value across multiple tiers. (Model: Progressivo)
-     */
-    function calculateProgressiveBonusForRole(value, role) {
-        let totalBonus = 0;
-        const tiers = state.tiers;
-
-        for (const tier of tiers) {
-            // If the contract value doesn't even reach the start of this tier, we're done.
-            if (value <= tier.from) {
-                break;
-            }
-
-            // Determine the portion of the value to be calculated in this tier.
-            const taxableAmountInTier = Math.min(value, tier.to) - tier.from;
-
-            const rate = tier.rates[role] || 0;
-            totalBonus += taxableAmountInTier * rate;
-            
-            // If the contract value is fully contained within this tier's upper bound, we can stop.
-            if (value <= tier.to) {
-                break;
-            }
-        }
-        return totalBonus;
-    }
-
-    // --- RENDER AND MAIN CALCULATION LOGIC ---
-    function renderContractGroups() {
-        contractGroupsContainer.innerHTML = '';
-        if (state.contractGroups.length === 0) {
-            contractGroupsContainer.innerHTML = `<div class="text-center text-slate-500 p-8 border-2 border-dashed rounded-xl">Nenhum contrato adicionado.</div>`;
-        }
-        state.contractGroups.forEach(group => {
-            const div = document.createElement('div');
-            div.className = 'flex gap-4 items-end p-4 border rounded-xl bg-slate-50/75';
-            div.innerHTML = `
-                <div class="flex-grow">
-                    <label class="text-xs text-slate-500">Nome do Contrato (Opcional)</label>
-                    <input type="text" data-id="${group.id}" data-field="name" value="${group.name}" class="w-full p-2 border rounded-lg text-sm" placeholder="Ex: Patrocínio Master">
-                </div>
-                <div class="w-48">
-                    <label class="text-xs text-slate-500">Valor (R$)</label>
-                    <input type="text" data-id="${group.id}" data-field="value" value="${new Intl.NumberFormat('pt-BR', {minimumFractionDigits: 2}).format(group.value)}" class="w-full p-2 border rounded-lg text-sm text-right">
-                </div>
-                <div class="w-24">
-                    <label class="text-xs text-slate-500">Qtde.</label>
-                    <input type="number" data-id="${group.id}" data-field="incidence" value="${group.incidence}" min="1" class="w-full p-2 border rounded-lg text-sm text-center">
-                </div>
-                <button data-id="${group.id}" class="remove-btn text-slate-400 hover:text-red-500 transition-colors pb-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 256 256"><path d="M216,48H176V40a24,24,0,0,0-24-24H104A24,24,0,0,0,80,40v8H40a8,8,0,0,0,0,16h8V208a16,16,0,0,0,16,16H192a16,16,0,0,0,16-16V64h8a8,8,0,0,0,0-16ZM96,40a8,8,0,0,1,8-8h48a8,8,0,0,1,8,8v8H96Zm96,168H64V64H192ZM112,104v64a8,8,0,0,1-16,0V104a8,8,0,0,1,16,0Zm48,0v64a8,8,0,0,1-16,0V104a8,8,0,0,1,16,0Z"></path></svg>
-                </button>
-            `;
-            contractGroupsContainer.appendChild(div);
-        });
-    }
-
-    function renderTierSettings() {
-        tierSettingsBody.innerHTML = '';
-        state.tiers.forEach((tier, index) => {
-            const row = document.createElement('tr');
-            const displayFrom = index === 0 ? tier.from : tier.from + 0.01;
-            const rangeLabel = `${formatCurrency(displayFrom)} - ${tier.to === Infinity ? '∞' : formatCurrency(tier.to)}`;
-            
-            let cells = '';
-            ROLES.forEach((role, i) => {
-                const colLetter = String.fromCharCode(65 + i); // A, B, C, D
-                const cellId = `${colLetter}${index + 1}`;
-                const value = tier.rates[role] * 100;
-                const initialFormula = value.toFixed(4).replace('.',',');
-                const displayValue = initialFormula;
-
-                cells += `<td class="p-0 border border-slate-300"><input id="${cellId}" type="text" data-index="${index}" data-role="${role}" class="w-full h-full p-1 border-0 rounded-none text-right spreadsheet-input" data-formula="${initialFormula}" value="${displayValue}"></td>`;
-            });
-
-            row.innerHTML = `
-                <th class="p-2 border border-slate-300 bg-slate-50 whitespace-nowrap">${rangeLabel}</th>
-                ${cells}
-            `;
-            tierSettingsBody.appendChild(row);
-        });
-    }
-    
-    function updateAllCalculations() {
-        const roleTotals = { diretor: 0, gerente: 0, coordenador: 0, analista: 0 };
-        const breakdown = [];
-        const tierStats = state.tiers.map(() => ({ contracts: 0, bonus: 0, revenue: 0 }));
-        let totalRevenue = 0;
-        let totalContracts = 0;
-
-        state.contractGroups.forEach(group => {
-            if (isNaN(group.value) || isNaN(group.incidence) || group.value <= 0 || group.incidence <= 0) return;
-            
-            totalRevenue += group.value * group.incidence;
-            totalContracts += group.incidence;
-            
-            const groupBonusByRole = { diretor: 0, gerente: 0, coordenador: 0, analista: 0 };
-            
-            ROLES.forEach(role => {
-                let singleContractBonus = 0;
-                if (state.calculationModel === 'direct') {
-                    const tier = findDirectTier(group.value);
-                    const rate = tier.rates[role] || 0;
-                    singleContractBonus = group.value * rate;
-                } else { // progressive
-                    singleContractBonus = calculateProgressiveBonusForRole(group.value, role);
-                }
-                // Update role totals and breakdown group totals
-                roleTotals[role] += singleContractBonus * group.incidence;
-                groupBonusByRole[role] = singleContractBonus * group.incidence;
-            });
-
-            // For the valueVsRate chart, we want to show the effective rate.
-            // We group contracts by the tier they would fall into in the 'direct' model for simplicity.
-            const directTierForGrouping = findDirectTier(group.value);
-            const tierIndex = state.tiers.indexOf(directTierForGrouping);
-            const groupTotalBonus = Object.values(groupBonusByRole).reduce((a, b) => a + b, 0);
-
-            if (tierIndex !== -1) {
-                tierStats[tierIndex].contracts += group.incidence;
-                tierStats[tierIndex].bonus += groupTotalBonus; 
-                tierStats[tierIndex].revenue += group.value * group.incidence;
-            }
-            
-            breakdown.push({
-                description: `${group.name || `Grupo de ${group.incidence} contrato(s)`} de ${formatCurrency(group.value)}`,
-                bonuses: groupBonusByRole,
-                value: group.value
-            });
-        });
-        
-        // Update Simulator Tab UI
-        totalRevenueEl.textContent = formatCurrency(totalRevenue);
-        totalContractsEl.textContent = totalContracts;
-
-        calculationBreakdownBody.innerHTML = '';
-        breakdown.forEach(item => {
-            const row = document.createElement('tr');
-            row.className = "hover:bg-slate-50";
-            row.innerHTML = `
-                <td class="p-3">${item.description}</td>
-                <td class="p-3 text-right text-slate-700">${formatCurrency(item.bonuses.diretor)}</td>
-                <td class="p-3 text-right text-slate-700">${formatCurrency(item.bonuses.gerente)}</td>
-                <td class="p-3 text-right text-slate-700">${formatCurrency(item.bonuses.coordenador)}</td>
-                <td class="p-3 text-right text-slate-700">${formatCurrency(item.bonuses.analista)}</td>
-            `;
-            calculationBreakdownBody.appendChild(row);
-        });
-
-        finalBonusResultsContainer.innerHTML = '';
-        ROLES.forEach(role => {
-            const div = document.createElement('div');
-            div.className = 'flex justify-between items-center';
-            div.innerHTML = `<span class="text-slate-700 capitalize">${ROLE_NAMES[role]}</span><strong class="text-slate-900">${formatCurrency(roleTotals[role])}</strong>`;
-            finalBonusResultsContainer.appendChild(div);
-        });
-        
-        updateBonusSummaryChart(roleTotals);
-        updateAnalysisTab(totalRevenue, roleTotals, tierStats);
-    }
-    
-    function updateBonusSummaryChart(totals) {
-        const data = ROLES.map(role => totals[role]);
-        const labels = ROLES.map(role => ROLE_NAMES[role]);
-
-        const chartOptions = {
-            responsive: true, maintainAspectRatio: false,
-            scales: { 
-                y: { beginAtZero: true, ticks: { callback: value => formatCurrency(value) } },
-                x: { grid: { display: false } }
-            }, 
-            plugins: { 
-                legend: { display: false }, 
-                tooltip: { 
-                    backgroundColor: '#0f172a',
-                    titleFont: { size: 14, weight: 'bold'},
-                    bodyFont: { size: 12 },
-                    callbacks: { label: context => ' ' + formatCurrency(context.raw) } 
-                } 
-            }
-        };
-
-        if (bonusChart) {
-            bonusChart.data.datasets[0].data = data;
-            bonusChart.update();
-        } else {
-            bonusChart = new Chart(bonusChartCanvas.getContext('2d'), {
-                type: 'bar',
-                data: { labels, datasets: [{ label: 'Bônus Final', data, backgroundColor: ROLES.map(role => ROLE_COLORS[role].bg), borderColor: ROLES.map(role => ROLE_COLORS[role].border), borderWidth: 1, borderRadius: 5 }] },
-                options: chartOptions
-            });
-        }
-    }
-
-    // --- ANALYSIS TAB LOGIC ---
-    function updateAnalysisTab(totalRevenue, roleTotals, tierStats) {
-        const totalCommission = Object.values(roleTotals).reduce((a, b) => a + b, 0);
-        const totalContracts = state.contractGroups.reduce((acc, g) => acc + g.incidence, 0);
-
-        document.getElementById('analysisTotalRevenue').textContent = formatCurrency(totalRevenue);
-        document.getElementById('analysisTotalCommission').textContent = formatCurrency(totalCommission);
-        const effectiveRate = totalRevenue > 0 ? totalCommission / totalRevenue : 0;
-        document.getElementById('analysisEffectiveCommissionRate').textContent = formatPercent(effectiveRate);
-        const avgContract = totalContracts > 0 ? totalRevenue / totalContracts : 0;
-        document.getElementById('analysisAverageContract').textContent = formatCurrency(avgContract);
-
-        updateCommissionDistributionChart(roleTotals, totalCommission);
-        updateValueVsRateChart(tierStats);
-    }
-    
-    function updateCommissionDistributionChart(roleTotals, totalCommission) {
-        const data = ROLES.map(role => totalCommission > 0 ? (roleTotals[role] / totalCommission) * 100 : 0);
-        const labels = ROLES.map(role => ROLE_NAMES[role]);
-        const backgroundColors = ROLES.map(role => ROLE_COLORS[role].bg);
-        
-        const chartOptions = {
-            responsive: true, maintainAspectRatio: false,
-            plugins: {
-                legend: { position: 'bottom', labels: { padding: 20, font: {size: 14} } },
-                tooltip: {
-                     backgroundColor: '#0f172a',
-                    callbacks: {
-                        label: function(context) {
-                            const roleKey = ROLES[context.dataIndex];
-                            return ` ${context.label}: ${context.formattedValue}% (${formatCurrency(roleTotals[roleKey])})`;
-                        }
-                    }
-                }
-            }
-        };
-
-        if (commissionDistributionChart) {
-            commissionDistributionChart.data.datasets[0].data = data;
-            commissionDistributionChart.options = chartOptions; // BUG FIX: Update options to refresh tooltip callback
-            commissionDistributionChart.update();
-        } else {
-            commissionDistributionChart = new Chart(commissionDistributionCanvas.getContext('2d'), {
-                type: 'doughnut',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Distribuição de Comissão', data, backgroundColor: backgroundColors,
-                        borderColor: ROLES.map(role => ROLE_COLORS[role].border),
-                        borderWidth: 2, hoverOffset: 4
-                    }]
-                },
-                options: chartOptions
-            });
-        }
-    }
-
-    function updateValueVsRateChart(tierStats) {
-        const labels = [], data = [], tierIndices = [];
-        tierStats.forEach((stat, idx) => {
-            if (stat.revenue > 0) {
-                const start = idx === 0 ? state.tiers[idx].from : state.tiers[idx].from + 0.01;
-                labels.push(`> ${formatForChart(start)}`);
-                data.push(stat.bonus / stat.revenue);
-                tierIndices.push(idx);
-            }
-        });
-
-        const chartOptions = {
-            responsive: true, maintainAspectRatio: false,
-            scales: {
-                y: { beginAtZero: true, ticks: { callback: value => formatPercent(value) }, title: { display: true, text: 'Taxa de Comissão Efetiva', font: {size: 14} } },
-                x: { grid: { display: false }, title: { display: true, text: 'Faixa de Contrato (Início)', font: {size: 14} } }
-            },
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                     backgroundColor: '#0f172a',
-                    callbacks: {
-                        title: (context) => {
-                            const idx = tierIndices[context[0].dataIndex];
-                            const tier = state.tiers[idx];
-                            return `Contratos de ${context[0].label} até ${tier.to === Infinity ? '∞' : formatCurrency(tier.to)}`;
-                        },
-                        label: (context) => `Taxa Efetiva: ${formatPercent(context.raw)}`
-                    }
-                }
+        const state = {
+            team: [],
+            contracts: [],
+            isAuthReady: false,
+            userId: null,
+            targets: {
+                pre2025: [{ faixa: 3, value: 90000000 }, { faixa: 2, value: 63000000 }, { faixa: 1, value: 36000000 }],
+                from2025: [{ faixa: 3, value: 30000000 }, { faixa: 2, value: 21000000 }, { faixa: 1, value: 12000000 }]
             }
         };
         
-        if (valueVsRateChart) {
-            valueVsRateChart.data.labels = labels;
-            valueVsRateChart.data.datasets[0].data = data;
-            valueVsRateChart.options = chartOptions; // BUG FIX: Update options to refresh tooltip callback
-            valueVsRateChart.update();
-        } else {
-             valueVsRateChart = new Chart(valueVsRateCanvas.getContext('2d'), {
-                type: 'line',
-                data: {
-                    labels,
-                    datasets: [{
-                        label: 'Taxa de Comissão Efetiva', data, fill: true,
-                        backgroundColor: 'rgba(59, 130, 246, 0.1)', borderColor: ROLE_COLORS.diretor.border,
-                        tension: 0.1, pointBackgroundColor: ROLE_COLORS.diretor.border,
-                        pointRadius: 5, pointHoverRadius: 7,
-                    }]
-                },
-                options: chartOptions
-            });
-        }
-    }
-    
-    // --- SPREADSHEET LOGIC ---
-    function evaluateSheet() {
-        const allInputs = Array.from(document.querySelectorAll('#tierSettingsBody input'));
-        const formulas = new Map();
-        allInputs.forEach(input => formulas.set(input.id.toUpperCase(), input.dataset.formula));
+        const initialTeamData = [
+            { id: "1", name: "Marcelo Furtado", role: "Diretor Comercial", hireDate: "2025-01-01", salary: 35000.00 },
+            { id: "2", name: "Paula Young", role: "Gerente Comercial", hireDate: "2025-01-01", salary: 17088.75 },
+            { id: "3", name: "Carolina Chrispim", role: "Especialista", hireDate: "2024-12-31", salary: 9000.00 },
+            { id: "4", name: "Nathan Lemos", role: "Especialista", hireDate: "2024-12-31", salary: 8804.98 },
+            { id: "5", name: "Milena Franco", role: "Designer Pleno", hireDate: "2024-12-31", salary: 5775.00 },
+            { id: "6", name: "Nathalia Carvalho", role: "Analista Júnior", hireDate: "2024-12-31", salary: 3780.00 },
+            { id: "7", name: "Vitoria Damacena", role: "Analista Júnior", hireDate: "2024-12-31", salary: 3541.67 },
+            { id: "8", name: "Julio Gracco", role: "Diretor de Comunicação & Branding", hireDate: "2024-12-31", salary: 38000.00 },
+            { id: "9", name: "Pedro Souto", role: "Diretor de Marketing & Merchandising", hireDate: "2024-12-31", salary: 30000.00 },
+            { id: "10", name: "Gabriel Assis", role: "Gerente de Branding", hireDate: "2024-12-31", salary: 15015.00 }
+        ];
 
-        const values = new Map();
+        const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
-        function evalCell(id, stack = new Set()) {
-            if (values.has(id)) return values.get(id);
-            if (stack.has(id)) throw new Error('Circular');
-            stack.add(id);
-
-            const rawFormula = formulas.get(id) ?? '';
-            const trimmed = rawFormula.trim();
-            let expression = trimmed === '' ? '0' : (trimmed.startsWith('=') ? trimmed.slice(1) : trimmed);
-            expression = expression.replace(/,/g, '.');
-
-            const deps = [...expression.matchAll(/[A-Z]+\d+/gi)].map(m => m[0].toUpperCase());
-            const scope = {};
-            deps.forEach(dep => { scope[dep] = evalCell(dep, stack); });
+        // --- INICIALIZAÇÃO E AUTENTICAÇÃO ---
+        async function initializeFirebase() {
+             const appContainer = document.getElementById('app-container');
+             const loadingScreen = document.getElementById('loading-screen');
+             const authStatusEl = document.getElementById('auth-status');
 
             try {
-                const result = basicEvaluate(expression, scope);
-                values.set(id, result);
-                stack.delete(id);
-                return result;
-            } catch (e) {
-                values.set(id, NaN);
-                stack.delete(id);
-                return NaN;
+                // Use a configuração global injetada, se disponível
+                const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+                    apiKey: "AIzaSyAs9tsz3wsSjYlmbu8_7NnEbKxqsFV2ATo",
+                    authDomain: "rvcomercial-fc7c9.firebaseapp.com",
+                    projectId: "rvcomercial-fc7c9",
+                    storageBucket: "rvcomercial-fc7c9.firebasestorage.app",
+                    messagingSenderId: "373252435120",
+                    appId: "1:373252435120:web:817b4e65f46a2a572adf75"
+                };
+
+                const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+                
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                
+                // Define os caminhos das coleções
+                contractsCollection = collection(db, `artifacts/${appId}/public/data/contracts`);
+                teamCollection = collection(db, `artifacts/${appId}/public/data/team`);
+
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        console.log("Usuário autenticado:", user.uid);
+                        state.userId = user.uid;
+                        state.isAuthReady = true;
+                        authStatusEl.textContent = `Conectado como: ${user.isAnonymous ? 'Anônimo' : user.email || user.uid}`;
+                        authStatusEl.className = "auth-success";
+                        loadingScreen.style.display = 'none';
+                        appContainer.style.display = 'block';
+                        listenToData();
+                    } else {
+                        // Se não houver token, tenta login anônimo
+                        console.log("Nenhum usuário. Tentando login...");
+                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                            await signInWithCustomToken(auth, __initial_auth_token);
+                        } else {
+                             await signInAnonymously(auth);
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error("Erro ao inicializar Firebase:", error);
+                loadingScreen.innerHTML = `<p class="auth-fail">Erro ao conectar. Verifique o console.</p>`;
+            }
+        }
+        
+        // --- FUNÇÕES DE DADOS (FIRESTORE) ---
+        function listenToData() {
+            if (!state.isAuthReady) return;
+
+            // Listener para Contratos
+            if (unsubscribeContracts) unsubscribeContracts();
+            unsubscribeContracts = onSnapshot(contractsCollection, (snapshot) => {
+                state.contracts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderContractsList();
+                calculateAndRenderAll();
+            }, (error) => console.error("Erro ao ouvir contratos:", error));
+
+            // Listener para Equipe
+            if (unsubscribeTeam) unsubscribeTeam();
+            unsubscribeTeam = onSnapshot(teamCollection, (snapshot) => {
+                if(snapshot.empty) {
+                    // Se a coleção de equipe estiver vazia, preenche com os dados iniciais
+                    console.log("Populando equipe inicial no Firestore...");
+                    const batch = writeBatch(db);
+                    initialTeamData.forEach(member => {
+                        const docRef = doc(teamCollection, member.id);
+                        batch.set(docRef, member);
+                    });
+                    batch.commit();
+                } else {
+                     state.team = snapshot.docs.map(doc => ({ ...doc.data() }));
+                }
+                renderTeamList();
+                calculateAndRenderAll();
+            }, (error) => console.error("Erro ao ouvir equipe:", error));
+        }
+
+        async function addContract(contractData) {
+            try {
+                await addDoc(contractsCollection, contractData);
+            } catch (error) {
+                console.error("Erro ao adicionar contrato:", error);
+                alert("Falha ao salvar o contrato.");
             }
         }
 
-        allInputs.forEach(input => evalCell(input.id.toUpperCase()));
-
-        allInputs.forEach(input => {
-            const cellId = input.id.toUpperCase();
-            const rawFormula = formulas.get(cellId) ?? '';
-            const trimmed = rawFormula.trim();
-            const value = values.get(cellId);
-            const index = parseInt(input.dataset.index, 10);
-            const role = input.dataset.role;
-
-            if (trimmed === '') {
-                input.value = '';
-                input.classList.remove('error');
-                state.tiers[index].rates[role] = 0;
-            } else if (value === undefined || isNaN(value)) {
-                input.value = "#ERRO!";
-                input.classList.add('error');
-                state.tiers[index].rates[role] = 0;
-            } else {
-                input.value = value.toFixed(4).replace('.', ',');
-                input.classList.remove('error');
-                state.tiers[index].rates[role] = value / 100;
+        async function deleteContract(contractId) {
+            if (!confirm("Tem certeza que deseja excluir este contrato?")) return;
+            try {
+                await deleteDoc(doc(db, contractsCollection.path, contractId));
+            } catch (error) {
+                console.error("Erro ao excluir contrato:", error);
+                alert("Falha ao excluir o contrato.");
             }
-        });
-        updateAllCalculations();
-    }
-    
-    tierSettingsBody.addEventListener('focusin', (e) => {
-        if (e.target.tagName === 'INPUT' && e.target.dataset.formula) {
-            e.target.value = e.target.dataset.formula;
         }
-    });
+        
+        async function importContractsFromCSV(file) {
+            if (!file) {
+                alert("Por favor, selecione um arquivo CSV.");
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                const csv = event.target.result;
+                const lines = csv.split(/\r\n|\n/);
+                const batch = writeBatch(db);
+                let count = 0;
 
-    tierSettingsBody.addEventListener('focusout', (e) => {
-        if (e.target.tagName === 'INPUT') {
-            e.target.dataset.formula = e.target.value.trim();
-            evaluateSheet();
+                lines.forEach(line => {
+                    if (line.trim() === '') return;
+                    const parts = line.split(',');
+                    if (parts.length < 3) return;
+
+                    const contract = {
+                        client: parts[0].trim(),
+                        value: parseFloat(parts[1]),
+                        date: parts[2].trim()
+                    };
+                    
+                    if(contract.client && !isNaN(contract.value) && contract.date) {
+                        const docRef = doc(contractsCollection); // Gera um novo ID
+                        batch.set(docRef, contract);
+                        count++;
+                    }
+                });
+
+                try {
+                    await batch.commit();
+                    alert(`${count} contratos importados com sucesso!`);
+                } catch (error) {
+                    console.error("Erro ao importar CSV:", error);
+                    alert("Ocorreu um erro na importação. Verifique o console.");
+                }
+            };
+            reader.readAsText(file);
         }
-    });
 
-    // --- OTHER EVENT LISTENERS ---
-    modelToggle.addEventListener('click', (e) => {
-        if (e.target.tagName !== 'BUTTON') return;
+        // --- FUNÇÕES DE RENDERIZAÇÃO ---
+        function renderTeamList() {
+            const teamListEl = document.getElementById('team-list');
+            if(!teamListEl) return;
+            teamListEl.innerHTML = '';
+            state.team.forEach(member => {
+                const isEligiblePre2025 = new Date(member.hireDate) < new Date('2025-01-01');
+                teamListEl.innerHTML += `
+                    <tr>
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            <div class="text-sm font-medium text-gray-900">${member.name}</div>
+                            <div class="text-xs ${isEligiblePre2025 ? 'text-green-600' : 'text-red-600'}">
+                                ${isEligiblePre2025 ? 'Elegível Pré-2025' : 'Não Elegível Pré-2025'}
+                            </div>
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${member.role}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${formatCurrency(member.salary)}</td>
+                    </tr>`;
+            });
+        }
         
-        const selectedModel = e.target.dataset.model;
-        if (selectedModel === state.calculationModel) return; // No change
+        function renderContractsList() {
+            const contractsListEl = document.getElementById('contracts-list');
+            if(!contractsListEl) return;
+            contractsListEl.innerHTML = '';
+            state.contracts.sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(contract => {
+                contractsListEl.innerHTML += `
+                    <tr>
+                        <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">${contract.client}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${formatCurrency(contract.value)}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${new Date(contract.date + 'T00:00:00').toLocaleDateString('pt-BR')}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-sm text-center">
+                            <button onclick="window.deleteContract('${contract.id}')" class="text-red-600 hover:text-red-900">✖</button>
+                        </td>
+                    </tr>`;
+            });
+        }
         
-        state.calculationModel = selectedModel;
-        
-        // Update button styles
-        modelToggle.querySelectorAll('button').forEach(btn => {
-            btn.classList.remove('bg-white', 'text-blue-600', 'shadow');
-        });
-        e.target.classList.add('bg-white', 'text-blue-600', 'shadow');
-        
-        updateAllCalculations();
-    });
+        // --- FUNÇÕES DE CÁLCULO ---
+        function getParameters() {
+            return {
+                percentages: {
+                    pre2025: {1: parseFloat(document.getElementById('perc_pre2025_f1').value)/100, 2: parseFloat(document.getElementById('perc_pre2025_f2').value)/100, 3: parseFloat(document.getElementById('perc_pre2025_f3').value)/100},
+                    from2025: {1: parseFloat(document.getElementById('perc_2025_f1').value)/100, 2: parseFloat(document.getElementById('perc_2025_f2').value)/100, 3: parseFloat(document.getElementById('perc_2025_f3').value)/100}
+                },
+                weights: {
+                    "Diretor Comercial": parseFloat(document.getElementById('peso_diretor').value), "Diretor de Comunicação & Branding": parseFloat(document.getElementById('peso_diretor').value), "Diretor de Marketing & Merchandising": parseFloat(document.getElementById('peso_diretor').value),
+                    "Gerente Comercial": parseFloat(document.getElementById('peso_gerente').value), "Gerente de Branding": parseFloat(document.getElementById('peso_gerente').value),
+                    "Especialista": parseFloat(document.getElementById('peso_especialista').value), "Designer Pleno": parseFloat(document.getElementById('peso_pleno').value), "Analista Júnior": parseFloat(document.getElementById('peso_junior').value),
+                }
+            };
+        }
 
-    addContractGroupBtn.addEventListener('click', () => {
-        state.contractGroups.unshift({ id: state.nextGroupId++, name: '', value: 100000, incidence: 1 });
-        renderContractGroups();
-        updateAllCalculations();
-    });
-
-    settingsToggleBtn.addEventListener('click', () => {
-        modelSettings.classList.toggle('hidden');
-    });
-    
-    contractGroupsContainer.addEventListener('input', (e) => {
-        if(e.target.tagName === 'INPUT') {
-            const id = parseInt(e.target.dataset.id);
-            const field = e.target.dataset.field;
-            const group = state.contractGroups.find(g => g.id === id);
+        function calculateAndRenderAll() {
+            if (!state.isAuthReady || state.team.length === 0) return;
+            const params = getParameters();
             
-            if (field === 'value') {
-                const parsedValue = parseCurrency(e.target.value);
-                group.value = isNaN(parsedValue) ? 0 : parsedValue;
-            } else if (field === 'incidence') {
-                group.incidence = parseInt(e.target.value, 10) || 0;
-            } else if (field === 'name') {
-                group.name = e.target.value;
-            }
+            const vgvPre2025 = state.contracts.filter(c => new Date(c.date) < new Date('2025-01-01')).reduce((sum, c) => sum + c.value, 0);
+            const vgvFrom2025 = state.contracts.filter(c => new Date(c.date) >= new Date('2025-01-01')).reduce((sum, c) => sum + c.value, 0);
+            
+            let faixaPre2025 = 0;
+            for (const target of state.targets.pre2025) { if (vgvPre2025 >= target.value) { faixaPre2025 = target.faixa; break; } }
+            const percPre2025 = faixaPre2025 > 0 ? params.percentages.pre2025[faixaPre2025] : 0;
+            
+            let faixaFrom2025 = 0;
+            for (const target of state.targets.from2025) { if (vgvFrom2025 >= target.value) { faixaFrom2025 = target.faixa; break; } }
+            const percFrom2025 = faixaFrom2025 > 0 ? params.percentages.from2025[faixaFrom2025] : 0;
+            
+            const bonusPoolPre2025 = vgvPre2025 * percPre2025;
+            const bonusPoolFrom2025 = vgvFrom2025 * percFrom2025;
+            
+            const teamEligiblePre2025 = state.team.filter(m => new Date(m.hireDate) < new Date('2025-01-01'));
+            const totalWeightPre2025 = teamEligiblePre2025.reduce((sum, m) => sum + (params.weights[m.role] || 0), 0);
+            const totalWeightFrom2025 = state.team.reduce((sum, m) => sum + (params.weights[m.role] || 0), 0);
+            
+            const resultsEl = document.getElementById('commission-results');
+            resultsEl.innerHTML = '';
+            state.team.sort((a,b) => (params.weights[b.role] || 0) - (params.weights[a.role] || 0)).forEach(member => {
+                const weight = params.weights[member.role] || 0;
+                const commissionPre2025 = (new Date(member.hireDate) < new Date('2025-01-01') && totalWeightPre2025 > 0) ? (weight / totalWeightPre2025) * bonusPoolPre2025 : 0;
+                const commissionFrom2025 = totalWeightFrom2025 > 0 ? (weight / totalWeightFrom2025) * bonusPoolFrom2025 : 0;
+                const totalCommission = commissionPre2025 + commissionFrom2025;
+                const bonusInSalaries = member.salary > 0 ? totalCommission / member.salary : 0;
+                const rowClass = totalCommission > 0 ? 'highlight' : '';
+                resultsEl.innerHTML += `<tr class="${rowClass}"><td class="px-4 py-3 whitespace-nowrap"><div class="text-sm font-medium text-gray-900">${member.name}</div><div class="text-xs text-gray-500">${member.role}</div></td><td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">${formatCurrency(commissionPre2025)}</td><td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">${formatCurrency(commissionFrom2025)}</td><td class="px-4 py-3 whitespace-nowrap text-sm font-bold text-gray-900">${formatCurrency(totalCommission)}</td><td class="px-4 py-3 whitespace-nowrap text-sm highlight-bonus">${bonusInSalaries.toFixed(2)}x</td></tr>`;
+            });
+            
+            document.getElementById('vgv-pre2025').textContent = formatCurrency(vgvPre2025);
+            document.getElementById('faixa-pre2025').textContent = faixaPre2025 > 0 ? `Faixa ${faixaPre2025}` : 'Nenhuma';
+            document.getElementById('bonus-pre2025').textContent = formatCurrency(bonusPoolPre2025);
+            document.getElementById('vgv-2025').textContent = formatCurrency(vgvFrom2025);
+            document.getElementById('faixa-2025').textContent = faixaFrom2025 > 0 ? `Faixa ${faixaFrom2025}` : 'Nenhuma';
+            document.getElementById('bonus-2025').textContent = formatCurrency(bonusPoolFrom2025);
+            document.getElementById('faixa-pre2025').className = `font-bold ${faixaPre2025 > 0 ? 'text-green-600' : 'text-red-600'}`;
+            document.getElementById('faixa-2025').className = `font-bold ${faixaFrom2025 > 0 ? 'text-green-600' : 'text-red-600'}`;
         }
-    });
-    
-    contractGroupsContainer.addEventListener('focusout', (e) => {
-         if(e.target.tagName === 'INPUT' && e.target.dataset.field === 'value') {
-             const id = parseInt(e.target.dataset.id);
-             const group = state.contractGroups.find(g => g.id === id);
-             e.target.value = new Intl.NumberFormat('pt-BR', {minimumFractionDigits: 2}).format(group.value);
-         }
-         updateAllCalculations();
-    });
 
-    contractGroupsContainer.addEventListener('click', (e) => {
-        if (e.target.closest('.remove-btn')) {
-            const id = parseInt(e.target.closest('.remove-btn').dataset.id);
-            state.contractGroups = state.contractGroups.filter(g => g.id !== id);
-            renderContractGroups();
-            updateAllCalculations();
-        }
-    });
+        // --- MANIPULADORES DE EVENTOS ---
+        document.getElementById('contract-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const newContract = {
+                client: document.getElementById('contract-client').value,
+                value: parseFloat(document.getElementById('contract-value').value),
+                date: document.getElementById('contract-date').value
+            };
+            addContract(newContract);
+            this.reset();
+        });
+        
+        document.getElementById('import-csv-btn').addEventListener('click', () => {
+            const fileInput = document.getElementById('csv-file');
+            importContractsFromCSV(fileInput.files[0]);
+        });
 
-    tabContainer.addEventListener('click', (e) => {
-        if (e.target.classList.contains('tab-btn')) {
-            const tabName = e.target.dataset.tab;
-            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-            e.target.classList.add('active');
-            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-            document.getElementById(tabName).classList.add('active');
-            updateAllCalculations();
-        }
-    });
-
-    // --- INITIALIZATION ---
-    function initialize() {
-        state.contractGroups = initialContracts.map((c, i) => ({
-            id: state.nextGroupId++,
-            name: c.name,
-            value: c.value,
-            incidence: 1
-        }));
-        renderContractGroups();
-        renderTierSettings();
-        evaluateSheet();
-    }
-
-    initialize();
-});
-</script>
-
+        document.querySelectorAll('.card input[type=number]').forEach(input => {
+            input.addEventListener('change', calculateAndRenderAll);
+        });
+        
+        window.deleteContract = deleteContract; // Expondo a função globalmente
+        
+        // --- INICIALIZAÇÃO DA APLICAÇÃO ---
+        document.addEventListener('DOMContentLoaded', initializeFirebase);
+    </script>
 </body>
 </html>
