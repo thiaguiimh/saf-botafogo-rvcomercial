@@ -54,7 +54,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithEmailAndPassword, signOut, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, onSnapshot, addDoc, doc, deleteDoc, writeBatch, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         let db, auth;
@@ -91,10 +91,11 @@
                 db = getFirestore(app);
                 auth = getAuth(app);
                 
+                const appId = firebaseConfig.projectId;
+
                 usersProfileCollection = collection(db, 'users_profile');
-                // Path fix: Removed appId from public data paths for simplicity as per new rules
-                teamCollection = collection(db, 'public_data', 'rv_comercial', 'team');
-                contractsCollection = collection(db, 'public_data', 'rv_comercial', 'contracts');
+                teamCollection = collection(db, 'public_data', appId, 'team');
+                contractsCollection = collection(db, 'public_data', appId, 'contracts');
 
                 onAuthStateChanged(auth, handleAuthStateChange);
 
@@ -105,7 +106,6 @@
         }
         
         async function handleAuthStateChange(user) {
-            const loadingMessage = document.getElementById('loading-message');
             if (user) {
                 state.currentUser = user;
                 const userDoc = await getDoc(doc(usersProfileCollection, user.uid));
@@ -116,7 +116,7 @@
                     state.currentView = 'dashboard';
                 } else {
                      showNotification("Acesso negado. Apenas administradores podem usar esta ferramenta.", "error", 10000);
-                     await handleLogout(); // Log out non-admin users
+                     await handleLogout();
                 }
             } else {
                 state.currentUser = null;
@@ -184,7 +184,7 @@
             } else {
                 appContainer.style.display = 'none';
                 loadingScreen.style.display = 'flex';
-                loadingScreen.innerHTML = ''; // Clear previous messages
+                loadingScreen.innerHTML = '';
                 renderLoginPage(loadingScreen);
             }
         }
@@ -399,14 +399,14 @@
             const totalWeightFrom2025 = state.team.reduce((sum, m) => sum + (params.weights[m.role] || 0), 0);
             
             const resultsEl = document.getElementById('commission-results');
-            resultsEl.innerHTML = '';
+            if (resultsEl) resultsEl.innerHTML = '';
             state.team.sort((a,b) => (params.weights[b.role] || 0) - (params.weights[a.role] || 0)).forEach(member => {
                 const weight = params.weights[member.role] || 0;
                 const commissionPre2025 = (new Date(member.hireDate) < new Date('2025-01-01') && totalWeightPre2025 > 0) ? (weight / totalWeightPre2025) * bonusPoolPre2025 : 0;
                 const commissionFrom2025 = totalWeightFrom2025 > 0 ? (weight / totalWeightFrom2025) * bonusPoolFrom2025 : 0;
                 const totalCommission = commissionPre2025 + commissionFrom2025;
                 const bonusInSalaries = member.salary > 0 ? totalCommission / member.salary : 0;
-                resultsEl.innerHTML += `<tr class="table-row ${totalCommission > 0 ? 'bg-green-50' : ''}"><td class="p-4"><div class="text-sm font-semibold">${member.name}</div><div class="text-xs text-gray-500">${member.role}</div></td><td class="p-4 text-sm font-mono">${formatCurrency(commissionPre2025)}</td><td class="p-4 text-sm font-mono">${formatCurrency(commissionFrom2025)}</td><td class="p-4 text-sm font-semibold font-mono">${formatCurrency(totalCommission)}</td><td class="p-4 text-sm font-semibold text-blue-600">${bonusInSalaries.toFixed(2)}x</td></tr>`;
+                if(resultsEl) resultsEl.innerHTML += `<tr class="table-row ${totalCommission > 0 ? 'bg-green-50' : ''}"><td class="p-4"><div class="text-sm font-semibold">${member.name}</div><div class="text-xs text-gray-500">${member.role}</div></td><td class="p-4 text-sm font-mono">${formatCurrency(commissionPre2025)}</td><td class="p-4 text-sm font-mono">${formatCurrency(commissionFrom2025)}</td><td class="p-4 text-sm font-semibold font-mono">${formatCurrency(totalCommission)}</td><td class="p-4 text-sm font-semibold text-blue-600">${bonusInSalaries.toFixed(2)}x</td></tr>`;
             });
             document.getElementById('vgv-pre2025').textContent = formatCurrency(vgvPre2025);
             document.getElementById('faixa-pre2025').textContent = faixaPre2025 > 0 ? `Faixa ${faixaPre2025}` : 'Nenhuma';
@@ -433,21 +433,6 @@
         async function addTeamMember(data) { if(!data.name || !data.role || !data.hireDate || isNaN(data.salary)) {showNotification("Preencha todos os campos do funcionário.", "error"); return;} try { await addDoc(teamCollection, data); showNotification("Funcionário adicionado!", "success"); } catch (e) { console.error(e); showNotification("Falha ao salvar funcionário.", "error"); } }
         async function deleteContract(id) { if (confirm("Excluir este contrato?")) try { await deleteDoc(doc(contractsCollection, id)); showNotification("Contrato excluído.", "success"); } catch (e) { console.error(e); showNotification("Falha ao excluir.", "error"); } }
         async function deleteTeamMember(id) { if (confirm("Remover este membro?")) try { await deleteDoc(doc(teamCollection, id)); showNotification("Membro removido.", "success"); } catch (e) { console.error(e); showNotification("Falha ao remover.", "error"); } }
-        async function importContractsFromCSV(file) {
-            const reader = new FileReader();
-            reader.onload = async (event) => {
-                const csv = event.target.result; const lines = csv.split(/\r\n|\n/).filter(l => l.trim() !== '');
-                const batch = writeBatch(db);
-                lines.forEach(line => {
-                    const parts = line.split(',');
-                    if (parts.length < 3) return;
-                    const contract = { client: parts[0].trim(), value: parseFloat(parts[1]), date: parts[2].trim() };
-                    if(contract.client && !isNaN(contract.value) && contract.date) { batch.set(doc(contractsCollection), contract); }
-                });
-                try { await batch.commit(); showNotification(`${lines.length} contratos importados com sucesso!`, "success"); } catch (e) { console.error("CSV import error:", e); showNotification("Erro na importação.", "error"); }
-            };
-            reader.readAsText(file);
-        }
         
         document.addEventListener('DOMContentLoaded', initializeFirebase);
     </script>
