@@ -11,15 +11,16 @@
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #f0f2f5; }
         .card { background-color: white; border-radius: 0.75rem; padding: 1.5rem; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1); }
-        .btn-primary { background-color: #4f46e5; color: white; font-weight: 600; padding: 0.75rem 1.5rem; border-radius: 0.5rem; transition: background-color 0.3s; }
+        .btn-primary { background-color: #4f46e5; color: white; font-weight: 600; padding: 0.75rem 1.5rem; border-radius: 0.5rem; transition: background-color 0.3s; cursor: pointer; }
         .btn-primary:hover { background-color: #4338ca; }
-        .btn-secondary { background-color: #10b981; color: white; font-weight: 600; padding: 0.5rem 1rem; border-radius: 0.5rem; transition: background-color 0.3s; }
+        .btn-primary:disabled { background-color: #a5b4fc; cursor: not-allowed; }
+        .btn-secondary { background-color: #10b981; color: white; font-weight: 600; padding: 0.5rem 1rem; border-radius: 0.5rem; transition: background-color 0.3s; cursor: pointer; }
         .btn-secondary:hover { background-color: #059669; }
         h2 { font-size: 1.5rem; font-weight: 700; color: #111827; border-bottom: 2px solid #e5e7eb; padding-bottom: 0.5rem; margin-bottom: 1.5rem; }
         .table-header { background-color: #f3f4f6; color: #374151; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
         .highlight { background-color: #ecfdf5; }
         .highlight-bonus { color: #1d4ed8; font-weight: 600; }
-        #auth-status { text-align: center; padding: 0.5rem; border-radius: 0.5rem; margin-bottom: 1rem; }
+        #auth-status { text-align: center; padding: 0.5rem; border-radius: 0.5rem; margin-bottom: 1rem; font-weight: 500;}
         .auth-success { background-color: #dcfce7; color: #166534; }
         .auth-fail { background-color: #fee2e2; color: #991b1b; }
         .loader { border: 4px solid #f3f3f3; border-top: 4px solid #4f46e5; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; margin: 0 auto; }
@@ -139,7 +140,7 @@
                     <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
                         <div>
                             <h2 class="!border-0 !mb-4">Equipe</h2>
-                            <div class="overflow-x-auto max-h-96">
+                            <div id="team-container" class="overflow-x-auto max-h-96">
                                 <table class="min-w-full divide-y divide-gray-200">
                                     <thead class="table-header sticky top-0">
                                         <tr><th class="px-4 py-3 text-left">Nome</th><th class="px-4 py-3 text-left">Cargo</th><th class="px-4 py-3 text-left">Salário</th></tr>
@@ -164,13 +165,13 @@
             </div>
         </main>
     </div>
-    <div id="loading-screen" class="text-center p-10"><div class="loader"></div><p class="mt-4 text-gray-600">Conectando ao banco de dados...</p></div>
+    <div id="loading-screen" class="text-center p-10"><div class="loader"></div><p id="loading-message" class="mt-4 text-gray-600">Conectando ao banco de dados...</p></div>
 
     <script type="module">
         // --- SDKs do Firebase ---
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, onSnapshot, addDoc, doc, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot, addDoc, doc, deleteDoc, writeBatch, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- Variáveis de estado e configuração ---
         let db, auth;
@@ -182,6 +183,7 @@
             team: [],
             contracts: [],
             isAuthReady: false,
+            isDataReady: false,
             userId: null,
             targets: {
                 pre2025: [{ faixa: 3, value: 90000000 }, { faixa: 2, value: 63000000 }, { faixa: 1, value: 36000000 }],
@@ -206,12 +208,14 @@
 
         // --- INICIALIZAÇÃO E AUTENTICAÇÃO ---
         async function initializeFirebase() {
-             const appContainer = document.getElementById('app-container');
-             const loadingScreen = document.getElementById('loading-screen');
              const authStatusEl = document.getElementById('auth-status');
+             const loadingMessage = document.getElementById('loading-message');
+
+             const authTimeout = setTimeout(() => {
+                loadingMessage.innerHTML = 'A conexão está demorando... Verifique sua conexão com a internet e as regras do Firebase. <a href="#" onclick="location.reload()" class="text-indigo-600 underline">Tentar novamente</a>.';
+             }, 10000); // 10 segundos
 
             try {
-                // Use a configuração global injetada, se disponível
                 const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
                     apiKey: "AIzaSyAs9tsz3wsSjYlmbu8_7NnEbKxqsFV2ATo",
                     authDomain: "rvcomercial-fc7c9.firebaseapp.com",
@@ -220,46 +224,44 @@
                     messagingSenderId: "373252435120",
                     appId: "1:373252435120:web:817b4e65f46a2a572adf75"
                 };
-
                 const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
                 
                 const app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
                 
-                // Define os caminhos das coleções
                 contractsCollection = collection(db, `artifacts/${appId}/public/data/contracts`);
                 teamCollection = collection(db, `artifacts/${appId}/public/data/team`);
 
                 onAuthStateChanged(auth, async (user) => {
+                    clearTimeout(authTimeout); // Cancela o timeout se a autenticação for bem-sucedida
                     if (user) {
-                        console.log("Usuário autenticado:", user.uid);
                         state.userId = user.uid;
                         state.isAuthReady = true;
-                        authStatusEl.textContent = `Conectado como: ${user.isAnonymous ? 'Anônimo' : user.email || user.uid}`;
+                        authStatusEl.textContent = `Status: Conectado com sucesso!`;
                         authStatusEl.className = "auth-success";
-                        loadingScreen.style.display = 'none';
-                        appContainer.style.display = 'block';
                         listenToData();
                     } else {
-                        // Se não houver token, tenta login anônimo
-                        console.log("Nenhum usuário. Tentando login...");
                         if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                            await signInWithCustomToken(auth, __initial_auth_token);
+                             loadingMessage.textContent = 'Autenticando com token...';
+                             await signInWithCustomToken(auth, __initial_auth_token);
                         } else {
+                             loadingMessage.textContent = 'Autenticando anonimamente...';
                              await signInAnonymously(auth);
                         }
                     }
                 });
             } catch (error) {
-                console.error("Erro ao inicializar Firebase:", error);
-                loadingScreen.innerHTML = `<p class="auth-fail">Erro ao conectar. Verifique o console.</p>`;
+                console.error("Erro Crítico na Inicialização do Firebase:", error);
+                document.getElementById('loading-screen').innerHTML = `<p class="auth-fail">Erro fatal ao conectar ao Firebase. Verifique o console para mais detalhes.</p>`;
             }
         }
         
         // --- FUNÇÕES DE DADOS (FIRESTORE) ---
         function listenToData() {
             if (!state.isAuthReady) return;
+            const appContainer = document.getElementById('app-container');
+            const loadingScreen = document.getElementById('loading-screen');
 
             // Listener para Contratos
             if (unsubscribeContracts) unsubscribeContracts();
@@ -267,92 +269,73 @@
                 state.contracts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 renderContractsList();
                 calculateAndRenderAll();
-            }, (error) => console.error("Erro ao ouvir contratos:", error));
+            }, (error) => {
+                console.error("Erro ao carregar contratos:", error);
+                document.getElementById('contracts-list').innerHTML = `<tr><td colspan="4" class="text-center p-4 text-red-600">Falha ao carregar contratos. Verifique as regras de segurança do Firestore.</td></tr>`;
+            });
 
             // Listener para Equipe
             if (unsubscribeTeam) unsubscribeTeam();
             unsubscribeTeam = onSnapshot(teamCollection, (snapshot) => {
-                if(snapshot.empty) {
-                    // Se a coleção de equipe estiver vazia, preenche com os dados iniciais
-                    console.log("Populando equipe inicial no Firestore...");
-                    const batch = writeBatch(db);
-                    initialTeamData.forEach(member => {
-                        const docRef = doc(teamCollection, member.id);
-                        batch.set(docRef, member);
-                    });
-                    batch.commit();
-                } else {
-                     state.team = snapshot.docs.map(doc => ({ ...doc.data() }));
-                }
+                state.team = snapshot.docs.map(doc => ({ ...doc.data() }));
+                state.isDataReady = true;
+                loadingScreen.style.display = 'none';
+                appContainer.style.display = 'block';
                 renderTeamList();
                 calculateAndRenderAll();
-            }, (error) => console.error("Erro ao ouvir equipe:", error));
+            }, (error) => {
+                console.error("Erro ao carregar equipe:", error);
+                 loadingScreen.style.display = 'none';
+                 appContainer.style.display = 'block';
+                 document.getElementById('team-list').innerHTML = `<tr><td colspan="3" class="text-center p-4 text-red-600">Falha ao carregar equipe. Verifique as regras de segurança do Firestore.</td></tr>`;
+            });
         }
 
-        async function addContract(contractData) {
+        async function populateInitialTeam() {
+             const button = document.getElementById('populate-team-btn');
+             button.textContent = 'Carregando...';
+             button.disabled = true;
+
+            console.log("Populando equipe inicial no Firestore...");
+            const batch = writeBatch(db);
+            initialTeamData.forEach(member => {
+                const docRef = doc(teamCollection, member.id); // Usando ID predefinido
+                batch.set(docRef, member);
+            });
+            
             try {
-                await addDoc(contractsCollection, contractData);
+                await batch.commit();
+                console.log("Equipe carregada com sucesso.");
             } catch (error) {
-                console.error("Erro ao adicionar contrato:", error);
-                alert("Falha ao salvar o contrato.");
+                console.error("Erro ao popular equipe:", error);
+                alert("Falha ao carregar a equipe. Verifique as permissões de escrita no Firestore e tente novamente.");
+                button.textContent = 'Carregar equipe padrão';
+                button.disabled = false;
             }
-        }
-
-        async function deleteContract(contractId) {
-            if (!confirm("Tem certeza que deseja excluir este contrato?")) return;
-            try {
-                await deleteDoc(doc(db, contractsCollection.path, contractId));
-            } catch (error) {
-                console.error("Erro ao excluir contrato:", error);
-                alert("Falha ao excluir o contrato.");
-            }
-        }
-        
-        async function importContractsFromCSV(file) {
-            if (!file) {
-                alert("Por favor, selecione um arquivo CSV.");
-                return;
-            }
-            const reader = new FileReader();
-            reader.onload = async (event) => {
-                const csv = event.target.result;
-                const lines = csv.split(/\r\n|\n/);
-                const batch = writeBatch(db);
-                let count = 0;
-
-                lines.forEach(line => {
-                    if (line.trim() === '') return;
-                    const parts = line.split(',');
-                    if (parts.length < 3) return;
-
-                    const contract = {
-                        client: parts[0].trim(),
-                        value: parseFloat(parts[1]),
-                        date: parts[2].trim()
-                    };
-                    
-                    if(contract.client && !isNaN(contract.value) && contract.date) {
-                        const docRef = doc(contractsCollection); // Gera um novo ID
-                        batch.set(docRef, contract);
-                        count++;
-                    }
-                });
-
-                try {
-                    await batch.commit();
-                    alert(`${count} contratos importados com sucesso!`);
-                } catch (error) {
-                    console.error("Erro ao importar CSV:", error);
-                    alert("Ocorreu um erro na importação. Verifique o console.");
-                }
-            };
-            reader.readAsText(file);
         }
 
         // --- FUNÇÕES DE RENDERIZAÇÃO ---
         function renderTeamList() {
+            const teamContainer = document.getElementById('team-container');
+            if(!teamContainer) return;
+            
+            if (state.isDataReady && state.team.length === 0) {
+                teamContainer.innerHTML = `<div class="p-4 text-center">
+                    <p class="text-gray-600">Nenhum membro na equipe.</p>
+                    <button id="populate-team-btn" class="btn-primary mt-2">Carregar equipe padrão</button>
+                </div>`;
+                document.getElementById('populate-team-btn').addEventListener('click', populateInitialTeam);
+                return;
+            }
+
+            teamContainer.innerHTML = `<table class="min-w-full divide-y divide-gray-200">
+                                    <thead class="table-header sticky top-0">
+                                        <tr><th class="px-4 py-3 text-left">Nome</th><th class="px-4 py-3 text-left">Cargo</th><th class="px-4 py-3 text-left">Salário</th></tr>
+                                    </thead>
+                                    <tbody id="team-list" class="bg-white divide-y divide-gray-200"></tbody>
+                                </table>`;
+
             const teamListEl = document.getElementById('team-list');
-            if(!teamListEl) return;
             teamListEl.innerHTML = '';
             state.team.forEach(member => {
                 const isEligiblePre2025 = new Date(member.hireDate) < new Date('2025-01-01');
@@ -403,27 +386,22 @@
         }
 
         function calculateAndRenderAll() {
-            if (!state.isAuthReady || state.team.length === 0) return;
+            if (!state.isDataReady) return;
+            // ... (o restante da função de cálculo permanece o mesmo) ...
             const params = getParameters();
-            
             const vgvPre2025 = state.contracts.filter(c => new Date(c.date) < new Date('2025-01-01')).reduce((sum, c) => sum + c.value, 0);
             const vgvFrom2025 = state.contracts.filter(c => new Date(c.date) >= new Date('2025-01-01')).reduce((sum, c) => sum + c.value, 0);
-            
             let faixaPre2025 = 0;
             for (const target of state.targets.pre2025) { if (vgvPre2025 >= target.value) { faixaPre2025 = target.faixa; break; } }
             const percPre2025 = faixaPre2025 > 0 ? params.percentages.pre2025[faixaPre2025] : 0;
-            
             let faixaFrom2025 = 0;
             for (const target of state.targets.from2025) { if (vgvFrom2025 >= target.value) { faixaFrom2025 = target.faixa; break; } }
             const percFrom2025 = faixaFrom2025 > 0 ? params.percentages.from2025[faixaFrom2025] : 0;
-            
             const bonusPoolPre2025 = vgvPre2025 * percPre2025;
             const bonusPoolFrom2025 = vgvFrom2025 * percFrom2025;
-            
             const teamEligiblePre2025 = state.team.filter(m => new Date(m.hireDate) < new Date('2025-01-01'));
             const totalWeightPre2025 = teamEligiblePre2025.reduce((sum, m) => sum + (params.weights[m.role] || 0), 0);
             const totalWeightFrom2025 = state.team.reduce((sum, m) => sum + (params.weights[m.role] || 0), 0);
-            
             const resultsEl = document.getElementById('commission-results');
             resultsEl.innerHTML = '';
             state.team.sort((a,b) => (params.weights[b.role] || 0) - (params.weights[a.role] || 0)).forEach(member => {
@@ -435,7 +413,6 @@
                 const rowClass = totalCommission > 0 ? 'highlight' : '';
                 resultsEl.innerHTML += `<tr class="${rowClass}"><td class="px-4 py-3 whitespace-nowrap"><div class="text-sm font-medium text-gray-900">${member.name}</div><div class="text-xs text-gray-500">${member.role}</div></td><td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">${formatCurrency(commissionPre2025)}</td><td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">${formatCurrency(commissionFrom2025)}</td><td class="px-4 py-3 whitespace-nowrap text-sm font-bold text-gray-900">${formatCurrency(totalCommission)}</td><td class="px-4 py-3 whitespace-nowrap text-sm highlight-bonus">${bonusInSalaries.toFixed(2)}x</td></tr>`;
             });
-            
             document.getElementById('vgv-pre2025').textContent = formatCurrency(vgvPre2025);
             document.getElementById('faixa-pre2025').textContent = faixaPre2025 > 0 ? `Faixa ${faixaPre2025}` : 'Nenhuma';
             document.getElementById('bonus-pre2025').textContent = formatCurrency(bonusPoolPre2025);
@@ -445,30 +422,30 @@
             document.getElementById('faixa-pre2025').className = `font-bold ${faixaPre2025 > 0 ? 'text-green-600' : 'text-red-600'}`;
             document.getElementById('faixa-2025').className = `font-bold ${faixaFrom2025 > 0 ? 'text-green-600' : 'text-red-600'}`;
         }
+        
+        // --- EXPOSIÇÃO DE FUNÇÕES E EVENT LISTENERS ---
+        async function addContract(contractData) { try { await addDoc(contractsCollection, contractData); } catch (e) { console.error(e); alert("Falha ao salvar contrato."); } }
+        async function deleteContract(contractId) { if (!confirm("Excluir este contrato?")) return; try { await deleteDoc(doc(db, contractsCollection.path, contractId)); } catch (e) { console.error(e); alert("Falha ao excluir contrato."); } }
+        window.deleteContract = deleteContract;
 
-        // --- MANIPULADORES DE EVENTOS ---
-        document.getElementById('contract-form').addEventListener('submit', function(e) {
-            e.preventDefault();
-            const newContract = {
-                client: document.getElementById('contract-client').value,
-                value: parseFloat(document.getElementById('contract-value').value),
-                date: document.getElementById('contract-date').value
+        document.getElementById('contract-form').addEventListener('submit', function(e) { e.preventDefault(); addContract({client: document.getElementById('contract-client').value, value: parseFloat(document.getElementById('contract-value').value), date: document.getElementById('contract-date').value }); this.reset(); });
+        document.getElementById('import-csv-btn').addEventListener('click', () => { const fileInput = document.getElementById('csv-file'); if(fileInput.files[0]) importContractsFromCSV(fileInput.files[0]); else alert("Selecione um arquivo CSV."); });
+        document.querySelectorAll('.card input[type=number]').forEach(input => input.addEventListener('change', calculateAndRenderAll));
+        
+        async function importContractsFromCSV(file) { /* ... Lógica de importação ... */ 
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                const csv = event.target.result; const lines = csv.split(/\r\n|\n/); const batch = writeBatch(db); let count = 0;
+                lines.forEach(line => {
+                    if (line.trim() === '') return; const parts = line.split(','); if (parts.length < 3) return;
+                    const contract = { client: parts[0].trim(), value: parseFloat(parts[1]), date: parts[2].trim() };
+                    if(contract.client && !isNaN(contract.value) && contract.date) { const docRef = doc(contractsCollection); batch.set(docRef, contract); count++; }
+                });
+                try { await batch.commit(); alert(`${count} contratos importados com sucesso!`); } catch (e) { console.error(e); alert("Erro na importação."); }
             };
-            addContract(newContract);
-            this.reset();
-        });
-        
-        document.getElementById('import-csv-btn').addEventListener('click', () => {
-            const fileInput = document.getElementById('csv-file');
-            importContractsFromCSV(fileInput.files[0]);
-        });
+            reader.readAsText(file);
+        }
 
-        document.querySelectorAll('.card input[type=number]').forEach(input => {
-            input.addEventListener('change', calculateAndRenderAll);
-        });
-        
-        window.deleteContract = deleteContract; // Expondo a função globalmente
-        
         // --- INICIALIZAÇÃO DA APLICAÇÃO ---
         document.addEventListener('DOMContentLoaded', initializeFirebase);
     </script>
