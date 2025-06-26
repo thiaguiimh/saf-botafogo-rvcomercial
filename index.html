@@ -15,16 +15,17 @@
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
         }
-        .panel { 
-            background-color: white; 
+        .panel {
+            background-color: white;
             border-radius: 1rem;
-            padding: 1.5rem; 
+            padding: 1rem;
             box-shadow: 0 4px 12px rgba(0,0,0,0.05);
         }
         .btn {
-            padding: 0.625rem 1.25rem;
-            border-radius: 0.75rem;
-            font-weight: 600;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            font-size: 0.875rem;
             transition: all 0.2s ease-in-out;
             border: none;
             cursor: pointer;
@@ -40,7 +41,7 @@
         h1, h2, h3 { color: #1d1d1f; }
         .table-header th { color: #6e6e73; text-transform: none; font-size: 0.875rem; letter-spacing: normal; border-bottom: 1px solid #e8e8ed; }
         .table-row td { color: #1d1d1f; border-bottom: 1px solid #f5f5f7; }
-        .form-input { width: 100%; background-color: #f5f5f7; border: 1px solid #f5f5f7; border-radius: 0.75rem; padding: 0.625rem 1rem; transition: border-color 0.2s ease; }
+        .form-input { width: 100%; background-color: #f5f5f7; border: 1px solid #f5f5f7; border-radius: 0.75rem; padding: 0.5rem 0.75rem; transition: border-color 0.2s ease; }
         .form-input:focus { outline: none; border-color: #0071e3; }
         #auth-status { text-align: center; padding: 0.75rem; border-radius: 0.75rem; margin-bottom: 1.5rem; font-weight: 500;}
         .auth-success { background-color: rgba(49, 207, 120, 0.1); color: #1e874f; }
@@ -51,12 +52,22 @@
 </head>
 <body class="text-gray-800">
 
+    <div id="login-container" class="min-h-screen flex items-center justify-center p-4">
+        <div class="panel w-full max-w-sm space-y-4">
+            <h2 class="text-xl font-semibold text-center">Login</h2>
+            <input id="login-email" type="email" class="form-input" placeholder="Email">
+            <input id="login-password" type="password" class="form-input" placeholder="Senha">
+            <div id="login-error" class="text-red-600 text-sm"></div>
+            <button id="login-btn" class="w-full btn btn-dark">Entrar</button>
+        </div>
+    </div>
+
     <div id="app-container" class="min-h-screen lg:grid lg:grid-cols-12 gap-8 p-4 lg:p-8" style="display: none;">
         
         <!-- Coluna de Controles (Esquerda) -->
         <aside class="lg:col-span-4 xl:col-span-3 flex flex-col gap-8">
             <div class="panel">
-                 <h2 class="text-2xl font-bold mb-6">Parâmetros</h2>
+                 <h2 class="text-xl font-bold mb-4">Parâmetros</h2>
                 <div class="space-y-6">
                     <div>
                         <h3 class="text-lg font-semibold text-gray-900 mb-3">Pesos por Cargo</h3>
@@ -89,7 +100,7 @@
                 </div>
             </div>
              <div class="panel">
-                <h2 class="text-2xl font-bold mb-6">Adicionar Funcionário</h2>
+                <h2 class="text-xl font-bold mb-4">Adicionar Funcionário</h2>
                 <form id="team-form" class="space-y-4">
                     <div><label for="team-name" class="block text-sm font-medium text-gray-600 mb-1">Nome</label><input type="text" id="team-name" placeholder="Nome do funcionário" required class="form-input"></div>
                     <div><label for="team-role" class="block text-sm font-medium text-gray-600 mb-1">Cargo</label><input type="text" id="team-role" placeholder="Cargo do funcionário" required class="form-input"></div>
@@ -100,7 +111,7 @@
             </div>
 
             <div class="panel">
-                <h2 class="text-2xl font-bold mb-6">Lançar Contratos</h2>
+                <h2 class="text-xl font-bold mb-4">Lançar Contratos</h2>
                 <form id="contract-form" class="space-y-4">
                     <div><label for="contract-client" class="block text-sm font-medium text-gray-600 mb-1">Cliente</label><input type="text" id="contract-client" placeholder="Nome do cliente" required class="form-input"></div>
                     <div><label for="contract-value" class="block text-sm font-medium text-gray-600 mb-1">Valor (R$)</label><input type="number" id="contract-value" placeholder="500000" required class="form-input"></div>
@@ -124,28 +135,31 @@
         <!-- Conteúdo Principal (Direita) -->
         <main class="lg:col-span-8 xl:col-span-9 flex flex-col gap-8 mt-8 lg:mt-0">
             <header>
-                <h1 class="text-5xl font-bold tracking-tight">Dashboard</h1>
-                <p class="text-lg text-gray-500 mt-2">Visão geral de performance e comissões da equipa.</p>
-                <div id="auth-status" class="mt-4"></div>
+                <h1 class="text-3xl font-bold tracking-tight">Dashboard</h1>
+                <p class="text-base text-gray-500 mt-1">Visão geral de performance e comissões da equipa.</p>
+                <div class="mt-4 flex items-center gap-2">
+                    <div id="auth-status"></div>
+                    <button id="logout-btn" class="btn btn-light hidden">Sair</button>
+                </div>
             </header>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div class="panel">
                     <h3 class="font-semibold text-gray-900 mb-1">Contratos Pré-2025</h3>
-                    <p class="text-4xl font-bold text-gray-800" id="vgv-pre2025">R$ 0,00</p>
+                    <p class="text-2xl font-bold text-gray-800" id="vgv-pre2025">R$ 0,00</p>
                     <p class="text-sm text-gray-500 mt-2">Faixa: <span class="font-bold text-gray-700" id="faixa-pre2025">Nenhuma</span></p>
                     <p class="text-sm text-gray-500">Bónus: <span class="font-bold text-green-600" id="bonus-pre2025">R$ 0,00</span></p>
                 </div>
                 <div class="panel">
                     <h3 class="font-semibold text-gray-900 mb-1">Contratos 2025+</h3>
-                    <p class="text-4xl font-bold text-gray-800" id="vgv-2025">R$ 0,00</p>
+                    <p class="text-2xl font-bold text-gray-800" id="vgv-2025">R$ 0,00</p>
                     <p class="text-sm text-gray-500 mt-2">Faixa: <span class="font-bold text-gray-700" id="faixa-2025">Nenhuma</span></p>
                     <p class="text-sm text-gray-500">Bónus: <span class="font-bold text-green-600" id="bonus-2025">R$ 0,00</span></p>
                 </div>
             </div>
 
             <div class="panel">
-                <h2 class="text-2xl font-bold mb-4">Resultado de Comissões</h2>
+                <h2 class="text-xl font-bold mb-3">Resultado de Comissões</h2>
                 <div class="overflow-x-auto">
                     <table class="min-w-full">
                         <thead class="table-header">
@@ -163,7 +177,7 @@
             </div>
             
             <div class="panel">
-                 <h2 class="text-2xl font-bold mb-4">Registos</h2>
+                 <h2 class="text-xl font-bold mb-3">Registos</h2>
                  <div class="grid grid-cols-1 xl:grid-cols-2 gap-x-8 gap-y-6">
                     <div>
                         <h3 class="text-lg font-semibold text-gray-900 mb-3">Equipa</h3>
@@ -185,14 +199,14 @@
 
         </main>
     </div>
-    <div id="loading-screen" class="fixed inset-0 flex flex-col items-center justify-center bg-gray-100">
+    <div id="loading-screen" class="fixed inset-0 flex flex-col items-center justify-center bg-gray-100" style="display:none;">
         <div class="loader"></div>
         <p id="loading-message" class="mt-4 text-gray-600">A ligar à base de dados...</p>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, onSnapshot, addDoc, doc, deleteDoc, writeBatch, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         let db, auth;
@@ -222,20 +236,21 @@
 
         const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
-        async function signIn() {
+        async function signIn(email, password) {
             const loadingMessage = document.getElementById('loading-message');
             loadingMessage.textContent = 'A autenticar...';
-            const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
             try {
-                if (token) {
-                    await signInWithCustomToken(auth, token);
-                } else {
-                    await signInAnonymously(auth);
-                }
+                await signInWithEmailAndPassword(auth, email, password);
             } catch (error) {
-                console.error("Auth error:", error);
-                loadingMessage.innerHTML = 'Erro de autenticação. Verifique a consola e a configuração do Firebase. <a href="#" onclick="location.reload()" class="underline">Tentar novamente</a>.';
+                console.error('Auth error:', error);
+                document.getElementById('login-error').textContent = 'Credenciais inválidas';
+                document.getElementById('loading-screen').style.display = 'none';
+                document.getElementById('login-container').style.display = 'flex';
             }
+        }
+
+        function signOutUser() {
+            signOut(auth);
         }
 
         async function initializeFirebase() {
@@ -266,9 +281,13 @@
                         state.isAuthReady = true;
                         authStatusEl.textContent = `Status: Ligado`;
                         authStatusEl.className = "auth-success";
+                        document.getElementById('login-container').style.display = 'none';
+                        document.getElementById('logout-btn').classList.remove('hidden');
                         listenToData();
                     } else {
-                       await signIn();
+                        document.getElementById('loading-screen').style.display = 'none';
+                        document.getElementById('login-container').style.display = 'flex';
+                        document.getElementById('logout-btn').classList.add('hidden');
                     }
                 });
             } catch (error) {
@@ -427,7 +446,21 @@
             reader.readAsText(file);
         }
 
-        document.addEventListener('DOMContentLoaded', initializeFirebase);
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('login-btn').addEventListener('click', () => {
+                const email = document.getElementById('login-email').value;
+                const password = document.getElementById('login-password').value;
+                if (!email || !password) { document.getElementById('login-error').textContent = 'Preencha email e senha'; return; }
+                document.getElementById('login-error').textContent = '';
+                document.getElementById('login-container').style.display = 'none';
+                document.getElementById('loading-screen').style.display = 'flex';
+                signIn(email, password);
+            });
+            document.getElementById('logout-btn').addEventListener('click', () => {
+                signOutUser();
+            });
+            initializeFirebase();
+        });
     </script>
 </body>
 </html>
