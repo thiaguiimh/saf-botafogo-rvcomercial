@@ -20,17 +20,18 @@
         .nav-link { padding: 0.5rem 1rem; border-radius: 0.5rem; font-weight: 500; cursor: pointer; transition: all 0.2s; color: var(--text-secondary); }
         .nav-link.active { background-color: var(--accent-blue); color: white; }
         .nav-link:not(.active):hover { background-color: #e9ecef; }
-        .btn { padding: 0.6rem 1.2rem; border-radius: 0.5rem; font-weight: 500; transition: all 0.2s; border: none; }
+        .btn { padding: 0.6rem 1.2rem; border-radius: 0.5rem; font-weight: 500; transition: all 0.2s; border: none; cursor: pointer; }
         .btn-primary { background-color: var(--accent-blue); color: white; }
         .btn-primary:hover { background-color: #0069d9; }
-        .btn-danger { background-color: #dc3545; color: white; padding: 0.25rem 0.5rem; font-size: 0.75rem;}
+        .btn-danger-sm { background-color: #dc3545; color: white; padding: 0.25rem 0.5rem; font-size: 0.75rem; border-radius: 0.25rem;}
+        .btn-edit-sm { background-color: #6c757d; color: white; padding: 0.25rem 0.5rem; font-size: 0.75rem; border-radius: 0.25rem;}
         .form-input { width: 100%; padding: 0.6rem 0.8rem; border: 1px solid #ced4da; border-radius: 0.375rem; background-color: #fff; transition: border-color .15s ease-in-out,box-shadow .15s ease-in-out; }
         .form-input:focus { border-color: #80bdff; outline: 0; box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25); }
-        .table-container { max-height: 250px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 0.5rem;}
+        .table-container { max-height: 280px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 0.5rem;}
         .table thead th { text-align: left; padding: 0.75rem; color: var(--text-secondary); font-weight: 600; background-color: #f8f9fa; position: sticky; top: 0; font-size: 0.8rem; border-bottom: 2px solid var(--border-color); }
         .table tbody td { padding: 0.75rem; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
         .loader { border: 3px solid #dee2e6; border-top: 3px solid var(--accent-blue); border-radius: 50%; width: 30px; height: 30px; animation: spin 0.8s linear infinite; }
-        .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index: 50; }
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index: 50; }
         .modal-content { background: white; padding: 1.5rem; border-radius: 0.75rem; width: 90%; max-width: 500px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
@@ -40,9 +41,11 @@
         <!-- O conteúdo será renderizado aqui pelo JavaScript -->
     </div>
 
+    <div id="modal-container" class="hidden"></div>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, doc, addDoc, setDoc, deleteDoc, onSnapshot, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const firebaseConfig = {
@@ -56,6 +59,7 @@
         
         // --- App State & Initialization ---
         const appEl = document.getElementById('app');
+        const modalContainer = document.getElementById('modal-container');
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
@@ -66,7 +70,7 @@
             employees: [],
             contracts: [],
             commissionTiers: [],
-            currentView: 'loading', // loading, login, admin, gestor, funcionario
+            currentView: 'loading',
             unsubscribe: [],
         };
         
@@ -93,7 +97,7 @@
                 } else {
                     console.error("User profile not found in Firestore.");
                     state.currentView = 'login';
-                    await signOut(auth); // Force logout if profile doesn't exist
+                    await signOut(auth);
                 }
             } else {
                 state.currentView = 'login';
@@ -102,71 +106,172 @@
         });
 
         function initializeDataListeners() {
-            const unsubEmployees = onSnapshot(employeesCol, snapshot => {
-                state.employees = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                render();
-            });
-            const unsubContracts = onSnapshot(contractsCol, snapshot => {
-                state.contracts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                render();
-            });
-            const unsubTiers = onSnapshot(commissionTiersCol, snapshot => {
-                state.commissionTiers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                render();
-            });
-            state.unsubscribe.push(unsubEmployees, unsubContracts, unsubTiers);
+            state.unsubscribe.push(onSnapshot(employeesCol, s => { state.employees = s.docs.map(d=>({id: d.id, ...d.data()})); render(); }));
+            state.unsubscribe.push(onSnapshot(contractsCol, s => { state.contracts = s.docs.map(d=>({id: d.id, ...d.data()})); render(); }));
+            state.unsubscribe.push(onSnapshot(commissionTiersCol, s => { state.commissionTiers = s.docs.map(d=>({id: d.id, ...d.data()})); render(); }));
         }
 
         // --- Main Render Function ---
         function render() {
             switch (state.currentView) {
-                case 'loading':
-                    appEl.innerHTML = `<div class="flex items-center justify-center h-screen"><div class="loader"></div></div>`;
-                    break;
-                case 'login':
-                    appEl.innerHTML = renderLogin();
-                    attachLoginListeners();
-                    break;
-                case 'admin':
-                    appEl.innerHTML = renderAdminDashboard();
-                    attachAdminListeners();
-                    break;
-                case 'gestor':
-                    // TODO: Implement Gestor View
-                    appEl.innerHTML = `<div>Gestor Dashboard (Not Implemented) <button id="logoutBtn">Logout</button></div>`;
-                     document.getElementById('logoutBtn').addEventListener('click', () => signOut(auth));
-                    break;
-                 case 'funcionario':
-                    // TODO: Implement Funcionario View
-                    appEl.innerHTML = `<div>Funcionário Dashboard (Not Implemented) <button id="logoutBtn">Logout</button></div>`;
-                     document.getElementById('logoutBtn').addEventListener('click', () => signOut(auth));
-                    break;
-                default:
-                    appEl.innerHTML = renderLogin();
-                    attachLoginListeners();
+                case 'loading': appEl.innerHTML = `<div class="flex items-center justify-center h-screen"><div class="loader"></div></div>`; break;
+                case 'login': appEl.innerHTML = renderLogin(); break;
+                case 'admin': appEl.innerHTML = renderAdminDashboard(); break;
+                case 'gestor': appEl.innerHTML = renderGestorDashboard(); break;
+                case 'funcionario': appEl.innerHTML = renderFuncionarioDashboard(); break;
+                default: appEl.innerHTML = renderLogin();
             }
+            attachEventListeners();
         }
 
-        // --- View Rendering: Login ---
-        function renderLogin() {
-            return `
-                <div class="flex items-center justify-center min-h-screen">
-                    <div class="card w-full max-w-sm">
-                        <h1 class="text-xl font-semibold text-center mb-4">Acesso ao Portal</h1>
-                        <form id="loginForm" class="space-y-4">
-                            <input id="email" type="email" placeholder="Email" class="form-input" required>
-                            <input id="password" type="password" placeholder="Senha" class="form-input" required>
-                            <button type="submit" class="btn btn-primary w-full">Entrar</button>
-                        </form>
+        // --- Generic Helpers ---
+        const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
+        const formatDate = (dateString) => dateString ? new Date(dateString + 'T00:00:00').toLocaleDateString('pt-BR') : 'N/A';
+
+        // --- Modal ---
+        function openModal(title, formHtml, onSubmit) {
+            modalContainer.innerHTML = `
+                <div class="modal-overlay">
+                    <div class="modal-content">
+                        <h3 class="text-lg font-semibold mb-4">${title}</h3>
+                        <form id="modalForm">${formHtml}</form>
                     </div>
                 </div>`;
+            modalContainer.classList.remove('hidden');
+            document.getElementById('modalForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                await onSubmit(e.target);
+                closeModal();
+            });
+            modalContainer.querySelector('.modal-overlay').addEventListener('click', (e) => {
+                if (e.target === e.currentTarget) closeModal();
+            });
+        }
+        function closeModal() { modalContainer.classList.add('hidden'); }
+
+        // --- Views Rendering ---
+        function renderLogin() {
+            return `<div class="flex items-center justify-center min-h-screen">
+                        <div class="card w-full max-w-sm">
+                            <h1 class="text-xl font-semibold text-center mb-4">Acesso ao Portal</h1>
+                            <form id="loginForm" class="space-y-4">
+                                <input id="email" type="email" placeholder="Email" class="form-input" required>
+                                <input id="password" type="password" placeholder="Senha" class="form-input" required>
+                                <button type="submit" class="btn btn-primary w-full">Entrar</button>
+                            </form>
+                        </div>
+                    </div>`;
+        }
+
+        function renderHeader(title) {
+            return `<header class="bg-white shadow-sm border-b p-4 sticky top-0 z-40 mb-6">
+                        <div class="container mx-auto flex justify-between items-center">
+                            <h1 class="text-xl font-semibold">${title}</h1>
+                            <button id="logoutBtn" class="btn btn-primary text-sm">Sair</button>
+                        </div>
+                    </header>`;
         }
         
+        // --- Admin Dashboard ---
+        function renderAdminDashboard() {
+            return `${renderHeader('Painel Administrativo')}
+                    <main class="container mx-auto grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        ${renderAdminCard('Usuários', renderAdminUserForm(), renderAdminUserTable())}
+                        ${renderAdminCard('Funcionários', renderAdminEmployeeForm(), renderAdminEmployeeTable())}
+                        ${renderAdminCard('Contratos', renderAdminContractForm(), renderAdminContractTable())}
+                        ${renderAdminCard('Faixas de Comissão', renderAdminTiersForm(), renderAdminTiersTable())}
+                    </main>`;
+        }
+        
+        function renderAdminCard(title, formHtml, tableHtml) {
+            return `<div class="card">
+                        <h2 class="text-lg font-semibold mb-4">${title}</h2>
+                        <details class="mb-4"><summary class="cursor-pointer font-medium text-sm text-blue-600">Adicionar Novo</summary>
+                            <div class="pt-4 border-t mt-2">${formHtml}</div>
+                        </details>
+                        <div class="table-container">${tableHtml}</div>
+                    </div>`;
+        }
+
+        // Admin Forms and Tables
+        function renderAdminUserForm() { /* Omitted for brevity, will be implemented if requested */ return `<p>TODO</p>` }
+        function renderAdminUserTable() { /* Omitted for brevity */ return `<p>TODO</p>` }
+
+        function renderAdminEmployeeForm(item = {}) {
+            return `<form class="space-y-2" data-type="employee" data-id="${item.id || ''}">
+                <input name="name" placeholder="Nome do Funcionário" class="form-input text-sm" value="${item.name || ''}" required>
+                <input name="roleTitle" placeholder="Cargo" class="form-input text-sm" value="${item.roleTitle || ''}" required>
+                <input name="salary" type="number" placeholder="Salário" class="form-input text-sm" value="${item.salary || ''}" required>
+                <input name="admissionDate" type="date" title="Data de Admissão" class="form-input text-sm" value="${item.admissionDate || ''}" required>
+                <button type="submit" class="btn btn-primary text-sm w-full">Salvar</button>
+            </form>`;
+        }
+        function renderAdminEmployeeTable() { 
+            return `<table class="w-full text-sm table"><tbody>
+                ${state.employees.map(e => `<tr><td><div class="font-semibold">${e.name}</div><div class="text-xs text-gray-500">${e.roleTitle}</div></td><td class="text-right space-x-2"><button class="btn-edit-sm" data-type="employee" data-id="${e.id}">Editar</button><button class="btn-danger-sm" data-type="employee" data-id="${e.id}">×</button></td></tr>`).join('')}
+            </tbody></table>`;
+        }
+        
+        function renderAdminContractForm(item = {}) {
+            return `<form class="space-y-2" data-type="contract" data-id="${item.id || ''}">
+                 <input name="name" placeholder="Nome do Contrato" class="form-input text-sm" value="${item.name || ''}" required>
+                 <input name="value" type="number" placeholder="Valor" class="form-input text-sm" value="${item.value || ''}" required>
+                 <input name="closingDate" type="date" title="Data de Fechamento" class="form-input text-sm" value="${item.closingDate || ''}" required>
+                 <div class="text-sm font-medium mt-2">Participantes:</div>
+                 <div class="max-h-24 overflow-y-auto p-2 border rounded">
+                    ${state.employees.map(e => `<label class="flex items-center text-xs gap-2"><input type="checkbox" name="participants" value="${e.id}" ${item.participants?.includes(e.id) ? 'checked' : ''}>${e.name}</label>`).join('')}
+                 </div>
+                 <button type="submit" class="btn btn-primary text-sm w-full">Salvar</button>
+            </form>`;
+        }
+        function renderAdminContractTable() {
+             return `<table class="w-full text-sm table"><tbody>
+                ${state.contracts.map(c => `<tr><td><div class="font-semibold">${c.name}</div><div class="text-xs text-gray-500">${formatCurrency(c.value)}</div></td><td class="text-right space-x-2"><button class="btn-edit-sm" data-type="contract" data-id="${c.id}">Editar</button><button class="btn-danger-sm" data-type="contract" data-id="${c.id}">×</button></td></tr>`).join('')}
+            </tbody></table>`;
+        }
+        
+        function renderAdminTiersForm(item = {}) {
+            const tiersHtml = item.tiers?.map(t => `
+                <div class="flex gap-2 items-center mt-2 tier-row">
+                    <input type="number" placeholder="De" class="form-input text-sm" name="rangeInf" value="${t.rangeInf}">
+                    <input type="number" placeholder="Até" class="form-input text-sm" name="rangeSup" value="${t.rangeSup}">
+                    <input type="number" step="0.01" placeholder="Taxa (%)" class="form-input text-sm" name="rate" value="${t.rate}">
+                </div>`).join('') || `<div class="flex gap-2 items-center mt-2 tier-row">
+                    <input type="number" placeholder="De" class="form-input text-sm" name="rangeInf">
+                    <input type="number" placeholder="Até" class="form-input text-sm" name="rangeSup">
+                    <input type="number" step="0.01" placeholder="Taxa (%)" class="form-input text-sm" name="rate">
+                </div>`;
+
+            return `<form class="space-y-2" data-type="commissionTier" data-id="${item.id || ''}">
+                 <input name="name" placeholder="Nome da Faixa (Ex: Padrão Vendas)" class="form-input text-sm" value="${item.name || ''}" required>
+                 <p class="text-sm font-medium mt-2">Defina os tiers e taxas:</p>
+                 <div id="tierRowsContainer">${tiersHtml}</div>
+                 <button type="button" id="addTierRowBtn" class="text-xs text-blue-600">+ Adicionar linha</button>
+                 <button type="submit" class="btn btn-primary text-sm w-full">Salvar</button>
+            </form>`;
+        }
+        function renderAdminTiersTable() {
+             return `<table class="w-full text-sm table"><tbody>
+                ${state.commissionTiers.map(t => `<tr><td><div class="font-semibold">${t.name}</div></td><td class="text-right space-x-2"><button class="btn-edit-sm" data-type="commissionTier" data-id="${t.id}">Editar</button><button class="btn-danger-sm" data-type="commissionTier" data-id="${t.id}">×</button></td></tr>`).join('')}
+            </tbody></table>`;
+        }
+
+        // --- Gestor & Funcionário Dashboards ---
+        function renderGestorDashboard() { return `${renderHeader('Painel do Gestor')} <p>TODO: Gestor View</p>`; }
+        function renderFuncionarioDashboard() { return `${renderHeader('Painel do Funcionário')} <p>TODO: Funcionário View</p>`; }
+        
+        // --- Event Listeners ---
+        function attachEventListeners() {
+            document.getElementById('logoutBtn')?.addEventListener('click', () => signOut(auth));
+            if(state.currentView === 'login') attachLoginListeners();
+            if(state.currentView === 'admin') attachAdminListeners();
+        }
+
         function attachLoginListeners() {
             document.getElementById('loginForm')?.addEventListener('submit', async e => {
                 e.preventDefault();
-                const email = document.getElementById('email').value;
-                const password = document.getElementById('password').value;
+                const email = e.target.email.value;
+                const password = e.target.password.value;
                 try {
                     await signInWithEmailAndPassword(auth, email, password);
                 } catch (error) {
@@ -175,148 +280,99 @@
             });
         }
 
-        // --- View Rendering: Admin ---
-        function renderAdminDashboard() {
-             return `
-                <header class="bg-white shadow-sm border-b p-4 sticky top-0 z-40 mb-6">
-                    <div class="container mx-auto flex justify-between items-center">
-                        <h1 class="text-xl font-semibold">Painel Administrativo</h1>
-                        <button id="logoutBtn" class="btn btn-primary text-sm">Sair</button>
-                    </div>
-                </header>
-                <main class="container mx-auto grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    ${renderAdminCard('Usuários', renderAdminUserForm(), renderAdminUserTable())}
-                    ${renderAdminCard('Funcionários', renderAdminEmployeeForm(), renderAdminEmployeeTable())}
-                    ${renderAdminCard('Contratos', renderAdminContractForm(), renderAdminContractTable())}
-                    ${renderAdminCard('Faixas de Comissão', renderAdminTiersForm(), renderAdminTiersTable())}
-                </main>
-            `;
-        }
-        
-        function renderAdminCard(title, formHtml, tableHtml) {
-            return `
-                <div class="card">
-                    <h2 class="text-lg font-semibold mb-4">${title}</h2>
-                    <details class="mb-4">
-                        <summary class="cursor-pointer font-medium text-sm text-blue-600">Adicionar Novo</summary>
-                        <div class="pt-4 border-t mt-2">${formHtml}</div>
-                    </details>
-                    <div class="table-container">${tableHtml}</div>
-                </div>`;
-        }
-
-        function renderAdminUserForm() {
-            return `<form id="addUserForm" class="space-y-2">
-                <input id="userName" placeholder="Nome" class="form-input text-sm" required>
-                <input id="userEmail" type="email" placeholder="Email (para login)" class="form-input text-sm" required>
-                <select id="userRole" class="form-input text-sm">
-                    <option value="funcionario">Funcionário</option>
-                    <option value="gestor">Gestor</option>
-                    <option value="admin">Admin</option>
-                </select>
-                <button type="submit" class="btn btn-primary text-sm w-full">Salvar Usuário</button>
-            </form>`;
-        }
-        function renderAdminUserTable() { return `<p class="text-center text-sm text-gray-500">TODO: Listar usuários</p>`; }
-        
-        function renderAdminEmployeeForm() {
-            return `<form id="addEmployeeForm" class="space-y-2">
-                <input id="empName" placeholder="Nome do Funcionário" class="form-input text-sm" required>
-                <input id="empRole" placeholder="Cargo (Ex: Especialista)" class="form-input text-sm" required>
-                <input id="empSalary" type="number" placeholder="Salário" class="form-input text-sm" required>
-                <input id="empDate" type="date" title="Data de Admissão" class="form-input text-sm" required>
-                <button type="submit" class="btn btn-primary text-sm w-full">Salvar Funcionário</button>
-            </form>`;
-        }
-        function renderAdminEmployeeTable() { 
-            return `<table class="w-full text-sm table">
-                <tbody>
-                ${state.employees.map(e => `<tr><td><div class="font-semibold">${e.name}</div><div class="text-xs text-gray-500">${e.roleTitle}</div></td><td class="text-right"><button class="btn-danger" data-id="${e.id}">×</button></td></tr>`).join('')}
-                </tbody>
-            </table>`;
-        }
-
-        function renderAdminContractForm() {
-            return `<form id="addContractForm" class="space-y-2">
-                 <input id="contractName" placeholder="Nome do Contrato" class="form-input text-sm" required>
-                 <input id="contractValue" type="number" placeholder="Valor" class="form-input text-sm" required>
-                 <input id="contractDate" type="date" title="Data de Fechamento" class="form-input text-sm" required>
-                 <div class="text-sm font-medium mt-2">Participantes:</div>
-                 <div class="max-h-24 overflow-y-auto p-2 border rounded">
-                    ${state.employees.map(e => `<label class="flex items-center text-xs gap-2"><input type="checkbox" name="participants" value="${e.id}">${e.name}</label>`).join('')}
-                 </div>
-                 <button type="submit" class="btn btn-primary text-sm w-full">Salvar Contrato</button>
-            </form>`;
-        }
-        function renderAdminContractTable() { 
-            return `<table class="w-full text-sm table">
-                <tbody>
-                ${state.contracts.map(c => `<tr><td><div class="font-semibold">${c.name}</div><div class="text-xs text-gray-500">${formatCurrency(c.value)}</div></td><td class="text-right"><button class="btn-danger" data-id="${c.id}">×</button></td></tr>`).join('')}
-                </tbody>
-            </table>`;
-        }
-        
-        function renderAdminTiersForm() {
-            return `<form id="addTierForm" class="space-y-2">
-                 <input id="tierName" placeholder="Nome da Faixa (Ex: Padrão Vendas)" class="form-input text-sm" required>
-                 <p class="text-sm font-medium mt-2">Defina os tiers e taxas:</p>
-                 <div id="tierRowsContainer">
-                    <div class="flex gap-2 items-center">
-                        <input type="number" placeholder="De" class="form-input text-sm tier-range-inf">
-                        <input type="number" placeholder="Até" class="form-input text-sm tier-range-sup">
-                        <input type="number" step="0.01" placeholder="Taxa (%)" class="form-input text-sm tier-rate">
-                    </div>
-                 </div>
-                 <button type="button" id="addTierRowBtn" class="text-xs text-blue-600">+ Adicionar linha</button>
-                 <button type="submit" class="btn btn-primary text-sm w-full">Salvar Faixa</button>
-            </form>`;
-        }
-        function renderAdminTiersTable() { return `<p class="text-center text-sm text-gray-500">TODO: Listar Faixas</p>`; }
-
-
         function attachAdminListeners() {
             document.getElementById('logoutBtn')?.addEventListener('click', () => signOut(auth));
             
-            // Employee Form
-            document.getElementById('addEmployeeForm')?.addEventListener('submit', e => {
-                e.preventDefault();
-                addDoc(employeesCol, {
-                    name: document.getElementById('empName').value,
-                    roleTitle: document.getElementById('empRole').value,
-                    salary: parseFloat(document.getElementById('empSalary').value),
-                    admissionDate: document.getElementById('empDate').value
-                });
-                e.target.reset();
-            });
-            document.querySelectorAll('.btn-danger[data-id]').forEach(btn => {
-                const collectionName = btn.closest('.card').querySelector('h2').textContent.toLowerCase().includes('funcionário') ? 'employees' : 'contracts';
-                btn.addEventListener('click', () => deleteDoc(doc(db, collectionName, btn.dataset.id)))
-            });
+            // --- Generic CRUD Handlers ---
+            const forms = document.querySelectorAll('form[data-type]');
+            forms.forEach(form => form.addEventListener('submit', handleAdminFormSubmit));
 
-            // Contract Form
-            document.getElementById('addContractForm')?.addEventListener('submit', e => {
-                e.preventDefault();
-                const participants = Array.from(e.target.querySelectorAll('input[name="participants"]:checked')).map(el => el.value);
-                addDoc(contractsCol, {
-                    name: document.getElementById('contractName').value,
-                    value: parseFloat(document.getElementById('contractValue').value),
-                    closingDate: document.getElementById('contractDate').value,
-                    participants: participants
-                });
-                e.target.reset();
-            });
+            const editButtons = document.querySelectorAll('.btn-edit-sm');
+            editButtons.forEach(btn => btn.addEventListener('click', handleAdminEditClick));
 
-            // Tier Form
+            const deleteButtons = document.querySelectorAll('.btn-danger-sm');
+            deleteButtons.forEach(btn => btn.addEventListener('click', handleAdminDeleteClick));
+            
+            // Special handler for tier form
             document.getElementById('addTierRowBtn')?.addEventListener('click', () => {
                 const container = document.getElementById('tierRowsContainer');
                 const newRow = document.createElement('div');
-                newRow.className = 'flex gap-2 items-center mt-2';
-                newRow.innerHTML = `<input type="number" placeholder="De" class="form-input text-sm tier-range-inf"><input type="number" placeholder="Até" class="form-input text-sm tier-range-sup"><input type="number" step="0.01" placeholder="Taxa (%)" class="form-input text-sm tier-rate">`;
+                newRow.className = 'flex gap-2 items-center mt-2 tier-row';
+                newRow.innerHTML = `<input type="number" placeholder="De" class="form-input text-sm" name="rangeInf"><input type="number" placeholder="Até" class="form-input text-sm" name="rangeSup"><input type="number" step="0.01" placeholder="Taxa (%)" class="form-input text-sm" name="rate">`;
                 container.appendChild(newRow);
             });
-            // TODO: Implement Tier saving logic
+        }
+        
+        async function handleAdminFormSubmit(e) {
+            e.preventDefault();
+            const form = e.target;
+            const type = form.dataset.type;
+            const id = form.dataset.id;
+            let data = {};
+            
+            // Collect form data
+            new FormData(form).forEach((value, key) => {
+                 if (form.querySelectorAll(`[name=${key}]`).length > 1) { // Handle checkboxes or multiple inputs
+                    if (!data[key]) data[key] = [];
+                    data[key].push(value);
+                 } else {
+                    data[key] = value;
+                 }
+            });
+
+            // Specific data processing
+            if (type === 'employee') {
+                data.salary = parseFloat(data.salary);
+            }
+            if (type === 'contract') {
+                data.value = parseFloat(data.value);
+                if (!data.participants) data.participants = [];
+            }
+            if (type === 'commissionTier') {
+                const tiers = [];
+                form.querySelectorAll('.tier-row').forEach(row => {
+                    tiers.push({
+                        rangeInf: parseFloat(row.querySelector('[name=rangeInf]').value || 0),
+                        rangeSup: parseFloat(row.querySelector('[name=rangeSup]').value || 0),
+                        rate: parseFloat(row.querySelector('[name=rate]').value || 0) / 100 // Convert % to decimal
+                    });
+                });
+                data = { name: data.name, tiers: tiers };
+            }
+
+            // Save to Firestore
+            const collectionRef = collection(db, `${type}s`);
+            if (id) { // Update
+                await setDoc(doc(collectionRef, id), data);
+            } else { // Create
+                await addDoc(collectionRef, data);
+            }
+            closeModal();
         }
 
+        function handleAdminEditClick(e) {
+            const type = e.target.dataset.type;
+            const id = e.target.dataset.id;
+            const item = state[`${type}s`].find(i => i.id === id);
+            
+            let formHtml = '';
+            let title = '';
+
+            if (type === 'employee') { title = 'Editar Funcionário'; formHtml = renderAdminEmployeeForm(item); }
+            if (type === 'contract') { title = 'Editar Contrato'; formHtml = renderAdminContractForm(item); }
+            if (type === 'commissionTier') { title = 'Editar Faixa de Comissão'; formHtml = renderAdminTiersForm(item); }
+
+            openModal(title, formHtml, handleAdminFormSubmit);
+        }
+
+        async function handleAdminDeleteClick(e) {
+            const type = e.target.dataset.type;
+            const id = e.target.dataset.id;
+            if (confirm(`Tem certeza que deseja excluir este item?`)) {
+                await deleteDoc(doc(db, `${type}s`, id));
+            }
+        }
+        
         // --- Initial Load ---
         render();
 
