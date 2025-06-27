@@ -72,7 +72,6 @@
 
         onAuthStateChanged(auth, async (user) => {
             state.unsubscribe.forEach(unsub => unsub());
-            const previousView = state.currentView;
             state = { ...state, currentUser: user, userProfile: null, employees: [], contracts: [], commissionModels: [], users:[], unsubscribe: [], currentView: 'loading' };
 
             if (user) {
@@ -81,9 +80,6 @@
                     if (userDocSnap.exists()) {
                         state.userProfile = { id: user.uid, ...userDocSnap.data() };
                         initializeDataListeners();
-                        if (state.userProfile.isAdmin) state.currentView = 'admin';
-                        else if (state.userProfile.isManager) state.currentView = 'gestor';
-                        else state.currentView = 'funcionario';
                     } else { throw new Error("Perfil de usuário não encontrado. Contate o administrador."); }
                 } catch (error) {
                     alert(error.message);
@@ -91,19 +87,31 @@
                 }
             } else {
                 state.currentView = 'login';
+                render();
             }
-            render();
         });
         
         function initializeDataListeners() {
-            const collections = { users: usersCol, employees: employeesCol, contracts: contractsCol, commissionModels: commissionModelsCol };
+            let loaded = 0;
+            const collectionsToLoad = state.userProfile?.isAdmin ? 4 : 3;
+
+            const onDataLoad = () => {
+                loaded++;
+                if (loaded === collectionsToLoad) {
+                    if (state.userProfile.isAdmin) state.currentView = 'admin';
+                    else if (state.userProfile.isManager) state.currentView = 'gestor';
+                    else state.currentView = 'funcionario';
+                    render();
+                }
+            };
+
+            const collections = { employees: employeesCol, contracts: contractsCol, commissionModels: commissionModelsCol };
+            if (state.userProfile?.isAdmin) collections.users = usersCol;
 
             for (const key in collections) {
                 const unsub = onSnapshot(collections[key], snapshot => {
                     state[key] = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-                    if(!['loading', 'login'].includes(state.currentView)) {
-                         render();
-                    }
+                    onDataLoad();
                 }, error => console.error(`Error listening to ${key}:`, error));
                 state.unsubscribe.push(unsub);
             }
@@ -134,7 +142,7 @@
              document.getElementById('closeModalBtn').addEventListener('click', closeModal);
              modalContainer.querySelector('.modal-overlay').addEventListener('click', e => e.target === e.currentTarget && closeModal());
         }
-        function closeModal() { modalContainer.classList.add('hidden'); }
+        function closeModal() { modalContainer.innerHTML = ''; modalContainer.classList.add('hidden'); }
         
         function renderHeader(title, navHtml = '') {
             return `<header class="bg-white shadow-sm border-b p-4 sticky top-0 z-40 mb-6">
@@ -154,7 +162,7 @@
             <button type="submit" class="btn btn-primary w-full">Entrar</button></form></div></div>`;
         }
 
-        // --- ADMIN DASHBOARD ---
+        // --- ADMIN DASHBOARD & COMPONENTS ---
         function renderAdminDashboard() {
             return `${renderHeader('Painel Administrativo')}
                 <main class="container mx-auto grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -172,7 +180,6 @@
             </div><div class="table-container">${tableHtml}</div></div>`;
         }
         
-        // --- ADMIN TABLES ---
         function renderAdminUserTable() {
              return `<table class="w-full text-sm table"><tbody>
                 ${state.users.map(u => `<tr><td><div class="font-semibold">${u.name}</div><div class="text-xs text-gray-500">${u.email}</div></td><td class="text-right space-x-2"><button class="btn-edit-sm" data-type="user" data-id="${u.id}">Editar</button></td></tr>`).join('')}
@@ -194,9 +201,8 @@
             </tbody></table>`;
         }
 
-        // --- ADMIN FORMS ---
         function renderAdminUserForm(item = {}) {
-            return `<form class="space-y-2" data-type="user" data-id="${item.id || ''}">
+            return `<form class="space-y-2" data-id="${item.id || ''}">
                 <input name="name" placeholder="Nome Completo" class="form-input text-sm" value="${item.name || ''}" required>
                 <input name="email" type="email" placeholder="Email (para login)" class="form-input text-sm" value="${item.email || ''}" required ${item.id ? 'readonly' : ''}>
                 ${!item.id ? `<input name="password" type="password" placeholder="Senha (mín. 6 caracteres)" class="form-input text-sm" required>` : ''}
@@ -206,7 +212,7 @@
             </form>`;
         }
         function renderAdminEmployeeForm(item = {}) {
-             return `<form class="space-y-2" data-type="employee" data-id="${item.id || ''}">
+             return `<form class="space-y-2" data-id="${item.id || ''}">
                 <input name="name" placeholder="Nome do Funcionário" class="form-input text-sm" value="${item.name || ''}" required>
                 <input name="roleTitle" placeholder="Cargo" class="form-input text-sm" value="${item.roleTitle || ''}" required>
                 <input name="salary" type="number" step="0.01" placeholder="Salário" class="form-input text-sm" value="${item.salary || ''}" required>
@@ -216,7 +222,7 @@
         }
         function renderAdminContractForm(item = {}) {
              const modelOptions = state.commissionModels.map(m => `<option value="${m.id}" ${item.commissionModelId === m.id ? 'selected' : ''}>${m.name}</option>`).join('');
-             return `<form class="space-y-2" data-type="contract" data-id="${item.id || ''}">
+             return `<form class="space-y-2" data-id="${item.id || ''}">
                  <input name="name" placeholder="Nome do Contrato" class="form-input text-sm" value="${item.name || ''}" required>
                  <input name="value" type="number" step="0.01" placeholder="Valor" class="form-input text-sm" value="${item.value || ''}" required>
                  <input name="closingDate" type="date" title="Data de Fechamento" class="form-input text-sm" value="${item.closingDate || ''}" required>
@@ -239,7 +245,7 @@
                     </div>
                 </div>`).join('') || '';
 
-            return `<form class="space-y-2" data-type="commissionModel" data-id="${item.id || ''}">
+            return `<form class="space-y-2" data-id="${item.id || ''}">
                  <input name="name" placeholder="Nome do Modelo" class="form-input text-sm" value="${item.name || ''}" required>
                  <div id="tiersContainer">${tiersHtml}</div>
                  <button type="button" id="addTierBtn" class="text-xs text-blue-600 mt-2">+ Adicionar Faixa de Valor</button>
@@ -248,43 +254,35 @@
         }
         
         // --- GESTOR & FUNCIONARIO DASHBOARDS ---
-        function renderGestorDashboard() {
-            return `${renderHeader('Painel do Gestor')}
-                    <main class="container mx-auto">
-                        ${renderCalculator('gestor')}
-                    </main>`;
-        }
-        function renderFuncionarioDashboard() {
-            return `${renderHeader('Painel do Funcionário')}
-                    <main class="container mx-auto">
-                        ${renderCalculator('funcionario')}
-                    </main>`;
-        }
+        function renderGestorDashboard() { return renderCalculator('gestor'); }
+        function renderFuncionarioDashboard() { return renderCalculator('funcionario'); }
 
         function renderCalculator(profile) {
             const contractOptions = state.contracts.map(c => `<label class="flex items-center gap-2 text-sm"><input type="checkbox" name="selectedContracts" value="${c.id}">${c.name} (${formatCurrency(c.value)})</label>`).join('');
-            return `<div class="card">
-                <h2 class="text-lg font-semibold mb-4">Calculadora de Bônus</h2>
-                <form id="calculatorForm" data-profile="${profile}">
-                    <div class="mb-4">
-                        <label class="font-medium text-sm">Selecione os Contratos para Simular:</label>
-                        <div class="table-container p-2 mt-1 bg-gray-50">${contractOptions}</div>
-                    </div>
-                    <button type="submit" class="btn btn-primary">Calcular Bônus</button>
-                </form>
-                <div id="bonusResult" class="mt-4"></div>
-            </div>`;
+            const title = profile === 'gestor' ? 'Painel do Gestor' : 'Painel do Funcionário';
+            return `${renderHeader(title)}
+                    <main class="container mx-auto">
+                        <div class="card">
+                            <h2 class="text-lg font-semibold mb-4">Calculadora de Bônus</h2>
+                            <form id="calculatorForm" data-profile="${profile}">
+                                <div class="mb-4">
+                                    <label class="font-medium text-sm">Selecione os Contratos para Simular:</label>
+                                    <div class="table-container p-2 mt-1 bg-gray-50">${contractOptions}</div>
+                                </div>
+                                <button type="submit" class="btn btn-primary">Calcular Bônus</button>
+                            </form>
+                            <div id="bonusResult" class="mt-4"></div>
+                        </div>
+                    </main>`;
         }
-
+        
         // --- EVENT LISTENERS ---
         function attachEventListeners() {
             appEl.querySelector('#logoutBtn')?.addEventListener('click', () => signOut(auth));
             if (state.currentView === 'login') {
                 appEl.querySelector('#loginForm')?.addEventListener('submit', handleLogin);
             } else if (state.currentView === 'admin') {
-                appEl.querySelectorAll('.btn-add-item').forEach(btn => btn.addEventListener('click', handleAdminAddClick));
-                appEl.querySelectorAll('.btn-edit-sm').forEach(btn => btn.addEventListener('click', handleAdminEditClick));
-                appEl.querySelectorAll('.btn-danger-sm').forEach(btn => btn.addEventListener('click', handleAdminDeleteClick));
+                appEl.addEventListener('click', handleAdminClicks);
             } else if (state.currentView === 'gestor' || state.currentView === 'funcionario') {
                 appEl.querySelector('#calculatorForm')?.addEventListener('submit', handleBonusCalculation);
             }
@@ -304,58 +302,75 @@
             }
         }
 
-        function handleAdminAddClick(e) {
-            const type = e.target.dataset.type;
-            const formRenderers = { user: renderAdminUserForm, employee: renderAdminEmployeeForm, contract: renderAdminContractForm, commissionModel: renderAdminCommissionModelForm };
-            const titleMap = { user: 'Adicionar Usuário', employee: 'Adicionar Funcionário', contract: 'Adicionar Contrato', commissionModel: 'Adicionar Modelo de Comissão' };
-            openModal(titleMap[type], formRenderers[type]());
-            document.getElementById('modalFormContainer').querySelector('form').addEventListener('submit', (e) => handleAdminFormSubmit(e, type));
-            if (type === 'commissionModel') attachTierFormListeners();
-        }
-
-        function handleAdminEditClick(e) {
-            const type = e.target.dataset.type;
-            const id = e.target.dataset.id;
-            const item = state[`${type}s`].find(i => i.id === id);
-            
-            const formRenderers = { user: renderAdminUserForm, employee: renderAdminEmployeeForm, contract: renderAdminContractForm, commissionModel: renderAdminCommissionModelForm };
-            const titleMap = { user: 'Editar Usuário', employee: 'Editar Funcionário', contract: 'Editar Contrato', commissionModel: 'Editar Modelo de Comissão' };
-
-            openModal(titleMap[type], formRenderers[type](item));
-            document.getElementById('modalFormContainer').querySelector('form').addEventListener('submit', (e) => handleAdminFormSubmit(e, type, id));
-            if (type === 'commissionModel') attachTierFormListeners();
+        function handleAdminClicks(e) {
+            if (e.target.matches('.btn-add-item')) {
+                const type = e.target.dataset.type;
+                const formRenderers = { user: renderAdminUserForm, employee: renderAdminEmployeeForm, contract: renderAdminContractForm, commissionModel: renderAdminCommissionModelForm };
+                const titleMap = { user: 'Adicionar Usuário', employee: 'Adicionar Funcionário', contract: 'Adicionar Contrato', commissionModel: 'Adicionar Modelo de Comissão' };
+                openModal(titleMap[type], formRenderers[type]());
+                attachModalFormListeners(type);
+            }
+            if (e.target.matches('.btn-edit-sm')) {
+                const type = e.target.dataset.type;
+                const id = e.target.dataset.id;
+                const item = state[`${type}s`].find(i => i.id === id);
+                const formRenderers = { user: renderAdminUserForm, employee: renderAdminEmployeeForm, contract: renderAdminContractForm, commissionModel: renderAdminCommissionModelForm };
+                const titleMap = { user: 'Editar Usuário', employee: 'Editar Funcionário', contract: 'Editar Contrato', commissionModel: 'Editar Modelo de Comissão' };
+                openModal(titleMap[type], formRenderers[type](item));
+                attachModalFormListeners(type, id);
+            }
+            if (e.target.matches('.btn-danger-sm')) {
+                const type = e.target.dataset.type;
+                const id = e.target.dataset.id;
+                if (confirm(`Tem certeza?`)) { deleteDoc(doc(db, `${type}s`, id)); }
+            }
         }
         
-        async function handleAdminDeleteClick(e) {
-            const type = e.target.dataset.type;
-            const id = e.target.dataset.id;
-            if (confirm(`Tem certeza?`)) { await deleteDoc(doc(db, `${type}s`, id)); }
+        function attachModalFormListeners(type, id) {
+            const formContainer = document.getElementById('modalFormContainer');
+            formContainer.querySelector('form').addEventListener('submit', (e) => handleAdminFormSubmit(e, type, id));
+            if (type === 'commissionModel') {
+                formContainer.addEventListener('click', e => {
+                    if (e.target.id === 'addTierBtn') {
+                        const container = document.getElementById('tiersContainer');
+                        const newRow = document.createElement('div');
+                        newRow.className = 'p-2 border rounded mt-2 tier-row';
+                        newRow.innerHTML = renderAdminCommissionModelForm({ tiers:[{}] }).match(/<div class="p-2.*?<\/div>/s)[0];
+                        container.appendChild(newRow);
+                    }
+                    if (e.target.classList.contains('remove-tier-btn')) {
+                        e.target.closest('.tier-row').remove();
+                    }
+                });
+            }
         }
 
-        async function handleAdminFormSubmit(form, type, id) {
+        async function handleAdminFormSubmit(e, type, id) {
+            e.preventDefault();
+            const form = e.target;
             const formData = new FormData(form);
             let data = {};
             
             if (type === 'user') {
                 try {
-                    const name = formData.get('name');
-                    const email = formData.get('email');
-                    const isManager = form.querySelector('[name="isManager"]').checked;
-                    const isAdmin = form.querySelector('[name="isAdmin"]').checked;
-                    
+                    data = {
+                        name: formData.get('name'), email: formData.get('email'),
+                        isManager: form.querySelector('[name="isManager"]').checked,
+                        isAdmin: form.querySelector('[name="isAdmin"]').checked,
+                        isEmployee: true
+                    };
                     if (id) {
-                        await setDoc(doc(usersCol, id), { name, email, isManager, isAdmin }, { merge: true });
+                        await setDoc(doc(usersCol, id), data, { merge: true });
                     } else {
                         const password = formData.get('password');
                         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-                        await setDoc(doc(usersCol, userCredential.user.uid), { name, email, isManager, isAdmin, isEmployee: true });
+                        await setDoc(doc(usersCol, userCredential.user.uid), data);
                     }
-                 } catch (error) { alert(`Erro ao salvar usuário: ${error.message}`); }
+                } catch (error) { alert(`Erro ao salvar usuário: ${error.message}`); }
             } else if (type === 'commissionModel') {
                 data.name = formData.get('name');
                 data.tiers = [];
-                const tierRows = form.querySelectorAll('.tier-row');
-                tierRows.forEach(row => {
+                form.querySelectorAll('.tier-row').forEach(row => {
                     const tierData = {
                         rangeInf: parseFloat(row.querySelector('[name="rangeInf"]').value || 0),
                         rangeSup: parseFloat(row.querySelector('[name="rangeSup"]').value || 0),
@@ -368,42 +383,16 @@
                     data.tiers.push(tierData);
                 });
             } else {
-                for (let [key, value] of formData.entries()) {
-                    if (form.querySelectorAll(`[name=${key}]`).length > 1) { // Checkboxes
-                        if (!data[key]) data[key] = [];
-                        data[key].push(value);
-                    } else { data[key] = value; }
-                }
+                for (let [key, value] of formData.entries()) { data[key] = value; }
                 if (type === 'employee') data.salary = parseFloat(data.salary);
-                if (type === 'contract') {
-                    data.value = parseFloat(data.value);
-                    if (!data.participants) data.participants = [];
-                }
+                if (type === 'contract') data.value = parseFloat(data.value);
             }
 
-            if (type !== 'user') {
-                const collectionRef = collection(db, `${type}s`);
-                if (id) await setDoc(doc(collectionRef, id), data, { merge: true });
-                else await addDoc(collectionRef, data);
-            }
+            const collectionRef = collection(db, `${type}s`);
+            if (id) await setDoc(doc(collectionRef, id), data, { merge: true });
+            else await addDoc(collectionRef, data);
         }
         
-        function attachTierFormListeners() {
-            const form = document.getElementById('modalFormContainer');
-            form.addEventListener('click', e => {
-                if (e.target.id === 'addTierBtn') {
-                    const container = document.getElementById('tiersContainer');
-                    const newRow = document.createElement('div');
-                    newRow.innerHTML = renderAdminCommissionModelForm({ tiers:[{}] }).match(/<div class="p-2.*?<\/div>/s)[0];
-                    container.appendChild(newRow.firstChild);
-                }
-                if (e.target.classList.contains('remove-tier-btn')) {
-                    e.target.closest('.tier-row').remove();
-                }
-            });
-        }
-        
-        // --- BONUS CALCULATION ---
         function handleBonusCalculation(e) {
             e.preventDefault();
             const form = e.target;
@@ -411,18 +400,19 @@
             const selectedContractIds = Array.from(form.querySelectorAll('[name="selectedContracts"]:checked')).map(el => el.value);
             const selectedContracts = state.contracts.filter(c => selectedContractIds.includes(c.id));
             
+            let totalBonus = 0;
             let resultsHtml = '';
             
             selectedContracts.forEach(contract => {
                 const commissionModel = state.commissionModels.find(m => m.id === contract.commissionModelId);
                 if (!commissionModel) {
-                    resultsHtml += `<p>Contrato ${contract.name} não possui modelo de comissão válido.</p>`;
+                    resultsHtml += `<p class="text-red-500 text-sm">Contrato ${contract.name} não possui modelo de comissão válido.</p>`;
                     return;
                 }
                 const contractValue = contract.value;
                 const tier = commissionModel.tiers.find(t => contractValue >= t.rangeInf && contractValue < t.rangeSup);
                 if(!tier) {
-                     resultsHtml += `<p>Contrato ${contract.name} não se encaixa em nenhuma faixa de valor.</p>`;
+                     resultsHtml += `<p class="text-red-500 text-sm">Contrato ${contract.name} não se encaixa em nenhuma faixa de valor.</p>`;
                      return;
                 }
                 
@@ -432,21 +422,26 @@
                     state.employees.forEach(emp => {
                         const rate = tier.rates[emp.id] || 0;
                         const bonus = contractValue * rate;
+                        totalBonus += bonus;
                         resultsHtml += `<p class="text-sm">${emp.name}: ${formatCurrency(bonus)} (${formatPercent(rate)})</p>`;
                     });
                 } else if (profile === 'funcionario') {
-                    const empId = state.userProfile.employeeId || state.currentUser.uid; // Fallback to UID if employeeId not set
-                    const rate = tier.rates[empId] || 0;
-                    const bonus = contractValue * rate;
-                    resultsHtml += `<p class="text-sm">Seu Bônus: ${formatCurrency(bonus)} (${formatPercent(rate)})</p>`;
+                    const empProfile = state.employees.find(e => e.id === state.userProfile.employeeId);
+                    if(empProfile){
+                        const rate = tier.rates[empProfile.id] || 0;
+                        const bonus = contractValue * rate;
+                        totalBonus += bonus;
+                        resultsHtml += `<p class="text-sm">Seu Bônus: ${formatCurrency(bonus)} (${formatPercent(rate)})</p>`;
+                    }
                 }
                 resultsHtml += `</div>`;
             });
+
+            resultsHtml = `<div class="mt-2"><p class="font-bold">Bônus Total da Simulação: ${formatCurrency(totalBonus)}</p></div>` + resultsHtml;
             
             document.getElementById('bonusResult').innerHTML = resultsHtml;
         }
         
-        // Initial render
         render();
     </script>
 </body>
