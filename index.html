@@ -52,7 +52,6 @@
         import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, doc, addDoc, setDoc, deleteDoc, onSnapshot, getDoc, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
-       
         document.addEventListener('DOMContentLoaded', () => {
             // --- App Setup ---
             const appEl = document.getElementById('app');
@@ -93,7 +92,12 @@
             const settingsDocRef = doc(db, "settings", "global");
 
             // --- Helper Functions ---
-            const formatCurrency = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v || 0);
+            const formatCurrency = (v, compact = false) => {
+                if (compact) {
+                    return new Intl.NumberFormat('pt-BR', { notation: 'compact', compactDisplay: 'short' }).format(v || 0);
+                }
+                return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v || 0);
+            }
             const formatDate = (d) => d && d.seconds ? new Date(d.seconds * 1000).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : 'N/A';
             const formatPercent = (v) => new Intl.NumberFormat('pt-BR', { style: 'percent', minimumFractionDigits: 3, maximumFractionDigits: 3 }).format(v || 0);
             
@@ -155,29 +159,15 @@
                 
                 async function seedJobTitles() {
                     const defaultTitles = [
-                        { name: "Diretor Comercial", order: 1 },
-                        { name: "Gerente Comercial", order: 2 },
-                        { name: "Especialista/Coordenador", order: 3 },
-                        { name: "Designer Sênior", order: 4 },
-                        { name: "Designer Pleno", order: 5 },
-                        { name: "Designer Júnior", order: 6 },
-                        { name: "Analista Sênior", order: 7 },
-                        { name: "Analista Pleno", order: 8 },
+                        { name: "Diretor Comercial", order: 1 }, { name: "Gerente Comercial", order: 2 },
+                        { name: "Especialista/Coordenador", order: 3 }, { name: "Designer Sênior", order: 4 },
+                        { name: "Designer Pleno", order: 5 }, { name: "Designer Júnior", order: 6 },
+                        { name: "Analista Sênior", order: 7 }, { name: "Analista Pleno", order: 8 },
                         { name: "Analista Júnior", order: 9 },
                     ];
-                    
                     const batch = writeBatch(db);
-                    defaultTitles.forEach(title => {
-                        const newDocRef = doc(jobTitlesCol);
-                        batch.set(newDocRef, title);
-                    });
-                    
-                    try {
-                        await batch.commit();
-                        console.log("Default job titles have been seeded.");
-                    } catch (error) {
-                        console.error("Error seeding job titles:", error);
-                    }
+                    defaultTitles.forEach(title => { batch.set(doc(jobTitlesCol), title); });
+                    try { await batch.commit(); } catch (error) { console.error("Error seeding job titles:", error); }
                 }
 
                 collectionsToLoad.forEach(key => {
@@ -185,22 +175,16 @@
                     if(appEl.innerHTML.includes('loader')) render();
                     
                     let ref;
-                    if (key === 'settings') {
-                        ref = settingsDocRef;
-                    } else {
-                        ref = collection(db, key);
-                    }
+                    if (key === 'settings') ref = settingsDocRef;
+                    else ref = collection(db, key);
 
                     const unsub = onSnapshot(ref, async (snapshot) => {
                         delete state.dataErrors[key];
                         if (key === 'settings') {
                             state.settings = snapshot.exists() ? snapshot.data() : {};
                         } else if (key === 'jobTitles') {
-                            if (snapshot.empty && state.userProfile.isAdmin) {
-                                await seedJobTitles();
-                            } else {
-                                state[key] = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-                            }
+                            if (snapshot.empty && state.userProfile.isAdmin) await seedJobTitles();
+                            else state[key] = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
                         } else {
                             state[key] = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
                         }
@@ -243,14 +227,16 @@
 
             function renderAdminDashboard() {
                 const navItems = [
-                    { key: 'dashboard', label: 'Dashboard' }, { key: 'users', label: 'Usuários' },
-                    { key: 'jobTitles', label: 'Cargos' }, { key: 'employees', label: 'Funcionários' }, 
-                    { key: 'contracts', label: 'Contratos' }, { key: 'commissionModels', label: 'Modelos de Comissão' }
+                    { key: 'dashboard', label: 'Dashboard' }, { key: 'analysis', label: 'Análise' },
+                    { key: 'users', label: 'Usuários' }, { key: 'jobTitles', label: 'Cargos' }, 
+                    { key: 'employees', label: 'Funcionários' }, { key: 'contracts', label: 'Contratos' }, 
+                    { key: 'commissionModels', label: 'Modelos de Comissão' }
                 ];
                 const adminNav = navItems.map(item => `<a href="#" class="block px-4 py-2 rounded-md text-sm font-medium ${state.adminView === item.key ? 'bg-[var(--sidebar-active-bg)] text-white' : 'text-[var(--sidebar-text)] hover:bg-[var(--sidebar-active-bg)] hover:text-white'}" data-view="${item.key}">${item.label}</a>`).join('');
                 
                 const mainContentRenderers = {
                     dashboard: renderAdminMainDashboard,
+                    analysis: renderAnalysisDashboard,
                     users: () => renderListPage('Usuários', renderAdminUserTable(), 'user'),
                     employees: () => renderListPage('Funcionários', renderAdminEmployeeTable(), 'employee'),
                     contracts: () => renderListPage('Contratos', renderAdminContractTable(), 'contract'),
@@ -278,7 +264,7 @@
 
                 return `${renderHeader('Painel Administrativo')}
                     <div class="flex">
-                        <aside class="w-64 bg-[var(--sidebar-bg)] p-4 h-[calc(100vh-81px)] sticky top-[81px]">
+                        <aside class="w-64 bg-[var(--sidebar-bg)] p-4 h-[calc(100vh-81px)] sticky top-[81px] overflow-y-auto">
                             <nav class="space-y-1">${adminNav}</nav>
                         </aside>
                         <main class="flex-1 p-6 bg-gray-50">${contentHtml}</main>
@@ -322,27 +308,7 @@
                 }
                 const totalRevenue = state.contracts.reduce((acc, c) => acc + (c.value || 0), 0);
                 const effectiveRate = totalRevenue > 0 ? totalCommissions / totalRevenue : 0;
-                const salesByProperty = state.contracts.reduce((acc, c) => {
-                    const prop = c.commercialProperty || 'Não especificado';
-                    acc[prop] = (acc[prop] || 0) + (c.value || 0);
-                    return acc;
-                }, {});
-                const maxPropValue = Math.max(...Object.values(salesByProperty), 1);
                 
-                const kpiCards = `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
-                        <div class="card !p-4"><div class="text-sm text-gray-500">Receita Total de Contratos</div><div class="text-3xl font-bold">${formatCurrency(totalRevenue)}</div></div>
-                        <div class="card !p-4"><div class="text-sm text-gray-500">Total de Comissões (Modelo Ativo)</div><div class="text-3xl font-bold">${formatCurrency(totalCommissions)}</div></div>
-                        <div class="card !p-4"><div class="text-sm text-gray-500">Taxa Efetiva (Modelo Ativo)</div><div class="text-3xl font-bold">${formatPercent(effectiveRate)}</div></div>
-                    </div>`;
-                
-                const chart = `<div class="card">
-                        <h3 class="text-lg font-semibold mb-4">Vendas por Propriedade Comercial</h3>
-                        <div class="space-y-4">
-                            ${Object.keys(salesByProperty).length > 0 ? Object.entries(salesByProperty).map(([prop, val]) => `
-                                <div><div class="flex justify-between text-sm mb-1"><span class="font-medium">${prop}</span><span>${formatCurrency(val)}</span></div><div class="w-full bg-gray-200 rounded-full h-4"><div class="bg-blue-500 h-4 rounded-full" style="width: ${(val / maxPropValue) * 100}%"></div></div></div>`).join('') : '<p class="text-gray-500">Nenhum contrato cadastrado.</p>'}
-                        </div>
-                    </div>`;
-
                 const settingsCard = `<div class="card">
                     <h3 class="text-lg font-semibold mb-4">Configurações Gerais</h3>
                     <div class="flex items-center gap-4">
@@ -355,8 +321,144 @@
                     </div>
                     ${!activeModelId ? `<p class="text-sm text-orange-600 mt-2">Atenção: Nenhum modelo de comissão está ativo. Os cálculos de bônus não serão realizados.</p>`: ''}
                 </div>`;
+
+                 const kpiCards = `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div class="card !p-4"><div class="text-sm text-gray-500">Receita Total de Contratos</div><div class="text-3xl font-bold">${formatCurrency(totalRevenue)}</div></div>
+                        <div class="card !p-4"><div class="text-sm text-gray-500">Total de Comissões (Modelo Ativo)</div><div class="text-3xl font-bold">${formatCurrency(totalCommissions)}</div></div>
+                        <div class="card !p-4"><div class="text-sm text-gray-500">Taxa Efetiva (Modelo Ativo)</div><div class="text-3xl font-bold">${formatPercent(effectiveRate)}</div></div>
+                    </div>`;
                 
-                return `<div>${settingsCard}${kpiCards}${chart}</div>`;
+                return `<div>${settingsCard}${kpiCards}</div>`;
+            }
+            
+            // --- Analysis Dashboard ---
+            function renderAnalysisDashboard() {
+                // Chart 1: Revenue by Commercial Property
+                const salesByProperty = state.contracts.reduce((acc, c) => {
+                    const prop = c.commercialProperty || 'Não especificado';
+                    acc[prop] = (acc[prop] || 0) + (c.value || 0);
+                    return acc;
+                }, {});
+                const maxPropValue = Math.max(...Object.values(salesByProperty), 1);
+                const propertyChart = `
+                    <div class="card">
+                        <h3 class="text-lg font-semibold mb-4">Receita por Propriedade Comercial</h3>
+                        <div class="space-y-4">
+                            ${Object.keys(salesByProperty).length > 0 ? Object.entries(salesByProperty).map(([prop, val]) => `
+                                <div>
+                                    <div class="flex justify-between text-sm mb-1">
+                                        <span class="font-medium">${prop}</span>
+                                        <span>${formatCurrency(val)}</span>
+                                    </div>
+                                    <div class="w-full bg-gray-200 rounded-full h-4"><div class="bg-blue-500 h-4 rounded-full" style="width: ${(val / maxPropValue) * 100}%"></div></div>
+                                </div>`).join('') : '<p class="text-gray-500">Nenhum contrato cadastrado.</p>'}
+                        </div>
+                    </div>`;
+
+                // Chart 2: Contracts by Value Range
+                const valueRanges = [
+                    { label: 'Até 1M', min: 0, max: 1000000 }, { label: '1M - 5M', min: 1000001, max: 5000000 },
+                    { label: '5M - 10M', min: 5000001, max: 10000000 }, { label: 'Acima de 10M', min: 10000001, max: Infinity }
+                ];
+                const contractsByRange = valueRanges.map(range => ({
+                    ...range,
+                    count: state.contracts.filter(c => c.value >= range.min && c.value <= range.max).length
+                }));
+                const maxContractsInRange = Math.max(...contractsByRange.map(r => r.count), 1);
+                const rangeChart = `
+                    <div class="card">
+                        <h3 class="text-lg font-semibold mb-4">Contratos por Faixa de Valor</h3>
+                        <div class="space-y-4">
+                             ${contractsByRange.map(range => `
+                                <div>
+                                    <div class="flex justify-between text-sm mb-1">
+                                        <span class="font-medium">${range.label}</span>
+                                        <span>${range.count} contrato(s)</span>
+                                    </div>
+                                    <div class="w-full bg-gray-200 rounded-full h-4"><div class="bg-green-500 h-4 rounded-full" style="width: ${(range.count / maxContractsInRange) * 100}%"></div></div>
+                                </div>`).join('')}
+                        </div>
+                    </div>`;
+
+                return `<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">${propertyChart}${rangeChart}</div>
+                        ${renderSensitivityMatrix()}`;
+            }
+            
+            function renderSensitivityMatrix() {
+                const activeModel = state.commissionModels.find(m => m.id === state.settings.activeCommissionModelId);
+                 if (!activeModel) return '<div class="card text-center"><p class="text-orange-500">Selecione um Modelo de Comissão ativo no Dashboard para ver a análise de sensibilidade.</p></div>';
+
+                const currentRevenue = state.contracts.reduce((sum, c) => sum + c.value, 0);
+                if (currentRevenue === 0) return '<div class="card text-center"><p>Adicione contratos para calcular a matriz de sensibilidade.</p></div>';
+                
+                // --- Calculation Logic ---
+                const contractMix = state.contracts.reduce((acc, contract) => {
+                    const valueKey = contract.value.toString();
+                    if (!acc[valueKey]) {
+                        acc[valueKey] = { count: 0, contract: contract };
+                    }
+                    acc[valueKey].count++;
+                    return acc;
+                }, {});
+
+                const projections = [];
+                for (let i = -50; i <= 100; i += 25) {
+                    const projectedRevenue = currentRevenue * (1 + i / 100);
+                    const growthFactor = projectedRevenue / currentRevenue;
+                    
+                    const projectedBonuses = {};
+                    getSortedEmployees().forEach(emp => { projectedBonuses[emp.id] = 0; });
+
+                    Object.values(contractMix).forEach(mix => {
+                        const projectedCount = mix.count * growthFactor;
+                        const tier = activeModel.tiers.find(t => mix.contract.value >= t.rangeInf && (t.rangeSup === null || mix.contract.value <= t.rangeSup));
+                        if (tier) {
+                            mix.contract.participants.forEach(employeeId => {
+                                if (tier.rates[employeeId]) {
+                                    projectedBonuses[employeeId] += mix.contract.value * tier.rates[employeeId] * projectedCount;
+                                }
+                            });
+                        }
+                    });
+
+                    projections.push({ revenue: projectedRevenue, bonuses: projectedBonuses });
+                }
+                
+                // --- Rendering Logic ---
+                const sortedEmployees = getSortedEmployees();
+                const headers = ['Receita Projetada', ...sortedEmployees.map(e => e.name)];
+                const headerHtml = `<thead><tr>${headers.map(h => `<th class="text-center">${h}</th>`).join('')}</tr></thead>`;
+                
+                let maxSalaries = 0;
+                const rowsData = projections.map(p => {
+                    const employeeSalaries = {};
+                    sortedEmployees.forEach(emp => {
+                        const salaryCount = emp.salary > 0 ? p.bonuses[emp.id] / emp.salary : 0;
+                        employeeSalaries[emp.id] = salaryCount;
+                        if(salaryCount > maxSalaries) maxSalaries = salaryCount;
+                    });
+                    return { revenue: p.revenue, salaries: employeeSalaries };
+                });
+
+                const bodyHtml = `<tbody>${rowsData.map(row => {
+                    return `<tr>
+                        <td class="font-semibold text-center">${formatCurrency(row.revenue, true)}</td>
+                        ${sortedEmployees.map(emp => {
+                            const salaryCount = row.salaries[emp.id];
+                            const colorIntensity = maxSalaries > 0 ? (salaryCount / maxSalaries) * 100 : 0;
+                             // From red (low) to green (high)
+                            const red = Math.max(0, 255 * (1 - colorIntensity/50));
+                            const green = Math.max(0, 255 * (colorIntensity/50));
+                            const bgColor = `rgba(${red}, ${green}, 0.5)`;
+                            return `<td class="text-center" style="background-color: ${bgColor}">${salaryCount.toFixed(2)}</td>`;
+                        }).join('')}
+                    </tr>`;
+                }).join('')}</tbody>`;
+
+                return `<div class="card mt-6">
+                    <h3 class="text-lg font-semibold mb-4">Matriz de Sensibilidade: Receita vs. Bônus (em nº de salários)</h3>
+                    <div class="table-container">${'<table class="w-full text-sm table">'}${headerHtml}${bodyHtml}</table></div>
+                </div>`;
             }
 
             // --- ADMIN LIST RENDERERS ---
@@ -739,7 +841,7 @@
             // --- Initial Load ---
             function parseHash() {
                 const h = window.location.hash.replace('#', '');
-                const valid = ['dashboard', 'users', 'employees', 'contracts', 'commissionModels', 'jobTitles'];
+                const valid = ['dashboard', 'analysis', 'users', 'employees', 'contracts', 'commissionModels', 'jobTitles'];
                 state.adminView = valid.includes(h) ? h : 'dashboard';
                 state.adminAction = 'list';
                 state.selectedItemId = null;
