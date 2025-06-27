@@ -73,6 +73,12 @@
         const contractsCol = collection(db, "contracts");
         const commissionModelsCol = collection(db, "commissionModels");
 
+        function parseHash() {
+            const h = window.location.hash.replace('#', '');
+            const valid = ['dashboard','users','employees','contracts','commissionModels'];
+            if (valid.includes(h)) state.adminView = h;
+        }
+
         onAuthStateChanged(auth, async (user) => {
             state.unsubscribe.forEach(unsub => unsub());
             state = { ...state, currentUser: user, userProfile: null, employees: [], contracts: [], commissionModels: [], users:[], unsubscribe: [], currentView: 'loading' };
@@ -102,7 +108,10 @@
                 loaded++;
                 if (loaded >= collectionsToLoad) {
                     if (state.currentView === 'loading') {
-                        if (state.userProfile.isAdmin) state.currentView = 'admin';
+                        if (state.userProfile.isAdmin) {
+                            state.currentView = 'admin';
+                            parseHash();
+                        }
                         else if (state.userProfile.isManager) state.currentView = 'gestor';
                         else state.currentView = 'funcionario';
                     }
@@ -201,15 +210,71 @@
             </div><div class="table-container">${tableHtml}</div></div>`;
         }
         
-        function renderAdminUserTable() { /* ... */ }
-        function renderAdminEmployeeTable() { /* ... */ }
-        function renderAdminContractTable() { /* ... */ }
-        function renderAdminCommissionModelTable() { /* ... */ }
+        function renderAdminUserTable() {
+            return `<table class="w-full text-sm table"><tbody>
+                ${state.users.map(u => `<tr><td><div class="font-semibold">${u.name}</div><div class="text-xs text-gray-500">${u.email}</div></td><td class="text-right space-x-2"><button class="btn-edit-sm" data-type="user" data-id="${u.id}">Editar</button></td></tr>`).join('')}
+            </tbody></table>`;
+        }
+        function renderAdminEmployeeTable() {
+            return `<table class="w-full text-sm table"><tbody>
+                ${state.employees.map(e => `<tr><td><div class="font-semibold">${e.name}</div><div class="text-xs text-gray-500">${e.roleTitle}</div></td><td class="text-right space-x-2"><button class="btn-edit-sm" data-type="employee" data-id="${e.id}">Editar</button><button class="btn-danger-sm" data-type="employee" data-id="${e.id}">×</button></td></tr>`).join('')}
+            </tbody></table>`;
+        }
+        function renderAdminContractTable() {
+            return `<table class="w-full text-sm table"><tbody>
+                ${state.contracts.map(c => `<tr><td><div class="font-semibold">${c.name}</div><div class="text-xs text-gray-500">${formatCurrency(c.value)}</div></td><td class="text-right space-x-2"><button class="btn-edit-sm" data-type="contract" data-id="${c.id}">Editar</button><button class="btn-danger-sm" data-type="contract" data-id="${c.id}">×</button></td></tr>`).join('')}
+            </tbody></table>`;
+        }
+        function renderAdminCommissionModelTable() {
+            return `<table class="w-full text-sm table"><tbody>
+                ${state.commissionModels.map(m => `<tr><td><div class="font-semibold">${m.name}</div></td><td class="text-right space-x-2"><button class="btn-edit-sm" data-type="commissionModel" data-id="${m.id}">Editar</button><button class="btn-danger-sm" data-type="commissionModel" data-id="${m.id}">×</button></td></tr>`).join('')}
+            </tbody></table>`;
+        }
 
-        function renderAdminUserForm(item = {}) { /* ... */ }
-        function renderAdminEmployeeForm(item = {}) { /* ... */ }
-        function renderAdminContractForm(item = {}) { /* ... */ }
-        function renderAdminCommissionModelForm(item = {}) { /* ... */ }
+        function renderAdminUserForm(item = {}) {
+            return `<form class="space-y-2" data-id="${item.id || ''}">
+                <input name="name" placeholder="Nome Completo" class="form-input text-sm" value="${item.name || ''}" required>
+                <input name="email" type="email" placeholder="Email (para login)" class="form-input text-sm" value="${item.email || ''}" required>
+                ${!item.id ? `<input name="password" type="password" placeholder="Senha (mínimo 6 caracteres)" class="form-input text-sm" required>` : ''}
+                <div class="flex gap-4"><label class="text-sm"><input type="checkbox" name="isManager" ${item.isManager ? 'checked' : ''}> Gestor</label>
+                <label class="text-sm"><input type="checkbox" name="isAdmin" ${item.isAdmin ? 'checked' : ''}> Admin</label></div>
+                <button type="submit" class="btn btn-primary text-sm w-full">Salvar</button>
+            </form>`;
+        }
+        function renderAdminEmployeeForm(item = {}) {
+            return `<form class="space-y-2" data-id="${item.id || ''}">
+                <input name="name" placeholder="Nome do Funcionário" class="form-input text-sm" value="${item.name || ''}" required>
+                <input name="roleTitle" placeholder="Cargo" class="form-input text-sm" value="${item.roleTitle || ''}" required>
+                <input name="salary" type="number" placeholder="Salário" class="form-input text-sm" value="${item.salary || ''}" required>
+                <input name="admissionDate" type="date" title="Data de Admissão" class="form-input text-sm" value="${item.admissionDate || ''}" required>
+                <button type="submit" class="btn btn-primary text-sm w-full">Salvar</button>
+            </form>`;
+        }
+        function renderAdminContractForm(item = {}) {
+            return `<form class="space-y-2" data-id="${item.id || ''}">
+                 <input name="name" placeholder="Nome do Contrato" class="form-input text-sm" value="${item.name || ''}" required>
+                 <input name="value" type="number" placeholder="Valor" class="form-input text-sm" value="${item.value || ''}" required>
+                 <input name="closingDate" type="date" title="Data de Fechamento" class="form-input text-sm" value="${item.closingDate || ''}" required>
+                 <div class="text-sm font-medium mt-2">Participantes:</div>
+                 <div class="max-h-24 overflow-y-auto p-2 border rounded">
+                    ${state.employees.map(e => `<label class="flex items-center text-xs gap-2"><input type="checkbox" name="participants" value="${e.id}" ${item.participants?.includes(e.id) ? 'checked' : ''}>${e.name}</label>`).join('')}
+                 </div>
+                 <button type="submit" class="btn btn-primary text-sm w-full">Salvar</button>
+            </form>`;
+        }
+        function renderAdminCommissionModelForm(item = {}) {
+            const tiers = item.tiers && item.tiers.length ? item.tiers : [{}];
+            const tierRows = tiers.map(tier => {
+                const rateInputs = state.employees.map(emp => `<div class="flex flex-col"><label class="text-xs">${emp.name}</label><input type="number" step="0.001" name="rate_${emp.id}" class="form-input text-xs" value="${(tier.rates?.[emp.id] || 0)*100}"></div>`).join('');
+                return `<div class="p-2 border rounded mt-2 tier-row"><div class="flex gap-2 items-center mb-2"><input type="number" placeholder="De" class="form-input text-sm" name="rangeInf" value="${tier.rangeInf ?? ''}"><input type="number" placeholder="Até" class="form-input text-sm" name="rangeSup" value="${tier.rangeSup ?? ''}"><button type="button" class="remove-tier-btn text-red-500 text-xs ml-auto">×</button></div><div class="grid gap-2" style="grid-template-columns:repeat(${state.employees.length},minmax(0,1fr))">${rateInputs}</div></div>`;
+            }).join('');
+            return `<form class="space-y-2" data-id="${item.id || ''}">
+                <input name="name" placeholder="Nome do Modelo" class="form-input text-sm" value="${item.name || ''}" required>
+                <div id="tiersContainer">${tierRows}</div>
+                <button type="button" id="addTierBtn" class="text-xs text-blue-600">+ Adicionar Faixa</button>
+                <button type="submit" class="btn btn-primary text-sm w-full mt-2">Salvar</button>
+            </form>`;
+        }
         
         // --- GESTOR & FUNCIONARIO DASHBOARDS ---
         function renderGestorDashboard() { return renderCalculator('gestor'); }
@@ -256,6 +321,7 @@
             if (e.target.matches('aside a')) {
                 e.preventDefault();
                 state.adminView = e.target.dataset.view;
+                location.hash = state.adminView;
                 render();
             }
         }
@@ -366,6 +432,12 @@
         function handleBonusCalculation(e) { /* Unchanged */ }
 
         render();
+        window.addEventListener('hashchange', () => {
+            if (state.currentView === 'admin') {
+                parseHash();
+                render();
+            }
+        });
 
         // Fallback in case Firebase auth does not initialize
         setTimeout(() => {
