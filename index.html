@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Suíte de Análise de Comissões (Firebase)</title>
+    <title>Suíte de Comissões</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
             --background-color: #f8f9fa;
             --card-background: #ffffff;
-            --text-primary: #1d1d1f;
-            --text-secondary: #555;
+            --text-primary: #212529;
+            --text-secondary: #6c757d;
             --accent-blue: #007bff;
             --border-color: #dee2e6;
         }
@@ -19,51 +19,31 @@
         .card { background: var(--card-background); border-radius: 0.75rem; border: 1px solid var(--border-color); padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
         .nav-link { padding: 0.5rem 1rem; border-radius: 0.5rem; font-weight: 500; cursor: pointer; transition: all 0.2s; color: var(--text-secondary); }
         .nav-link.active { background-color: var(--accent-blue); color: white; }
-        .nav-link:not(.active):hover { background-color: #eef2ff; }
-        .btn { padding: 0.5rem 1rem; border-radius: 0.5rem; font-weight: 500; transition: all 0.2s; border: none; }
+        .nav-link:not(.active):hover { background-color: #e9ecef; }
+        .btn { padding: 0.6rem 1.2rem; border-radius: 0.5rem; font-weight: 500; transition: all 0.2s; border: none; }
         .btn-primary { background-color: var(--accent-blue); color: white; }
         .btn-primary:hover { background-color: #0069d9; }
         .btn-danger { background-color: #dc3545; color: white; padding: 0.25rem 0.5rem; font-size: 0.75rem;}
         .form-input { width: 100%; padding: 0.6rem 0.8rem; border: 1px solid #ced4da; border-radius: 0.375rem; background-color: #fff; transition: border-color .15s ease-in-out,box-shadow .15s ease-in-out; }
         .form-input:focus { border-color: #80bdff; outline: 0; box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25); }
-        .table-container { max-height: 280px; overflow-y: auto; }
+        .table-container { max-height: 250px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 0.5rem;}
         .table thead th { text-align: left; padding: 0.75rem; color: var(--text-secondary); font-weight: 600; background-color: #f8f9fa; position: sticky; top: 0; font-size: 0.8rem; border-bottom: 2px solid var(--border-color); }
         .table tbody td { padding: 0.75rem; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
-        .summary-card { background: linear-gradient(135deg, #343a40, #495057); color: white; }
-        .heatmap-grid { display: grid; gap: 4px; }
-        .heatmap-cell { padding: 0.5rem; border-radius: 4px; font-weight: 600; color: white; text-align: center; font-size: 0.8rem; min-height: 50px; display: flex; align-items: center; justify-content: center; }
-        .heatmap-header { font-weight: 600; padding: 0.5rem; text-align: center; font-size: 0.75rem; }
-        .heatmap-label { font-weight: 500; padding-right: 1rem; text-align: right; display: flex; align-items: center; justify-content: flex-end; font-size: 0.8rem; }
         .loader { border: 3px solid #dee2e6; border-top: 3px solid var(--accent-blue); border-radius: 50%; width: 30px; height: 30px; animation: spin 0.8s linear infinite; }
+        .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index: 50; }
+        .modal-content { background: white; padding: 1.5rem; border-radius: 0.75rem; width: 90%; max-width: 500px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body class="p-4">
-    <div id="app" class="max-w-screen-2xl mx-auto">
-        <header class="bg-white shadow-sm border-b border-gray-200 p-4 sticky top-0 z-40 mb-6">
-             <div class="container mx-auto flex justify-between items-center">
-                <h1 class="text-xl font-semibold text-gray-800">
-                    Suíte de Análise de <span class="text-blue-600">Comissões</span>
-                </h1>
-                 <nav class="flex items-center bg-gray-100 p-1 rounded-lg">
-                    <a id="navCalculator" class="nav-link active text-sm">Calculadora</a>
-                    <a id="navAnalysis" class="nav-link text-sm">Análise de Sensibilidade</a>
-                </nav>
-            </div>
-        </header>
-
-        <main id="app-content" class="container mx-auto">
-             <div id="initial-loading" class="flex flex-col items-center justify-center h-full p-8">
-                <div class="loader mb-3"></div>
-                <p class="text-gray-600">Conectando ao banco de dados...</p>
-            </div>
-        </main>
+    <div id="app" class="min-h-screen">
+        <!-- O conteúdo será renderizado aqui pelo JavaScript -->
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, addDoc, setDoc, deleteDoc, onSnapshot, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAs9tsz3wsSjYlmbu8_7NnEbKxqsFV2ATo",
@@ -73,325 +53,273 @@
             messagingSenderId: "373252435120",
             appId: "1:373252435120:web:817b4e65f46a2a572adf75"
         };
-
-        const state = {
-            employees: [],
-            contracts: [],
-            selectedContractIds: new Set(),
-            commissionTiers: [
-                 { rangeInf: 0, rangeSup: 1000000, rates: { "Marcelo Furtado": 0.0090, "Paula Young": 0.00207, "Carolina Chrispim": 0.00109, "Nathan Lemos": 0.00109, "Milena Franco": 0.00052, "Nathalia Carvalho": 0.00034, "Vitoria Damacena": 0.00032 } }, { rangeInf: 1000000.01, rangeSup: 5000000, rates: { "Marcelo Furtado": 0.0095, "Paula Young": 0.00218, "Carolina Chrispim": 0.00115, "Nathan Lemos": 0.00115, "Milena Franco": 0.00055, "Nathalia Carvalho": 0.00036, "Vitoria Damacena": 0.00034 } }, { rangeInf: 5000000.01, rangeSup: 10000000, rates: { "Marcelo Furtado": 0.0100, "Paula Young": 0.00230, "Carolina Chrispim": 0.00121, "Nathan Lemos": 0.00121, "Milena Franco": 0.00058, "Nathalia Carvalho": 0.00038, "Vitoria Damacena": 0.00036 } }, { rangeInf: 10000000.01, rangeSup: 50000000, rates: { "Marcelo Furtado": 0.0095, "Paula Young": 0.00218, "Carolina Chrispim": 0.00115, "Nathan Lemos": 0.00115, "Milena Franco": 0.00055, "Nathalia Carvalho": 0.00036, "Vitoria Damacena": 0.00034 } }, { rangeInf: 50000000.01, rangeSup: 100000000, rates: { "Marcelo Furtado": 0.0090, "Paula Young": 0.00207, "Carolina Chrispim": 0.00109, "Nathan Lemos": 0.00109, "Milena Franco": 0.00052, "Nathalia Carvalho": 0.00034, "Vitoria Damacena": 0.00032 } },
-            ],
-            sensitivityPoints: [10000000, 20000000, 30000000, 40000000, 50000000, 60000000, 75000000, 90000000]
-        };
         
+        // --- App State & Initialization ---
+        const appEl = document.getElementById('app');
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        signInAnonymously(auth).catch(error => console.error("Anonymous sign-in failed:", error));
 
+        let state = {
+            currentUser: null,
+            userProfile: null,
+            employees: [],
+            contracts: [],
+            commissionTiers: [],
+            currentView: 'loading', // loading, login, admin, gestor, funcionario
+            unsubscribe: [],
+        };
+        
+        // --- Collections References ---
+        const usersCol = collection(db, "users");
         const employeesCol = collection(db, "employees");
         const contractsCol = collection(db, "contracts");
+        const commissionTiersCol = collection(db, "commissionTiers");
 
-        const appContent = document.getElementById('app-content');
-        const initialLoadingDiv = document.getElementById('initial-loading');
+        // --- Auth State Change Handler ---
+        onAuthStateChanged(auth, async (user) => {
+            state.unsubscribe.forEach(unsub => unsub());
+            state = { ...state, currentUser: user, userProfile: null, employees: [], contracts: [], commissionTiers: [], unsubscribe: [] };
 
-        const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-        const formatDate = (dateString) => dateString ? new Date(dateString + 'T00:00:00').toLocaleDateString('pt-BR') : 'N/A';
-        const formatPercent = (value) => isNaN(value) ? '0,00%' : new Intl.NumberFormat('pt-BR', { style: 'percent', minimumFractionDigits: 2 }).format(value);
-        const formatMultiple = (value) => isNaN(value) ? '0,0x' : `${value.toFixed(1).replace('.',',')}x`;
-        
-        function calculateAllBonuses(contractList) {
-            const model = document.getElementById('calculationModel')?.value || 'byTier';
-            const totalRevenue = contractList.reduce((sum, c) => sum + c.value, 0);
-            const employeeBonuses = state.employees.map(e => ({ ...e, bonus: 0 }));
+            if (user) {
+                const userDocRef = doc(db, "users", user.uid);
+                const userDocSnap = await getDoc(userDocRef);
+                if (userDocSnap.exists()) {
+                    state.userProfile = { id: user.uid, ...userDocSnap.data() };
+                    initializeDataListeners();
+                    if (state.userProfile.isAdmin) state.currentView = 'admin';
+                    else if (state.userProfile.isManager) state.currentView = 'gestor';
+                    else state.currentView = 'funcionario';
+                } else {
+                    console.error("User profile not found in Firestore.");
+                    state.currentView = 'login';
+                    await signOut(auth); // Force logout if profile doesn't exist
+                }
+            } else {
+                state.currentView = 'login';
+            }
+            render();
+        });
 
-            employeeBonuses.forEach(employee => {
-                const admissionDate = new Date(employee.admissionDate);
-                let totalBonusForEmployee = 0;
-                
-                contractList.forEach(contract => {
-                    const closingDate = new Date(contract.closingDate);
-                    if (closingDate < admissionDate) return;
-
-                    if (model === 'fullValue') {
-                         const tier = state.commissionTiers.find(t => contract.value >= t.rangeInf && contract.value <= t.rangeSup);
-                         const rate = tier ? tier.rates[employee.name] || 0 : 0;
-                         totalBonusForEmployee += contract.value * rate;
-                    } else { // byTier
-                        let contractTierBonus = 0;
-                        let valueLeft = contract.value;
-                        let lastTierSup = 0;
-                        for (const tier of state.commissionTiers) {
-                            if (valueLeft <= 0) break;
-                            const tierRate = tier.rates[employee.name] || 0;
-                            const tierSize = tier.rangeSup - lastTierSup;
-                            const valueInTier = Math.min(valueLeft, tierSize);
-                            contractTierBonus += valueInTier * tierRate;
-                            valueLeft -= valueInTier;
-                            lastTierSup = tier.rangeSup;
-                        }
-                        totalBonusForEmployee += contractTierBonus;
-                    }
-                });
-                employee.bonus = totalBonusForEmployee;
+        function initializeDataListeners() {
+            const unsubEmployees = onSnapshot(employeesCol, snapshot => {
+                state.employees = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                render();
             });
-            const totalBonus = employeeBonuses.reduce((sum, e) => sum + e.bonus, 0);
-            return { totalRevenue, totalBonus, breakdown: employeeBonuses };
+            const unsubContracts = onSnapshot(contractsCol, snapshot => {
+                state.contracts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                render();
+            });
+            const unsubTiers = onSnapshot(commissionTiersCol, snapshot => {
+                state.commissionTiers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                render();
+            });
+            state.unsubscribe.push(unsubEmployees, unsubContracts, unsubTiers);
         }
 
-        function renderAppContent() {
-            initialLoadingDiv.style.display = 'none';
-            appContent.innerHTML = `
-                <main id="pageCalculator">
-                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        <div class="lg:col-span-1 flex flex-col space-y-6">
-                            ${renderPeopleCard()}
-                            ${renderContractsCard()}
-                        </div>
-                        <div class="lg:col-span-2">
-                            ${renderSimulationCard()}
-                        </div>
-                    </div>
-                </main>
-                <main id="pageAnalysis" class="hidden"></main>
-            `;
-            attachMainEventListeners();
-            renderUI();
+        // --- Main Render Function ---
+        function render() {
+            switch (state.currentView) {
+                case 'loading':
+                    appEl.innerHTML = `<div class="flex items-center justify-center h-screen"><div class="loader"></div></div>`;
+                    break;
+                case 'login':
+                    appEl.innerHTML = renderLogin();
+                    attachLoginListeners();
+                    break;
+                case 'admin':
+                    appEl.innerHTML = renderAdminDashboard();
+                    attachAdminListeners();
+                    break;
+                case 'gestor':
+                    // TODO: Implement Gestor View
+                    appEl.innerHTML = `<div>Gestor Dashboard (Not Implemented) <button id="logoutBtn">Logout</button></div>`;
+                     document.getElementById('logoutBtn').addEventListener('click', () => signOut(auth));
+                    break;
+                 case 'funcionario':
+                    // TODO: Implement Funcionario View
+                    appEl.innerHTML = `<div>Funcionário Dashboard (Not Implemented) <button id="logoutBtn">Logout</button></div>`;
+                     document.getElementById('logoutBtn').addEventListener('click', () => signOut(auth));
+                    break;
+                default:
+                    appEl.innerHTML = renderLogin();
+                    attachLoginListeners();
+            }
         }
 
-        function renderPeopleCard() {
+        // --- View Rendering: Login ---
+        function renderLogin() {
             return `
-                <div class="card">
-                    <h2 class="text-lg font-semibold mb-3">Gerenciar Pessoas</h2>
-                    <div class="space-y-3">
-                        <input type="text" id="empName" placeholder="Nome" class="form-input text-sm">
-                        <input type="text" id="empRole" placeholder="Cargo" class="form-input text-sm">
-                        <input type="number" id="empSalary" placeholder="Salário" class="form-input text-sm">
-                        <input type="date" id="empDate" class="form-input text-sm">
+                <div class="flex items-center justify-center min-h-screen">
+                    <div class="card w-full max-w-sm">
+                        <h1 class="text-xl font-semibold text-center mb-4">Acesso ao Portal</h1>
+                        <form id="loginForm" class="space-y-4">
+                            <input id="email" type="email" placeholder="Email" class="form-input" required>
+                            <input id="password" type="password" placeholder="Senha" class="form-input" required>
+                            <button type="submit" class="btn btn-primary w-full">Entrar</button>
+                        </form>
                     </div>
-                    <button id="addEmployeeBtn" class="btn btn-primary w-full mt-4 text-sm">Adicionar Pessoa</button>
-                    <div class="table-container mt-4 border rounded-md">
-                        <table class="w-full text-sm table"><tbody id="employeesTableBody"></tbody></table>
-                    </div>
-                </div>
-            `;
-        }
-
-        function renderContractsCard() {
-             return `
-                <div class="card">
-                    <h2 class="text-lg font-semibold mb-3">Gerenciar Contratos</h2>
-                    <div class="space-y-3">
-                        <input type="text" id="contractName" placeholder="Nome do Contrato" class="form-input text-sm">
-                        <input type="number" id="contractValue" placeholder="Valor" class="form-input text-sm">
-                        <input type="date" id="contractDate" class="form-input text-sm">
-                    </div>
-                    <button id="addContractBtn" class="btn btn-primary w-full mt-4 text-sm">Adicionar Contrato</button>
-                    <div class="table-container mt-4 border rounded-md">
-                        <table class="w-full text-sm table"><tbody id="contractsTableBody"></tbody></table>
-                    </div>
-                </div>
-            `;
-        }
-
-        function renderSimulationCard() {
-            return `
-                <div class="card">
-                    <h2 class="text-lg font-semibold mb-3">Simulação de Bônus</h2>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                        <div>
-                            <label class="font-medium text-sm">Modelo de Cálculo</label>
-                            <select id="calculationModel" class="form-input text-sm">
-                                <option value="byTier" selected>Por Faixa (Recomendado)</option>
-                                <option value="fullValue">Valor Cheio</option>
-                            </select>
-                        </div>
-                        <div class="md:col-span-2">
-                            <label class="font-medium text-sm">Selecione os Contratos para Simular:</label>
-                            <div id="contractsCheckboxContainer" class="table-container border rounded-md p-2 mt-1 bg-gray-50 max-h-40"></div>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 summary-card p-4 rounded-lg">
-                        <div><p class="text-xs opacity-80 uppercase font-semibold">Receita Total</p><p id="totalRevenue" class="text-2xl font-bold">R$ 0,00</p></div>
-                        <div><p class="text-xs opacity-80 uppercase font-semibold">Bônus Total</p><p id="totalBonus" class="text-2xl font-bold">R$ 0,00</p></div>
-                        <div><p class="text-xs opacity-80 uppercase font-semibold">Comissão Efetiva</p><p id="effectiveCommission" class="text-2xl font-bold">0,00%</p></div>
-                    </div>
-                    <div class="mt-4">
-                        <h3 class="text-md font-semibold mb-2">Detalhamento por Colaborador</h3>
-                        <div class="table-container border rounded-md">
-                            <table class="w-full text-sm table">
-                                <thead><tr><th>Colaborador</th><th class="text-right">Bônus</th><th class="text-right">% Salário</th></tr></thead>
-                                <tbody id="bonusBreakdownTableBody"></tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            `;
+                </div>`;
         }
         
-        function renderUI() {
-            if (document.getElementById('employeesTableBody')) renderEmployees();
-            if (document.getElementById('contractsTableBody')) renderContracts();
-            if (document.getElementById('contractsCheckboxContainer')) renderContractsForSim();
-            updateSimulationResults();
-        }
-
-        function renderEmployees() {
-            const tableBody = document.getElementById('employeesTableBody');
-            tableBody.innerHTML = state.employees.map(emp => `
-                <tr>
-                    <td>
-                        <div class="font-semibold text-xs">${emp.name}</div>
-                        <div class="text-xs text-gray-500">${emp.role} | Adm: ${formatDate(emp.admissionDate)}</div>
-                    </td>
-                    <td class="text-right"><button class="btn-danger" data-id="${emp.id}">×</button></td>
-                </tr>
-            `).join('');
-            tableBody.querySelectorAll('.btn-danger').forEach(btn => btn.addEventListener('click', () => deleteDoc(doc(db, "employees", btn.dataset.id))));
-        }
-
-        function renderContracts() {
-            const tableBody = document.getElementById('contractsTableBody');
-            tableBody.innerHTML = state.contracts.map(c => `
-                 <tr>
-                    <td>
-                        <div class="font-semibold text-xs">${c.name}</div>
-                        <div class="text-xs text-gray-500">${formatCurrency(c.value)} | ${formatDate(c.closingDate)}</div>
-                    </td>
-                    <td class="text-right"><button class="btn-danger" data-id="${c.id}">×</button></td>
-                </tr>
-            `).join('');
-             tableBody.querySelectorAll('.btn-danger').forEach(btn => btn.addEventListener('click', () => deleteDoc(doc(db, "contracts", btn.dataset.id))));
-        }
-        
-        function renderContractsForSim() {
-            document.getElementById('contractsCheckboxContainer').innerHTML = state.contracts.map(c => `
-                <div class="flex items-center justify-between p-1 hover:bg-gray-100 rounded">
-                    <label class="text-xs flex-grow cursor-pointer" for="sim-contract-${c.id}">${c.name} (${formatDate(c.closingDate)})</label>
-                    <input type="checkbox" id="sim-contract-${c.id}" data-id="${c.id}" class="sim-contract-checkbox" ${state.selectedContractIds.has(c.id) ? 'checked' : ''}>
-                </div>
-            `).join('');
-            document.getElementById('contractsCheckboxContainer').addEventListener('change', e => {
-                 if (e.target.matches('.sim-contract-checkbox')) {
-                    const id = e.target.dataset.id;
-                    if (e.target.checked) state.selectedContractIds.add(id);
-                    else state.selectedContractIds.delete(id);
-                    updateSimulationResults();
+        function attachLoginListeners() {
+            document.getElementById('loginForm')?.addEventListener('submit', async e => {
+                e.preventDefault();
+                const email = document.getElementById('email').value;
+                const password = document.getElementById('password').value;
+                try {
+                    await signInWithEmailAndPassword(auth, email, password);
+                } catch (error) {
+                    alert("Falha no login: " + error.message);
                 }
             });
         }
 
-        function updateSimulationResults() {
-             if (!document.getElementById('totalRevenue')) return; // Exit if UI not rendered
-            const simContracts = state.contracts.filter(c => state.selectedContractIds.has(c.id));
-            const { totalRevenue, totalBonus, breakdown } = calculateAllBonuses(simContracts);
-            document.getElementById('totalRevenue').textContent = formatCurrency(totalRevenue);
-            document.getElementById('totalBonus').textContent = formatCurrency(totalBonus);
-            document.getElementById('effectiveCommission').textContent = formatPercent(totalRevenue > 0 ? totalBonus / totalRevenue : 0);
-
-            document.getElementById('bonusBreakdownTableBody').innerHTML = breakdown.map(emp => {
-                const bonusAsSalaryPercent = emp.salary > 0 ? emp.bonus / emp.salary : 0;
-                return `<tr><td>${emp.name}</td><td class="text-right">${formatCurrency(emp.bonus)}</td><td class="text-right ${bonusAsSalaryPercent > 0 ? 'text-green-600' : ''}">${formatPercent(bonusAsSalaryPercent)}</td></tr>`;
-            }).join('');
-        }
-
-        function renderAnalysisPage() {
-            const pageAnalysis = document.getElementById('pageAnalysis');
-            pageAnalysis.innerHTML = `<div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                <div class="card"><h2 class="text-lg font-semibold mb-3">Heatmap: Bônus Total (R$)</h2><div id="totalBonusHeatmapContainer"></div></div>
-                <div class="card"><h2 class="text-lg font-semibold mb-3">Heatmap: Bônus x Salário</h2><div id="salaryMultipleHeatmapContainer"></div></div>
-            </div>`;
-            generateHeatmaps();
+        // --- View Rendering: Admin ---
+        function renderAdminDashboard() {
+             return `
+                <header class="bg-white shadow-sm border-b p-4 sticky top-0 z-40 mb-6">
+                    <div class="container mx-auto flex justify-between items-center">
+                        <h1 class="text-xl font-semibold">Painel Administrativo</h1>
+                        <button id="logoutBtn" class="btn btn-primary text-sm">Sair</button>
+                    </div>
+                </header>
+                <main class="container mx-auto grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    ${renderAdminCard('Usuários', renderAdminUserForm(), renderAdminUserTable())}
+                    ${renderAdminCard('Funcionários', renderAdminEmployeeForm(), renderAdminEmployeeTable())}
+                    ${renderAdminCard('Contratos', renderAdminContractForm(), renderAdminContractTable())}
+                    ${renderAdminCard('Faixas de Comissão', renderAdminTiersForm(), renderAdminTiersTable())}
+                </main>
+            `;
         }
         
-        function generateHeatmaps() {
-            const simContracts = state.contracts.filter(c => state.selectedContractIds.has(c.id));
-            if (simContracts.length === 0) {
-                 document.getElementById('totalBonusHeatmapContainer').innerHTML = `<p class="text-center text-gray-500 p-4">Selecione contratos na calculadora para ver a análise.</p>`;
-                 document.getElementById('salaryMultipleHeatmapContainer').innerHTML = '';
-                 return;
-            }
+        function renderAdminCard(title, formHtml, tableHtml) {
+            return `
+                <div class="card">
+                    <h2 class="text-lg font-semibold mb-4">${title}</h2>
+                    <details class="mb-4">
+                        <summary class="cursor-pointer font-medium text-sm text-blue-600">Adicionar Novo</summary>
+                        <div class="pt-4 border-t mt-2">${formHtml}</div>
+                    </details>
+                    <div class="table-container">${tableHtml}</div>
+                </div>`;
+        }
 
-            const baseRevenue = simContracts.reduce((sum, c) => sum + c.value, 0);
-            let allTotalBonuses = [];
-            let allSalaryMultiples = {};
-            state.employees.forEach(e => allSalaryMultiples[e.name] = []);
-            
-            state.sensitivityPoints.forEach(targetRevenue => {
-                const scalingFactor = baseRevenue > 0 ? targetRevenue / baseRevenue : 0;
-                const scaledContracts = simContracts.map(c => ({ ...c, value: c.value * scalingFactor }));
-                const { totalBonus, breakdown } = calculateAllBonuses(scaledContracts);
-                allTotalBonuses.push(totalBonus);
-                breakdown.forEach(emp => allSalaryMultiples[emp.name].push(emp.salary > 0 ? emp.bonus / emp.salary : 0));
-            });
-            
-            const renderHeatmap = (containerId, data, formatter, valueExtractor) => {
-                const container = document.getElementById(containerId);
-                const allValues = Object.values(data).flat();
-                const min = Math.min(...allValues);
-                const max = Math.max(...allValues);
-                
-                const getColor = (value) => {
-                    const percentage = max === min ? 0.5 : (value - min) / (max - min);
-                    const r = 224 + (79 - 224) * percentage; const g = 231 + (70 - 231) * percentage; const b = 254 + (229 - 254) * percentage;
-                    return `rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)})`;
-                };
+        function renderAdminUserForm() {
+            return `<form id="addUserForm" class="space-y-2">
+                <input id="userName" placeholder="Nome" class="form-input text-sm" required>
+                <input id="userEmail" type="email" placeholder="Email (para login)" class="form-input text-sm" required>
+                <select id="userRole" class="form-input text-sm">
+                    <option value="funcionario">Funcionário</option>
+                    <option value="gestor">Gestor</option>
+                    <option value="admin">Admin</option>
+                </select>
+                <button type="submit" class="btn btn-primary text-sm w-full">Salvar Usuário</button>
+            </form>`;
+        }
+        function renderAdminUserTable() { return `<p class="text-center text-sm text-gray-500">TODO: Listar usuários</p>`; }
+        
+        function renderAdminEmployeeForm() {
+            return `<form id="addEmployeeForm" class="space-y-2">
+                <input id="empName" placeholder="Nome do Funcionário" class="form-input text-sm" required>
+                <input id="empRole" placeholder="Cargo (Ex: Especialista)" class="form-input text-sm" required>
+                <input id="empSalary" type="number" placeholder="Salário" class="form-input text-sm" required>
+                <input id="empDate" type="date" title="Data de Admissão" class="form-input text-sm" required>
+                <button type="submit" class="btn btn-primary text-sm w-full">Salvar Funcionário</button>
+            </form>`;
+        }
+        function renderAdminEmployeeTable() { 
+            return `<table class="w-full text-sm table">
+                <tbody>
+                ${state.employees.map(e => `<tr><td><div class="font-semibold">${e.name}</div><div class="text-xs text-gray-500">${e.roleTitle}</div></td><td class="text-right"><button class="btn-danger" data-id="${e.id}">×</button></td></tr>`).join('')}
+                </tbody>
+            </table>`;
+        }
 
-                let html = `<div class="heatmap-grid" style="grid-template-columns: 1fr repeat(${Object.keys(data).length}, 1fr);">`;
-                html += `<div class="heatmap-header">Receita</div>`;
-                Object.keys(data).forEach(key => html += `<div class="heatmap-header">${key.split(' ')[0]}</div>`);
-                
-                state.sensitivityPoints.forEach((revenue, rowIndex) => {
-                    html += `<div class="heatmap-label">${formatCurrency(revenue/1000000)}M</div>`;
-                    Object.keys(data).forEach(key => {
-                        const value = valueExtractor(data, key, rowIndex);
-                        html += `<div class="heatmap-cell" style="background-color: ${getColor(value)};">${formatter(value)}</div>`;
-                    });
-                });
-                container.innerHTML = html + `</div>`;
-            };
-            
-            renderHeatmap('totalBonusHeatmapContainer', {'Bônus Total': allTotalBonuses}, formatCurrency, (d, k, i) => d[k][i]);
-            renderHeatmap('salaryMultipleHeatmapContainer', allSalaryMultiples, formatMultiple, (d, k, i) => d[k][i]);
+        function renderAdminContractForm() {
+            return `<form id="addContractForm" class="space-y-2">
+                 <input id="contractName" placeholder="Nome do Contrato" class="form-input text-sm" required>
+                 <input id="contractValue" type="number" placeholder="Valor" class="form-input text-sm" required>
+                 <input id="contractDate" type="date" title="Data de Fechamento" class="form-input text-sm" required>
+                 <div class="text-sm font-medium mt-2">Participantes:</div>
+                 <div class="max-h-24 overflow-y-auto p-2 border rounded">
+                    ${state.employees.map(e => `<label class="flex items-center text-xs gap-2"><input type="checkbox" name="participants" value="${e.id}">${e.name}</label>`).join('')}
+                 </div>
+                 <button type="submit" class="btn btn-primary text-sm w-full">Salvar Contrato</button>
+            </form>`;
+        }
+        function renderAdminContractTable() { 
+            return `<table class="w-full text-sm table">
+                <tbody>
+                ${state.contracts.map(c => `<tr><td><div class="font-semibold">${c.name}</div><div class="text-xs text-gray-500">${formatCurrency(c.value)}</div></td><td class="text-right"><button class="btn-danger" data-id="${c.id}">×</button></td></tr>`).join('')}
+                </tbody>
+            </table>`;
         }
         
-        function attachMainEventListeners() {
-             document.getElementById('navCalculator').addEventListener('click', (e) => {
-                e.target.classList.add('active');
-                document.getElementById('navAnalysis').classList.remove('active');
-                document.getElementById('pageCalculator').classList.remove('hidden');
-                document.getElementById('pageAnalysis').classList.add('hidden');
-            });
-            document.getElementById('navAnalysis').addEventListener('click', (e) => {
-                e.target.classList.add('active');
-                document.getElementById('navCalculator').classList.remove('active');
-                document.getElementById('pageCalculator').classList.add('hidden');
-                document.getElementById('pageAnalysis').classList.remove('hidden');
-                renderAnalysisPage();
-            });
-            document.getElementById('addEmployeeBtn').addEventListener('click', () => {
+        function renderAdminTiersForm() {
+            return `<form id="addTierForm" class="space-y-2">
+                 <input id="tierName" placeholder="Nome da Faixa (Ex: Padrão Vendas)" class="form-input text-sm" required>
+                 <p class="text-sm font-medium mt-2">Defina os tiers e taxas:</p>
+                 <div id="tierRowsContainer">
+                    <div class="flex gap-2 items-center">
+                        <input type="number" placeholder="De" class="form-input text-sm tier-range-inf">
+                        <input type="number" placeholder="Até" class="form-input text-sm tier-range-sup">
+                        <input type="number" step="0.01" placeholder="Taxa (%)" class="form-input text-sm tier-rate">
+                    </div>
+                 </div>
+                 <button type="button" id="addTierRowBtn" class="text-xs text-blue-600">+ Adicionar linha</button>
+                 <button type="submit" class="btn btn-primary text-sm w-full">Salvar Faixa</button>
+            </form>`;
+        }
+        function renderAdminTiersTable() { return `<p class="text-center text-sm text-gray-500">TODO: Listar Faixas</p>`; }
+
+
+        function attachAdminListeners() {
+            document.getElementById('logoutBtn')?.addEventListener('click', () => signOut(auth));
+            
+            // Employee Form
+            document.getElementById('addEmployeeForm')?.addEventListener('submit', e => {
+                e.preventDefault();
                 addDoc(employeesCol, {
-                    name: document.getElementById('empName').value, role: document.getElementById('empRole').value,
-                    salary: parseFloat(document.getElementById('empSalary').value), admissionDate: document.getElementById('empDate').value
+                    name: document.getElementById('empName').value,
+                    roleTitle: document.getElementById('empRole').value,
+                    salary: parseFloat(document.getElementById('empSalary').value),
+                    admissionDate: document.getElementById('empDate').value
                 });
+                e.target.reset();
             });
-            document.getElementById('addContractBtn').addEventListener('click', () => {
+            document.querySelectorAll('.btn-danger[data-id]').forEach(btn => {
+                const collectionName = btn.closest('.card').querySelector('h2').textContent.toLowerCase().includes('funcionário') ? 'employees' : 'contracts';
+                btn.addEventListener('click', () => deleteDoc(doc(db, collectionName, btn.dataset.id)))
+            });
+
+            // Contract Form
+            document.getElementById('addContractForm')?.addEventListener('submit', e => {
+                e.preventDefault();
+                const participants = Array.from(e.target.querySelectorAll('input[name="participants"]:checked')).map(el => el.value);
                 addDoc(contractsCol, {
-                    name: document.getElementById('contractName').value, value: parseFloat(document.getElementById('contractValue').value),
-                    closingDate: document.getElementById('contractDate').value
+                    name: document.getElementById('contractName').value,
+                    value: parseFloat(document.getElementById('contractValue').value),
+                    closingDate: document.getElementById('contractDate').value,
+                    participants: participants
                 });
+                e.target.reset();
             });
-            document.getElementById('calculationModel').addEventListener('change', updateSimulationResults);
+
+            // Tier Form
+            document.getElementById('addTierRowBtn')?.addEventListener('click', () => {
+                const container = document.getElementById('tierRowsContainer');
+                const newRow = document.createElement('div');
+                newRow.className = 'flex gap-2 items-center mt-2';
+                newRow.innerHTML = `<input type="number" placeholder="De" class="form-input text-sm tier-range-inf"><input type="number" placeholder="Até" class="form-input text-sm tier-range-sup"><input type="number" step="0.01" placeholder="Taxa (%)" class="form-input text-sm tier-rate">`;
+                container.appendChild(newRow);
+            });
+            // TODO: Implement Tier saving logic
         }
 
-        onSnapshot(employeesCol, snapshot => {
-            state.employees = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            if(document.getElementById('pageCalculator')) renderUI(); else renderAppContent();
-        });
-        onSnapshot(contractsCol, snapshot => {
-            state.contracts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-             if(document.getElementById('pageCalculator')) renderUI(); else renderAppContent();
-        });
+        // --- Initial Load ---
+        render();
+
     </script>
 </body>
 </html>
