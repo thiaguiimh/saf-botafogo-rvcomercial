@@ -50,12 +50,52 @@
         import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, doc, addDoc, setDoc, deleteDoc, onSnapshot, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        /*
+         * ===================================================================================
+         * NOTA IMPORTANTE SOBRE PERMISSÕES DO FIRESTORE
+         * ===================================================================================
+         * O erro "Não foi possível carregar os dados..." é um erro de PERMISSÃO vindo
+         * diretamente do Firebase. Ele significa que o usuário logado não tem permissão para
+         * ler a coleção de dados solicitada (ex: 'commissionModels').
+         *
+         * ISSO NÃO É UM ERRO NO CÓDIGO DO APLICATIVO, mas sim na configuração do seu
+         * banco de dados no Console do Firebase.
+         *
+         * Para corrigir, você precisa ajustar as "Regras de Segurança" (Security Rules)
+         * do seu Firestore para permitir que usuários autenticados leiam as coleções.
+         *
+         * Exemplo de regra que permite a leitura para qualquer usuário logado:
+         *
+         * rules_version = '2';
+         * service cloud.firestore {
+         * match /databases/{database}/documents {
+         * // Permite que usuários logados leiam as coleções principais
+         * match /(employees|contracts|commissionModels)/{docId} {
+         * allow read: if request.auth != null;
+         * }
+         *
+         * // Apenas administradores podem escrever nessas coleções
+         * match /(employees|contracts|commissionModels)/{docId} {
+         * allow write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+         * }
+         *
+         * // Regras para usuários
+         * match /users/{userId} {
+         * allow read: if request.auth.uid == userId || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+         * allow write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+         * }
+         * }
+         * }
+         *
+         * Você deve adaptar estas regras conforme a sua necessidade de segurança.
+         * ===================================================================================
+        */
+
         document.addEventListener('DOMContentLoaded', () => {
             // --- App Setup ---
             const appEl = document.getElementById('app');
             const modalContainer = document.getElementById('modal-container');
 
-            // Fallback Firebase config from user's original code to ensure app runs
             const fallbackFirebaseConfig = {
                 apiKey: "AIzaSyAs9tsz3wsSjYlmbu8_7NnEbKxqsFV2ATo",
                 authDomain: "rvcomercial-fc7c9.firebaseapp.com",
@@ -76,6 +116,7 @@
             let state = {
                 currentUser: null, userProfile: null, employees: [], contracts: [], commissionModels: [], users: [],
                 currentView: 'loading', adminView: 'dashboard', loadingMessage: 'Inicializando...', unsubscribe: [],
+                dataErrors: {}, // Armazena erros de carregamento de dados
             };
 
             // --- Collections ---
@@ -128,13 +169,12 @@
                     }
                 } catch (error) {
                     console.error("Custom token authentication failed:", error);
-                    // If custom token fails, we fall through to onAuthStateChanged which will show the login screen.
                 }
             }
             
             onAuthStateChanged(auth, async (user) => {
                 state.unsubscribe.forEach(unsub => unsub());
-                state = { ...state, currentUser: user, userProfile: null, employees: [], contracts: [], commissionModels: [], users:[], unsubscribe: [] };
+                state = { ...state, currentUser: user, userProfile: null, employees: [], contracts: [], commissionModels: [], users:[], unsubscribe: [], dataErrors: {} };
 
                 if (user && !user.isAnonymous) {
                     state.loadingMessage = 'Carregando perfil do usuário...';
@@ -177,13 +217,16 @@
 
                 collectionsToLoad.forEach(key => {
                     state.loadingMessage = `Carregando ${key}...`;
-                    render();
+                    if(appEl.innerHTML.includes('loader')) render();
+
                     const unsub = onSnapshot(collection(db, key), snapshot => {
+                        delete state.dataErrors[key];
                         state[key] = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
                         onDataLoaded();
                     }, error => {
                         console.error(`Error listening to ${key}:`, error);
-                        showMessage("Erro de Dados", `Não foi possível carregar os dados de "${key}". Verifique as permissões do Firestore.`);
+                        state.dataErrors[key] = error; // Armazena o erro
+                        onDataLoaded(); // Continua o carregamento para não travar a app
                     });
                     state.unsubscribe.push(unsub);
                 });
@@ -256,6 +299,13 @@
             }
             
             function renderAdminMainDashboard() {
+                let errorNotice = '';
+                if (Object.keys(state.dataErrors).length > 0) {
+                     errorNotice = `<div class="card !bg-red-50 !border-red-200 text-red-800 mb-6">
+                        <p><strong>Aviso:</strong> Alguns dados não puderam ser carregados (${Object.keys(state.dataErrors).join(', ')}). Os cálculos e dados do dashboard podem estar incorretos ou incompletos.</p>
+                     </div>`;
+                }
+
                 const totalRevenue = state.contracts.reduce((acc, c) => acc + (c.value || 0), 0);
                 const salesByProperty = state.contracts.reduce((acc, c) => {
                     const prop = c.commercialProperty || 'Não especificado';
@@ -268,7 +318,7 @@
                 const model = state.commissionModels[0];
                 if (model && model.tiers) {
                     state.contracts.forEach(contract => {
-                        const tier = model.tiers.find(t => contract.value >= t.rangeInf && contract.value <= t.rangeSup);
+                        const tier = model.tiers.find(t => contract.value >= t.rangeInf && (t.rangeSup === null || contract.value <= t.rangeSup));
                         if (tier && contract.participants) {
                             contract.participants.forEach(employeeId => {
                                 if(tier.rates && tier.rates[employeeId]) {
@@ -289,18 +339,18 @@
                 const chart = `<div class="card">
                         <h3 class="text-lg font-semibold mb-4">Vendas por Propriedade Comercial</h3>
                         <div class="space-y-4">
-                            ${Object.entries(salesByProperty).map(([prop, val]) => `
+                            ${Object.keys(salesByProperty).length > 0 ? Object.entries(salesByProperty).map(([prop, val]) => `
                                 <div>
                                     <div class="flex justify-between text-sm mb-1">
                                         <span class="font-medium">${prop}</span>
                                         <span>${formatCurrency(val)}</span>
                                     </div>
                                     <div class="w-full bg-gray-200 rounded-full h-4"><div class="bg-blue-500 h-4 rounded-full" style="width: ${(val / maxPropValue) * 100}%"></div></div>
-                                </div>`).join('') || '<p class="text-gray-500">Nenhum contrato cadastrado para exibir dados.</p>'}
+                                </div>`).join('') : '<p class="text-gray-500">Nenhum contrato cadastrado para exibir dados.</p>'}
                         </div>
                     </div>`;
                 
-                return `<div>${kpiCards}${chart}</div>`;
+                return `<div>${errorNotice}${kpiCards}${chart}</div>`;
             }
 
             function renderAdminCard(title, tableHtml, type) {
@@ -309,11 +359,19 @@
                     <button class="btn-add-item text-sm btn btn-primary" data-type="${type}">Adicionar ${type.replace('Model', '')}</button>
                 </div><div class="table-container">${tableHtml}</div></div>`;
             }
+            
+            function renderErrorCard(collectionName, error) {
+                 return `<div class="p-4 text-red-700 bg-red-100 border border-red-400 rounded">
+                    <strong>Erro ao carregar ${collectionName}.</strong>
+                    <p class="text-sm mt-1">Verifique as permissões de leitura da coleção "${collectionName.toLowerCase()}" no seu console do Firebase e atualize a página.</p>
+                    <p class="text-xs mt-2 font-mono bg-red-50 p-1 rounded">Detalhes: ${error.message}</p>
+                 </div>`;
+            }
 
-            function renderAdminUserTable() { return `<table class="w-full text-sm table"><tbody>${state.users.map(u => `<tr><td><div class="font-semibold">${u.name}</div><div class="text-xs text-gray-500">${u.email} | ${u.isAdmin ? 'Admin' : ''} ${u.isManager ? 'Gestor' : ''}</div></td><td class="text-right space-x-2"><button class="btn-edit-sm" data-type="user" data-id="${u.id}">Editar</button></td></tr>`).join('')}</tbody></table>`; }
-            function renderAdminEmployeeTable() { return `<table class="w-full text-sm table"><tbody>${state.employees.map(e => `<tr><td><div class="font-semibold">${e.name}</div><div class="text-xs text-gray-500">${e.roleTitle}</div></td><td class="text-right space-x-2"><button class="btn-edit-sm" data-type="employee" data-id="${e.id}">Editar</button><button class="btn-danger-sm" data-type="employee" data-id="${e.id}">×</button></td></tr>`).join('')}</tbody></table>`; }
-            function renderAdminContractTable() { return `<table class="w-full text-sm table"><thead><th>Empresa / Propriedade</th><th>Valor</th><th>Data</th><th>Ações</th></thead><tbody>${state.contracts.map(c => `<tr><td><div class="font-semibold">${c.companyName}</div><div class="text-xs text-gray-500">${c.commercialProperty}</div></td><td>${formatCurrency(c.value)}</td><td>${formatDate(c.closingDate)}</td><td class="text-right space-x-2"><button class="btn-edit-sm" data-type="contract" data-id="${c.id}">Editar</button><button class="btn-danger-sm" data-type="contract" data-id="${c.id}">×</button></td></tr>`).join('')}</tbody></table>`; }
-            function renderAdminCommissionModelTable() { return `<table class="w-full text-sm table"><tbody>${state.commissionModels.map(m => `<tr><td><div class="font-semibold">${m.name}</div></td><td class="text-right space-x-2"><button class="btn-edit-sm" data-type="commissionModel" data-id="${m.id}">Editar</button><button class="btn-danger-sm" data-type="commissionModel" data-id="${m.id}">×</button></td></tr>`).join('')}</tbody></table>`; }
+            function renderAdminUserTable() { if(state.dataErrors.users) return renderErrorCard('Usuários', state.dataErrors.users); return `<table class="w-full text-sm table"><tbody>${state.users.map(u => `<tr><td><div class="font-semibold">${u.name}</div><div class="text-xs text-gray-500">${u.email} | ${u.isAdmin ? 'Admin' : ''} ${u.isManager ? 'Gestor' : ''}</div></td><td class="text-right space-x-2"><button class="btn-edit-sm" data-type="user" data-id="${u.id}">Editar</button></td></tr>`).join('')}</tbody></table>`; }
+            function renderAdminEmployeeTable() { if(state.dataErrors.employees) return renderErrorCard('Funcionários', state.dataErrors.employees); return `<table class="w-full text-sm table"><tbody>${state.employees.map(e => `<tr><td><div class="font-semibold">${e.name}</div><div class="text-xs text-gray-500">${e.roleTitle}</div></td><td class="text-right space-x-2"><button class="btn-edit-sm" data-type="employee" data-id="${e.id}">Editar</button><button class="btn-danger-sm" data-type="employee" data-id="${e.id}">×</button></td></tr>`).join('')}</tbody></table>`; }
+            function renderAdminContractTable() { if(state.dataErrors.contracts) return renderErrorCard('Contratos', state.dataErrors.contracts); return `<table class="w-full text-sm table"><thead><th>Empresa / Propriedade</th><th>Valor</th><th>Data</th><th>Ações</th></thead><tbody>${state.contracts.map(c => `<tr><td><div class="font-semibold">${c.companyName}</div><div class="text-xs text-gray-500">${c.commercialProperty}</div></td><td>${formatCurrency(c.value)}</td><td>${formatDate(c.closingDate)}</td><td class="text-right space-x-2"><button class="btn-edit-sm" data-type="contract" data-id="${c.id}">Editar</button><button class="btn-danger-sm" data-type="contract" data-id="${c.id}">×</button></td></tr>`).join('')}</tbody></table>`; }
+            function renderAdminCommissionModelTable() { if(state.dataErrors.commissionModels) return renderErrorCard('Modelos de Comissão', state.dataErrors.commissionModels); return `<table class="w-full text-sm table"><tbody>${state.commissionModels.map(m => `<tr><td><div class="font-semibold">${m.name}</div></td><td class="text-right space-x-2"><button class="btn-edit-sm" data-type="commissionModel" data-id="${m.id}">Editar</button><button class="btn-danger-sm" data-type="commissionModel" data-id="${m.id}">×</button></td></tr>`).join('')}</tbody></table>`; }
             
             // --- Forms ---
             function renderAdminUserForm(item = {}) { return `<form class="space-y-4" data-id="${item.id || ''}"><input name="name" placeholder="Nome Completo" class="form-input text-sm" value="${item.name || ''}" required><input name="email" type="email" placeholder="Email (para login)" class="form-input text-sm" value="${item.email || ''}" required ${item.id ? 'disabled' : ''}>${!item.id ? `<input name="password" type="password" placeholder="Senha (mínimo 6 caracteres)" class="form-input text-sm" required>` : ''}<div class="flex gap-4"><label class="text-sm flex items-center gap-2"><input type="checkbox" name="isManager" ${item.isManager ? 'checked' : ''}> Gestor</label><label class="text-sm flex items-center gap-2"><input type="checkbox" name="isAdmin" ${item.isAdmin ? 'checked' : ''}> Admin</label></div><button type="submit" class="btn btn-primary text-sm w-full !py-2">Salvar</button></form>`;}
@@ -358,6 +416,11 @@
             // --- Employee View ---
             function renderEmployeeDashboard() {
                 let content = '';
+                 if (state.dataErrors.commissionModels || state.dataErrors.contracts || state.dataErrors.employees) {
+                    content = `<div class="card text-center"><p class="text-red-600 font-semibold">Não foi possível carregar os dados necessários para o cálculo de comissões.</p><p class="text-sm mt-2">Por favor, contate um administrador para verificar as permissões do banco de dados.</p></div>`;
+                    return `${renderHeader('Dashboard de Comissões')}<main class="p-6">${content}</main>`;
+                }
+
                 const employeeProfile = state.employees.find(emp => emp.name === state.userProfile.name);
                 
                 if (!employeeProfile) {
@@ -442,6 +505,10 @@
             }
             
             function handleAdminAddClick(type) {
+                if (state.dataErrors[type + 's'] || (type === 'commissionModel' && state.dataErrors.employees)) {
+                    showMessage('Erro de Dados', 'Não é possível adicionar um item pois os dados base não puderam ser carregados. Verifique as permissões e atualize a página.');
+                    return;
+                }
                 const formRenderers = { user: renderAdminUserForm, employee: renderAdminEmployeeForm, contract: renderAdminContractForm, commissionModel: renderAdminCommissionModelForm };
                 const titleMap = { user: 'Adicionar Usuário', employee: 'Adicionar Funcionário', contract: 'Adicionar Contrato', commissionModel: 'Adicionar Modelo de Comissão' };
                 showModal(titleMap[type], formRenderers[type]());
@@ -449,6 +516,10 @@
             }
 
             function handleAdminEditClick(type, id) {
+                if (state.dataErrors[type + 's']) {
+                     showMessage('Erro de Dados', 'Não é possível editar um item pois os dados base não puderam ser carregados. Verifique as permissões e atualize a página.');
+                    return;
+                }
                 const item = state[`${type}s`].find(i => i.id === id);
                 const formRenderers = { user: renderAdminUserForm, employee: renderAdminEmployeeForm, contract: renderAdminContractForm, commissionModel: renderAdminCommissionModelForm };
                 const titleMap = { user: 'Editar Usuário', employee: 'Editar Funcionário', contract: 'Editar Contrato', commissionModel: 'Editar Modelo de Comissão' };
@@ -500,15 +571,8 @@
                         } else {
                             const password = formData.get('password');
                             if (!password || password.length < 6) throw new Error("Senha deve ter no mínimo 6 caracteres.");
-                            // SECURITY: Creating users on the client-side requires a separate Firebase App instance
-                            // and is generally not recommended for production. A Cloud Function is the preferred method.
                             const creationAppName = 'userCreationApp';
-                            let creationApp;
-                            if (!getApps().some(app => app.name === creationAppName)) {
-                                creationApp = initializeApp(firebaseConfig, creationAppName);
-                            } else {
-                                creationApp = getApp(creationAppName);
-                            }
+                            const creationApp = getApps().find(app => app.name === creationAppName) || initializeApp(firebaseConfig, creationAppName);
                             const tempAuth = getAuth(creationApp);
                             const userCredential = await createUserWithEmailAndPassword(tempAuth, data.email, password);
                             await setDoc(doc(usersCol, userCredential.user.uid), data);
@@ -521,7 +585,7 @@
                             const rangeSupValue = parseFloat(row.querySelector('[name="rangeSup"]').value);
                             const tierData = {
                                 rangeInf: parseFloat(row.querySelector('[name="rangeInf"]').value) || 0,
-                                rangeSup: isNaN(rangeSupValue) ? null : rangeSupValue, // Handle empty "Até" as infinity
+                                rangeSup: isNaN(rangeSupValue) || rangeSupValue === 0 ? null : rangeSupValue,
                                 rates: {}
                             };
                             state.employees.forEach(emp => {
