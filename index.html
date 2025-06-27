@@ -364,8 +364,16 @@
         }
         
         function handleBonusCalculation(e) { /* Unchanged */ }
-        
+
         render();
+
+        // Fallback in case Firebase auth does not initialize
+        setTimeout(() => {
+            if (state.currentView === 'loading') {
+                state.currentView = 'login';
+                render();
+            }
+        }, 5000);
 
     </script>
 </body>
