@@ -29,72 +29,32 @@
         .btn-danger-sm { background-color: #dc3545; color: white; padding: 0.25rem 0.5rem; font-size: 0.75rem; border-radius: 0.25rem;}
         .btn-edit-sm { background-color: #6c757d; color: white; padding: 0.25rem 0.5rem; font-size: 0.75rem; border-radius: 0.25rem;}
         .form-input { width: 100%; padding: 0.6rem 0.8rem; border: 1px solid #ced4da; border-radius: 0.375rem; background-color: #fff; }
-        .table-container { max-height: 400px; overflow-x: auto; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 0.5rem;}
-        .table thead th { text-align: left; padding: 0.75rem; font-weight: 600; background-color: #f8f9fa; position: sticky; top: 0; font-size: 0.8rem; border-bottom: 2px solid var(--border-color); white-space: nowrap; }
-        .table tbody td { padding: 0.75rem; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+        .table-container { max-height: 500px; overflow: auto; border: 1px solid var(--border-color); border-radius: 0.5rem;}
+        .table thead th { text-align: left; padding: 0.75rem 1rem; font-weight: 600; background-color: #f1f5f9; position: sticky; top: 0; font-size: 0.8rem; border-bottom: 2px solid var(--border-color); white-space: nowrap; }
+        .table tbody td { padding: 0.75rem 1rem; border-bottom: 1px solid #e2e8f0; vertical-align: middle; }
+        .table tbody tr:last-child td { border-bottom: none; }
+        .table-editable tbody td { padding: 0.25rem; }
+        .table-editable input { width: 100%; padding: 0.5rem; border: 1px solid transparent; border-radius: 0.25rem; }
+        .table-editable input:hover { border-color: #cbd5e1; }
+        .table-editable input:focus { border-color: var(--accent-blue); outline: none; box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25); }
+
         .loader { border: 4px solid #f3f3f3; border-top: 4px solid var(--accent-blue); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
         .loader-sm { width: 16px; height: 16px; border-width: 2px; }
-        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; z-index: 50; padding: 1rem;}
-        .modal-content { background: white; padding: 1.5rem; border-radius: 0.75rem; width: 100%; max-width: 500px; max-height: 90vh; display: flex; flex-direction: column; }
-        .modal-body { overflow-y: auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
     <div id="app" class="min-h-screen"></div>
-    <div id="modal-container"></div>
 
     <script type="module">
         // Firebase Imports
         import { initializeApp, getApp, getApps } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, doc, addDoc, setDoc, deleteDoc, onSnapshot, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        /*
-         * ===================================================================================
-         * NOTA IMPORTANTE SOBRE PERMISSÕES DO FIRESTORE
-         * ===================================================================================
-         * O erro "Não foi possível carregar os dados..." é um erro de PERMISSÃO vindo
-         * diretamente do Firebase. Ele significa que o usuário logado não tem permissão para
-         * ler a coleção de dados solicitada (ex: 'commissionModels').
-         *
-         * ISSO NÃO É UM ERRO NO CÓDIGO DO APLICATIVO, mas sim na configuração do seu
-         * banco de dados no Console do Firebase.
-         *
-         * Para corrigir, você precisa ajustar as "Regras de Segurança" (Security Rules)
-         * do seu Firestore para permitir que usuários autenticados leiam as coleções.
-         *
-         * Exemplo de regra que permite a leitura para qualquer usuário logado:
-         *
-         * rules_version = '2';
-         * service cloud.firestore {
-         * match /databases/{database}/documents {
-         * // Permite que usuários logados leiam as coleções principais
-         * match /(employees|contracts|commissionModels)/{docId} {
-         * allow read: if request.auth != null;
-         * }
-         *
-         * // Apenas administradores podem escrever nessas coleções
-         * match /(employees|contracts|commissionModels)/{docId} {
-         * allow write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
-         * }
-         *
-         * // Regras para usuários
-         * match /users/{userId} {
-         * allow read: if request.auth.uid == userId || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
-         * allow write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
-         * }
-         * }
-         * }
-         *
-         * Você deve adaptar estas regras conforme a sua necessidade de segurança.
-         * ===================================================================================
-        */
-
+        import { getFirestore, collection, doc, addDoc, setDoc, deleteDoc, onSnapshot, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
         document.addEventListener('DOMContentLoaded', () => {
             // --- App Setup ---
             const appEl = document.getElementById('app');
-            const modalContainer = document.getElementById('modal-container');
 
             const fallbackFirebaseConfig = {
                 apiKey: "AIzaSyAs9tsz3wsSjYlmbu8_7NnEbKxqsFV2ATo",
@@ -114,9 +74,13 @@
             const db = getFirestore(app);
 
             let state = {
-                currentUser: null, userProfile: null, employees: [], contracts: [], commissionModels: [], users: [],
-                currentView: 'loading', adminView: 'dashboard', loadingMessage: 'Inicializando...', unsubscribe: [],
-                dataErrors: {}, // Armazena erros de carregamento de dados
+                currentUser: null, userProfile: null, employees: [], contracts: [], commissionModels: [], users: [], settings: {},
+                currentView: 'loading', 
+                adminView: 'dashboard', 
+                adminAction: 'list', // 'list', 'form'
+                selectedItemId: null,
+                loadingMessage: 'Inicializando...', unsubscribe: [],
+                dataErrors: {},
             };
 
             // --- Collections ---
@@ -124,57 +88,17 @@
             const employeesCol = collection(db, "employees");
             const contractsCol = collection(db, "contracts");
             const commissionModelsCol = collection(db, "commissionModels");
+            const settingsDocRef = doc(db, "settings", "global");
 
             // --- Helper Functions ---
             const formatCurrency = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
             const formatDate = (d) => d && d.seconds ? new Date(d.seconds * 1000).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : 'N/A';
             const formatPercent = (v) => new Intl.NumberFormat('pt-BR', { style: 'percent', minimumFractionDigits: 3, maximumFractionDigits: 3 }).format(v || 0);
 
-            // --- Modal System ---
-            function showModal(title, content, actions = '') {
-                modalContainer.innerHTML = `<div class="modal-overlay">
-                    <div class="modal-content" style="max-width: 900px;">
-                        <div class="flex justify-between items-center mb-4 pb-2 border-b">
-                            <h3 class="text-xl font-semibold">${title}</h3>
-                            <button id="closeModalBtn" class="font-bold text-2xl hover:text-red-500 transition-colors">×</button>
-                        </div>
-                        <div id="modalBody" class="modal-body">${content}</div>
-                        <div id="modalActions" class="mt-4 pt-2 border-t flex justify-end gap-2">${actions}</div>
-                    </div>
-                </div>`;
-                document.getElementById('closeModalBtn').addEventListener('click', closeModal);
-                modalContainer.querySelector('.modal-overlay').addEventListener('click', e => e.target === e.currentTarget && closeModal());
-            }
-            function closeModal() { modalContainer.innerHTML = ''; }
-            function showMessage(title, message) {
-                const actions = `<button id="okBtn" class="btn btn-primary">OK</button>`;
-                showModal(title, `<p>${message}</p>`, actions);
-                document.getElementById('okBtn').addEventListener('click', closeModal);
-            }
-            function showConfirmation(title, message, onConfirm) {
-                const actions = `<button id="cancelBtn" class="btn">Cancelar</button><button id="confirmBtn" class="btn btn-danger">Confirmar</button>`;
-                showModal(title, `<p>${message}</p>`, actions);
-                document.getElementById('cancelBtn').addEventListener('click', closeModal);
-                document.getElementById('confirmBtn').addEventListener('click', () => {
-                    onConfirm();
-                    closeModal();
-                });
-            }
-
             // --- Authentication & Data Loading ---
-            async function performSignIn() {
-                try {
-                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                        await signInWithCustomToken(auth, __initial_auth_token);
-                    }
-                } catch (error) {
-                    console.error("Custom token authentication failed:", error);
-                }
-            }
-            
             onAuthStateChanged(auth, async (user) => {
                 state.unsubscribe.forEach(unsub => unsub());
-                state = { ...state, currentUser: user, userProfile: null, employees: [], contracts: [], commissionModels: [], users:[], unsubscribe: [], dataErrors: {} };
+                 state = { ...state, currentUser: user, userProfile: null, employees: [], contracts: [], commissionModels: [], users:[], settings: {}, unsubscribe: [], dataErrors: {} };
 
                 if (user && !user.isAnonymous) {
                     state.loadingMessage = 'Carregando perfil do usuário...';
@@ -185,11 +109,9 @@
                         if (userDocSnap.exists()) {
                             state.userProfile = { id: user.uid, ...userDocSnap.data() };
                             initializeDataListeners();
-                        } else {
-                            throw new Error("Perfil de usuário não encontrado. Contate o administrador.");
-                        }
+                        } else { throw new Error("Perfil de usuário não encontrado. Contate o administrador."); }
                     } catch (error) {
-                        showMessage("Erro de Autenticação", error.message);
+                        alert(error.message);
                         await signOut(auth);
                     }
                 } else {
@@ -200,7 +122,7 @@
 
             function initializeDataListeners() {
                 let loadedCount = 0;
-                const collectionsToLoad = state.userProfile?.isAdmin ? ['users', 'employees', 'contracts', 'commissionModels'] : ['employees', 'contracts', 'commissionModels'];
+                const collectionsToLoad = state.userProfile?.isAdmin ? ['users', 'employees', 'contracts', 'commissionModels', 'settings'] : ['employees', 'contracts', 'commissionModels', 'settings'];
 
                 const onDataLoaded = () => {
                     loadedCount++;
@@ -218,15 +140,26 @@
                 collectionsToLoad.forEach(key => {
                     state.loadingMessage = `Carregando ${key}...`;
                     if(appEl.innerHTML.includes('loader')) render();
+                    
+                    let ref;
+                    if (key === 'settings') {
+                        ref = settingsDocRef;
+                    } else {
+                        ref = collection(db, key);
+                    }
 
-                    const unsub = onSnapshot(collection(db, key), snapshot => {
+                    const unsub = onSnapshot(ref, snapshot => {
                         delete state.dataErrors[key];
-                        state[key] = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                        if (key === 'settings') {
+                            state.settings = snapshot.exists() ? snapshot.data() : {};
+                        } else {
+                            state[key] = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                        }
                         onDataLoaded();
                     }, error => {
                         console.error(`Error listening to ${key}:`, error);
-                        state.dataErrors[key] = error; // Armazena o erro
-                        onDataLoaded(); // Continua o carregamento para não travar a app
+                        state.dataErrors[key] = error;
+                        onDataLoaded();
                     });
                     state.unsubscribe.push(unsub);
                 });
@@ -257,19 +190,7 @@
                 </header>`;
             }
             
-            function renderLogin() {
-                return `<div class="flex items-center justify-center min-h-screen bg-gray-100">
-                    <div class="card w-full max-w-md shadow-lg">
-                        <h1 class="text-2xl font-bold text-center mb-2">Suíte de Comissões</h1>
-                        <p class="text-center text-gray-500 mb-6">Acesse com suas credenciais.</p>
-                        <form id="loginForm" class="space-y-4">
-                            <input id="email" type="email" placeholder="Email" class="form-input" required>
-                            <input id="password" type="password" placeholder="Senha" class="form-input" required>
-                            <button type="submit" class="btn btn-primary w-full !py-3 !text-base">Entrar</button>
-                        </form>
-                    </div>
-                </div>`;
-            }
+            function renderLogin() { /* Unchanged */ return `<div class="flex items-center justify-center min-h-screen bg-gray-100"><div class="card w-full max-w-md shadow-lg"><h1 class="text-2xl font-bold text-center mb-2">Suíte de Comissões</h1><p class="text-center text-gray-500 mb-6">Acesse com suas credenciais.</p><form id="loginForm" class="space-y-4"><input id="email" type="email" placeholder="Email" class="form-input" required><input id="password" type="password" placeholder="Senha" class="form-input" required><button type="submit" class="btn btn-primary w-full !py-3 !text-base">Entrar</button></form></div></div>`; }
 
             function renderAdminDashboard() {
                 const navItems = [
@@ -279,46 +200,64 @@
                 ];
                 const adminNav = navItems.map(item => `<a href="#" class="block px-4 py-2 rounded-md text-sm font-medium ${state.adminView === item.key ? 'bg-[var(--sidebar-active-bg)] text-white' : 'text-[var(--sidebar-text)] hover:bg-[var(--sidebar-active-bg)] hover:text-white'}" data-view="${item.key}">${item.label}</a>`).join('');
                 
-                const viewRenderers = {
+                const mainContentRenderers = {
                     dashboard: renderAdminMainDashboard,
-                    users: () => renderAdminCard('Usuários', renderAdminUserTable(), 'user'),
-                    employees: () => renderAdminCard('Funcionários', renderAdminEmployeeTable(), 'employee'),
-                    contracts: () => renderAdminCard('Contratos', renderAdminContractTable(), 'contract'),
-                    commissionModels: () => renderAdminCard('Modelos de Comissão', renderAdminCommissionModelTable(), 'commissionModel'),
+                    users: () => renderListPage('Usuários', renderAdminUserTable(), 'user'),
+                    employees: () => renderListPage('Funcionários', renderAdminEmployeeTable(), 'employee'),
+                    contracts: () => renderListPage('Contratos', renderAdminContractTable(), 'contract'),
+                    commissionModels: () => renderListPage('Modelos de Comissão', renderAdminCommissionModelList(), 'commissionModel'),
                 };
+                
+                const formContentRenderers = {
+                    user: (item) => renderFormPage('Usuário', renderAdminUserForm(item), 'user'),
+                    employee: (item) => renderFormPage('Funcionário', renderAdminEmployeeForm(item), 'employee'),
+                    contract: (item) => renderFormPage('Contrato', renderAdminContractForm(item), 'contract'),
+                    commissionModel: (item) => renderFormPage('Modelo de Comissão', renderAdminCommissionModelForm(item), 'commissionModel'),
+                };
+
+                let contentHtml;
+                if (state.adminAction === 'form') {
+                    const item = state.selectedItemId ? state[`${state.adminView}`].find(i => i.id === state.selectedItemId) : {};
+                    contentHtml = formContentRenderers[state.adminView.slice(0, -1)](item);
+                } else {
+                    contentHtml = (mainContentRenderers[state.adminView] || mainContentRenderers.dashboard)();
+                }
 
                 return `${renderHeader('Painel Administrativo')}
                     <div class="flex">
                         <aside class="w-64 bg-[var(--sidebar-bg)] p-4 h-[calc(100vh-81px)] sticky top-[81px]">
                             <nav class="space-y-1">${adminNav}</nav>
                         </aside>
-                        <main class="flex-1 p-6 bg-gray-50">
-                            ${(viewRenderers[state.adminView] || viewRenderers.dashboard)()}
-                        </main>
+                        <main class="flex-1 p-6 bg-gray-50">${contentHtml}</main>
                     </div>`;
             }
-            
-            function renderAdminMainDashboard() {
-                let errorNotice = '';
-                if (Object.keys(state.dataErrors).length > 0) {
-                     errorNotice = `<div class="card !bg-red-50 !border-red-200 text-red-800 mb-6">
-                        <p><strong>Aviso:</strong> Alguns dados não puderam ser carregados (${Object.keys(state.dataErrors).join(', ')}). Os cálculos e dados do dashboard podem estar incorretos ou incompletos.</p>
-                     </div>`;
-                }
 
-                const totalRevenue = state.contracts.reduce((acc, c) => acc + (c.value || 0), 0);
-                const salesByProperty = state.contracts.reduce((acc, c) => {
-                    const prop = c.commercialProperty || 'Não especificado';
-                    acc[prop] = (acc[prop] || 0) + (c.value || 0);
-                    return acc;
-                }, {});
-                const maxPropValue = Math.max(...Object.values(salesByProperty), 1);
+            // --- PAGE RENDERERS (List & Form) ---
+            function renderListPage(title, tableHtml, type) {
+                return `<div class="card"><div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-semibold">${title}</h2>
+                    <button class="btn-add-item text-sm btn btn-primary" data-type="${type}">Adicionar</button>
+                </div><div>${tableHtml}</div></div>`;
+            }
+            
+            function renderFormPage(title, formHtml, type) {
+                 return `<div class="card">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-semibold">${state.selectedItemId ? 'Editar' : 'Adicionar'} ${title}</h2>
+                        <button class="btn-back text-sm btn" data-type="${type}">Voltar para a Lista</button>
+                    </div>
+                    <div>${formHtml}</div>
+                </div>`;
+            }
+
+            function renderAdminMainDashboard() {
+                const activeModelId = state.settings?.activeCommissionModelId;
+                const activeModel = state.commissionModels.find(m => m.id === activeModelId);
 
                 let totalCommissions = 0;
-                const model = state.commissionModels[0];
-                if (model && model.tiers) {
+                if (activeModel && activeModel.tiers) {
                     state.contracts.forEach(contract => {
-                        const tier = model.tiers.find(t => contract.value >= t.rangeInf && (t.rangeSup === null || contract.value <= t.rangeSup));
+                        const tier = activeModel.tiers.find(t => contract.value >= t.rangeInf && (t.rangeSup === null || contract.value <= t.rangeSup));
                         if (tier && contract.participants) {
                             contract.participants.forEach(employeeId => {
                                 if(tier.rates && tier.rates[employeeId]) {
@@ -328,113 +267,140 @@
                         }
                     });
                 }
+                const totalRevenue = state.contracts.reduce((acc, c) => acc + (c.value || 0), 0);
                 const effectiveRate = totalRevenue > 0 ? totalCommissions / totalRevenue : 0;
-
+                const salesByProperty = state.contracts.reduce((acc, c) => {
+                    const prop = c.commercialProperty || 'Não especificado';
+                    acc[prop] = (acc[prop] || 0) + (c.value || 0);
+                    return acc;
+                }, {});
+                const maxPropValue = Math.max(...Object.values(salesByProperty), 1);
+                
                 const kpiCards = `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
                         <div class="card !p-4"><div class="text-sm text-gray-500">Receita Total de Contratos</div><div class="text-3xl font-bold">${formatCurrency(totalRevenue)}</div></div>
-                        <div class="card !p-4"><div class="text-sm text-gray-500">Total de Comissões</div><div class="text-3xl font-bold">${formatCurrency(totalCommissions)}</div></div>
-                        <div class="card !p-4"><div class="text-sm text-gray-500">Taxa Efetiva de Comissão</div><div class="text-3xl font-bold">${formatPercent(effectiveRate)}</div></div>
+                        <div class="card !p-4"><div class="text-sm text-gray-500">Total de Comissões (Modelo Ativo)</div><div class="text-3xl font-bold">${formatCurrency(totalCommissions)}</div></div>
+                        <div class="card !p-4"><div class="text-sm text-gray-500">Taxa Efetiva (Modelo Ativo)</div><div class="text-3xl font-bold">${formatPercent(effectiveRate)}</div></div>
                     </div>`;
                 
                 const chart = `<div class="card">
                         <h3 class="text-lg font-semibold mb-4">Vendas por Propriedade Comercial</h3>
                         <div class="space-y-4">
                             ${Object.keys(salesByProperty).length > 0 ? Object.entries(salesByProperty).map(([prop, val]) => `
-                                <div>
-                                    <div class="flex justify-between text-sm mb-1">
-                                        <span class="font-medium">${prop}</span>
-                                        <span>${formatCurrency(val)}</span>
-                                    </div>
-                                    <div class="w-full bg-gray-200 rounded-full h-4"><div class="bg-blue-500 h-4 rounded-full" style="width: ${(val / maxPropValue) * 100}%"></div></div>
-                                </div>`).join('') : '<p class="text-gray-500">Nenhum contrato cadastrado para exibir dados.</p>'}
+                                <div><div class="flex justify-between text-sm mb-1"><span class="font-medium">${prop}</span><span>${formatCurrency(val)}</span></div><div class="w-full bg-gray-200 rounded-full h-4"><div class="bg-blue-500 h-4 rounded-full" style="width: ${(val / maxPropValue) * 100}%"></div></div></div>`).join('') : '<p class="text-gray-500">Nenhum contrato cadastrado.</p>'}
                         </div>
                     </div>`;
-                
-                return `<div>${errorNotice}${kpiCards}${chart}</div>`;
-            }
 
-            function renderAdminCard(title, tableHtml, type) {
-                return `<div class="card"><div class="flex justify-between items-center mb-4">
-                    <h2 class="text-xl font-semibold">${title}</h2>
-                    <button class="btn-add-item text-sm btn btn-primary" data-type="${type}">Adicionar ${type.replace('Model', '')}</button>
-                </div><div class="table-container">${tableHtml}</div></div>`;
-            }
-            
-            function renderErrorCard(collectionName, error) {
-                 return `<div class="p-4 text-red-700 bg-red-100 border border-red-400 rounded">
-                    <strong>Erro ao carregar ${collectionName}.</strong>
-                    <p class="text-sm mt-1">Verifique as permissões de leitura da coleção "${collectionName.toLowerCase()}" no seu console do Firebase e atualize a página.</p>
-                    <p class="text-xs mt-2 font-mono bg-red-50 p-1 rounded">Detalhes: ${error.message}</p>
-                 </div>`;
-            }
-
-            function renderAdminUserTable() { if(state.dataErrors.users) return renderErrorCard('Usuários', state.dataErrors.users); return `<table class="w-full text-sm table"><tbody>${state.users.map(u => `<tr><td><div class="font-semibold">${u.name}</div><div class="text-xs text-gray-500">${u.email} | ${u.isAdmin ? 'Admin' : ''} ${u.isManager ? 'Gestor' : ''}</div></td><td class="text-right space-x-2"><button class="btn-edit-sm" data-type="user" data-id="${u.id}">Editar</button></td></tr>`).join('')}</tbody></table>`; }
-            function renderAdminEmployeeTable() { if(state.dataErrors.employees) return renderErrorCard('Funcionários', state.dataErrors.employees); return `<table class="w-full text-sm table"><tbody>${state.employees.map(e => `<tr><td><div class="font-semibold">${e.name}</div><div class="text-xs text-gray-500">${e.roleTitle}</div></td><td class="text-right space-x-2"><button class="btn-edit-sm" data-type="employee" data-id="${e.id}">Editar</button><button class="btn-danger-sm" data-type="employee" data-id="${e.id}">×</button></td></tr>`).join('')}</tbody></table>`; }
-            function renderAdminContractTable() { if(state.dataErrors.contracts) return renderErrorCard('Contratos', state.dataErrors.contracts); return `<table class="w-full text-sm table"><thead><th>Empresa / Propriedade</th><th>Valor</th><th>Data</th><th>Ações</th></thead><tbody>${state.contracts.map(c => `<tr><td><div class="font-semibold">${c.companyName}</div><div class="text-xs text-gray-500">${c.commercialProperty}</div></td><td>${formatCurrency(c.value)}</td><td>${formatDate(c.closingDate)}</td><td class="text-right space-x-2"><button class="btn-edit-sm" data-type="contract" data-id="${c.id}">Editar</button><button class="btn-danger-sm" data-type="contract" data-id="${c.id}">×</button></td></tr>`).join('')}</tbody></table>`; }
-            function renderAdminCommissionModelTable() { if(state.dataErrors.commissionModels) return renderErrorCard('Modelos de Comissão', state.dataErrors.commissionModels); return `<table class="w-full text-sm table"><tbody>${state.commissionModels.map(m => `<tr><td><div class="font-semibold">${m.name}</div></td><td class="text-right space-x-2"><button class="btn-edit-sm" data-type="commissionModel" data-id="${m.id}">Editar</button><button class="btn-danger-sm" data-type="commissionModel" data-id="${m.id}">×</button></td></tr>`).join('')}</tbody></table>`; }
-            
-            // --- Forms ---
-            function renderAdminUserForm(item = {}) { return `<form class="space-y-4" data-id="${item.id || ''}"><input name="name" placeholder="Nome Completo" class="form-input text-sm" value="${item.name || ''}" required><input name="email" type="email" placeholder="Email (para login)" class="form-input text-sm" value="${item.email || ''}" required ${item.id ? 'disabled' : ''}>${!item.id ? `<input name="password" type="password" placeholder="Senha (mínimo 6 caracteres)" class="form-input text-sm" required>` : ''}<div class="flex gap-4"><label class="text-sm flex items-center gap-2"><input type="checkbox" name="isManager" ${item.isManager ? 'checked' : ''}> Gestor</label><label class="text-sm flex items-center gap-2"><input type="checkbox" name="isAdmin" ${item.isAdmin ? 'checked' : ''}> Admin</label></div><button type="submit" class="btn btn-primary text-sm w-full !py-2">Salvar</button></form>`;}
-            function renderAdminEmployeeForm(item = {}) { const admissionDate = item.admissionDate?.seconds ? new Date(item.admissionDate.seconds * 1000).toISOString().split('T')[0] : ''; return `<form class="space-y-4" data-id="${item.id || ''}"><input name="name" placeholder="Nome do Funcionário" class="form-input text-sm" value="${item.name || ''}" required><input name="roleTitle" placeholder="Cargo" class="form-input text-sm" value="${item.roleTitle || ''}" required><input name="salary" type="number" step="0.01" placeholder="Salário" class="form-input text-sm" value="${item.salary || ''}" required><label class="text-xs">Data de Admissão</label><input name="admissionDate" type="date" class="form-input text-sm" value="${admissionDate}" required><button type="submit" class="btn btn-primary text-sm w-full !py-2">Salvar</button></form>`;}
-            function renderAdminContractForm(item = {}) {
-                const closingDate = item.closingDate?.seconds ? new Date(item.closingDate.seconds * 1000).toISOString().split('T')[0] : '';
-                return `<form class="space-y-4" data-id="${item.id || ''}">
-                    <input name="companyName" placeholder="Nome da Empresa" class="form-input text-sm" value="${item.companyName || ''}" required>
-                    <input name="commercialProperty" placeholder="Propriedade Comercial (Ex: Naming Rights)" class="form-input text-sm" value="${item.commercialProperty || ''}" required>
-                    <input name="value" type="number" step="0.01" placeholder="Valor do Contrato" class="form-input text-sm" value="${item.value || ''}" required>
-                    <label class="text-xs">Data de Fechamento</label><input name="closingDate" type="date" class="form-input text-sm" value="${closingDate}" required>
-                    <div class="text-sm font-medium">Participantes do Contrato:</div>
-                    <div class="max-h-32 overflow-y-auto p-2 border rounded-md grid grid-cols-2 gap-2">
-                        ${state.employees.map(e => `<label class="flex items-center text-xs gap-2"><input type="checkbox" name="participants" value="${e.id}" ${item.participants?.includes(e.id) ? 'checked' : ''}>${e.name}</label>`).join('')}
+                const settingsCard = `<div class="card">
+                    <h3 class="text-lg font-semibold mb-4">Configurações Gerais</h3>
+                    <div class="flex items-center gap-4">
+                        <label for="activeModelSelect" class="font-medium">Modelo de Comissão Ativo para Cálculos:</label>
+                        <select id="activeModelSelect" class="form-input w-64">
+                            <option value="">Nenhum</option>
+                            ${state.commissionModels.map(m => `<option value="${m.id}" ${m.id === activeModelId ? 'selected' : ''}>${m.name}</option>`).join('')}
+                        </select>
+                        <button id="saveSettingsBtn" class="btn btn-primary">Salvar</button>
                     </div>
-                    <button type="submit" class="btn btn-primary text-sm w-full !py-2">Salvar Contrato</button>
-                </form>`;
+                    ${!activeModelId ? `<p class="text-sm text-orange-600 mt-2">Atenção: Nenhum modelo de comissão está ativo. Os cálculos de bônus não serão realizados.</p>`: ''}
+                </div>`;
+                
+                return `<div>${settingsCard}${kpiCards}${chart}</div>`;
             }
-            function renderAdminCommissionModelForm(item = {}) {
-                const tiers = item.tiers && item.tiers.length ? item.tiers : [{rangeInf: 0, rangeSup: null, rates: {}}];
-                const tierRows = tiers.map((tier, index) => {
-                    const rateInputs = state.employees.map(emp => `<div class="flex flex-col"><label class="text-xs text-gray-600 truncate" title="${emp.name}">${emp.name.split(' ')[0]}</label><input type="number" step="0.001" name="rate_${emp.id}" class="form-input text-xs" value="${(tier.rates?.[emp.id] || 0) * 100}" placeholder="%"></div>`).join('');
-                    return `<div class="p-3 border rounded-md mt-2 tier-row bg-gray-50">
-                        <div class="flex gap-2 items-center mb-2">
-                            <span class="text-sm font-bold text-gray-500">Faixa ${index + 1}</span>
-                            <input type="number" placeholder="De (R$)" class="form-input text-sm" name="rangeInf" value="${tier.rangeInf ?? ''}" required>
-                            <input type="number" placeholder="Até (R$)" class="form-input text-sm" name="rangeSup" value="${tier.rangeSup ?? ''}">
-                            <button type="button" class="remove-tier-btn text-red-500 font-bold ml-auto text-lg hover:text-red-700">×</button>
+
+            // --- ADMIN LIST RENDERERS ---
+            function renderAdminUserTable() { /* Unchanged */ if(state.dataErrors.users) return renderErrorCard('Usuários', state.dataErrors.users); return `<table class="w-full text-sm table"><tbody>${state.users.map(u => `<tr><td><div class="font-semibold">${u.name}</div><div class="text-xs text-gray-500">${u.email} | ${u.isAdmin ? 'Admin' : ''} ${u.isManager ? 'Gestor' : ''}</div></td><td class="text-right space-x-2"><button class="btn-edit-item" data-type="user" data-id="${u.id}">Editar</button></td></tr>`).join('')}</tbody></table>`; }
+            function renderAdminEmployeeTable() { /* Unchanged */ if(state.dataErrors.employees) return renderErrorCard('Funcionários', state.dataErrors.employees); return `<table class="w-full text-sm table"><tbody>${state.employees.map(e => `<tr><td><div class="font-semibold">${e.name}</div><div class="text-xs text-gray-500">${e.roleTitle}</div></td><td class="text-right space-x-2"><button class="btn-edit-item" data-type="employee" data-id="${e.id}">Editar</button><button class="btn-danger-sm" data-type="employee" data-id="${e.id}">×</button></td></tr>`).join('')}</tbody></table>`; }
+            function renderAdminContractTable() { /* Unchanged */ if(state.dataErrors.contracts) return renderErrorCard('Contratos', state.dataErrors.contracts); return `<table class="w-full text-sm table"><thead><th>Empresa / Propriedade</th><th>Valor</th><th>Data</th><th>Ações</th></thead><tbody>${state.contracts.map(c => `<tr><td><div class="font-semibold">${c.companyName}</div><div class="text-xs text-gray-500">${c.commercialProperty}</div></td><td>${formatCurrency(c.value)}</td><td>${formatDate(c.closingDate)}</td><td class="text-right space-x-2"><button class="btn-edit-item" data-type="contract" data-id="${c.id}">Editar</button><button class="btn-danger-sm" data-type="contract" data-id="${c.id}">×</button></td></tr>`).join('')}</tbody></table>`; }
+            
+            function renderAdminCommissionModelList() {
+                if (state.dataErrors.commissionModels) return renderErrorCard('Modelos de Comissão', state.dataErrors.commissionModels);
+                if (state.commissionModels.length === 0) return '<p>Nenhum modelo de comissão cadastrado.</p>';
+
+                return state.commissionModels.map(model => {
+                    return `<div class="mb-8">
+                        <div class="flex justify-between items-center mb-2">
+                            <h3 class="text-lg font-semibold">${model.name}</h3>
+                            <div class="space-x-2">
+                                <button class="btn-edit-item btn-edit-sm" data-type="commissionModel" data-id="${model.id}">Editar Modelo</button>
+                                <button class="btn-danger-sm" data-type="commissionModel" data-id="${model.id}">×</button>
+                            </div>
                         </div>
-                        <label class="text-xs font-bold text-gray-500">Taxas de Comissão (%)</label>
-                        <div class="grid gap-2 mt-1" style="grid-template-columns:repeat(auto-fill,minmax(80px,1fr))">${rateInputs}</div>
+                        ${renderCommissionModelTable(model, false)}
                     </div>`;
                 }).join('');
-                return `<form class="space-y-2" data-id="${item.id || ''}">
-                    <input name="name" placeholder="Nome do Modelo (Ex: Modelo Comercial 2024)" class="form-input text-sm" value="${item.name || ''}" required>
-                    <div id="tiersContainer">${tierRows}</div>
-                    <button type="button" id="addTierBtn" class="text-sm text-blue-600 hover:underline mt-2">+ Adicionar Faixa de Comissão</button>
-                    <button type="submit" class="btn btn-primary text-sm w-full mt-4 !py-2">Salvar Modelo</button>
+            }
+
+            function renderCommissionModelTable(model, isEditable) {
+                if (!model || !model.tiers) return '<p class="text-gray-500">Este modelo não possui faixas definidas.</p>';
+                const employees = state.employees;
+                const headers = ['Faixa', 'Range Inf', 'Range Sup', ...employees.map(e => e.name)];
+                
+                const headerHtml = `<thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}${isEditable ? '<th>Ações</th>' : ''}</tr></thead>`;
+                
+                const bodyHtml = `<tbody>${model.tiers.map((tier, index) => {
+                    const rowId = `tier-row-${index}`;
+                    let cells;
+                    if (isEditable) {
+                        cells = `
+                            <td><input type="text" class="form-input bg-gray-100" value="Faixa ${index + 1}" disabled></td>
+                            <td><input type="number" name="rangeInf" class="form-input" value="${tier.rangeInf || 0}"></td>
+                            <td><input type="number" name="rangeSup" class="form-input" placeholder="em branco para infinito" value="${tier.rangeSup || ''}"></td>
+                            ${employees.map(e => `<td><input type="number" step="0.001" name="rate_${e.id}" class="form-input" value="${(tier.rates?.[e.id] || 0) * 100}"></td>`).join('')}
+                            <td><button type="button" class="btn-danger-sm remove-tier-btn" data-row-id="${rowId}">×</button></td>
+                        `;
+                    } else {
+                         cells = `
+                            <td>Faixa ${index + 1}</td>
+                            <td>${formatCurrency(tier.rangeInf)}</td>
+                            <td>${tier.rangeSup ? formatCurrency(tier.rangeSup) : 'Acima'}</td>
+                            ${employees.map(e => `<td>${formatPercent(tier.rates?.[e.id] || 0)}</td>`).join('')}
+                         `;
+                    }
+                    return `<tr id="${rowId}">${cells}</tr>`;
+                }).join('')}</tbody>`;
+
+                return `<div class="table-container"><table class="w-full text-sm table ${isEditable ? 'table-editable': ''}">${headerHtml}${bodyHtml}</table></div>`;
+            }
+
+            function renderErrorCard(collectionName, error) { /* Unchanged */ return `<div class="p-4 text-red-700 bg-red-100 border border-red-400 rounded"><strong>Erro ao carregar ${collectionName}.</strong><p class="text-sm mt-1">Verifique as permissões de leitura da coleção "${collectionName.toLowerCase()}" no seu console do Firebase e atualize a página.</p><p class="text-xs mt-2 font-mono bg-red-50 p-1 rounded">Detalhes: ${error.message}</p></div>`;}
+            
+            // --- ADMIN FORM RENDERERS ---
+            function renderAdminUserForm(item = {}) { /* Unchanged */ return `<form class="space-y-4" data-id="${item.id || ''}"><input name="name" placeholder="Nome Completo" class="form-input text-sm" value="${item.name || ''}" required><input name="email" type="email" placeholder="Email (para login)" class="form-input text-sm" value="${item.email || ''}" required ${item.id ? 'disabled' : ''}>${!item.id ? `<input name="password" type="password" placeholder="Senha (mínimo 6 caracteres)" class="form-input text-sm" required>` : ''}<div class="flex gap-4"><label class="text-sm flex items-center gap-2"><input type="checkbox" name="isManager" ${item.isManager ? 'checked' : ''}> Gestor</label><label class="text-sm flex items-center gap-2"><input type="checkbox" name="isAdmin" ${item.isAdmin ? 'checked' : ''}> Admin</label></div><button type="submit" class="btn btn-primary text-sm w-full !py-2">Salvar Usuário</button></form>`;}
+            function renderAdminEmployeeForm(item = {}) { /* Unchanged */ const admissionDate = item.admissionDate?.seconds ? new Date(item.admissionDate.seconds * 1000).toISOString().split('T')[0] : ''; return `<form class="space-y-4" data-id="${item.id || ''}"><input name="name" placeholder="Nome do Funcionário" class="form-input text-sm" value="${item.name || ''}" required><input name="roleTitle" placeholder="Cargo" class="form-input text-sm" value="${item.roleTitle || ''}" required><input name="salary" type="number" step="0.01" placeholder="Salário" class="form-input text-sm" value="${item.salary || ''}" required><label class="text-xs">Data de Admissão</label><input name="admissionDate" type="date" class="form-input text-sm" value="${admissionDate}" required><button type="submit" class="btn btn-primary text-sm w-full !py-2">Salvar Funcionário</button></form>`;}
+            function renderAdminContractForm(item = {}) { /* Unchanged */ const closingDate = item.closingDate?.seconds ? new Date(item.closingDate.seconds * 1000).toISOString().split('T')[0] : ''; return `<form class="space-y-4" data-id="${item.id || ''}"><input name="companyName" placeholder="Nome da Empresa" class="form-input text-sm" value="${item.companyName || ''}" required><input name="commercialProperty" placeholder="Propriedade Comercial (Ex: Naming Rights)" class="form-input text-sm" value="${item.commercialProperty || ''}" required><input name="value" type="number" step="0.01" placeholder="Valor do Contrato" class="form-input text-sm" value="${item.value || ''}" required><label class="text-xs">Data de Fechamento</label><input name="closingDate" type="date" class="form-input text-sm" value="${closingDate}" required><div class="text-sm font-medium">Participantes do Contrato:</div><div class="max-h-32 overflow-y-auto p-2 border rounded-md grid grid-cols-2 gap-2">${state.employees.map(e => `<label class="flex items-center text-xs gap-2"><input type="checkbox" name="participants" value="${e.id}" ${item.participants?.includes(e.id) ? 'checked' : ''}>${e.name}</label>`).join('')}</div><button type="submit" class="btn btn-primary text-sm w-full !py-2">Salvar Contrato</button></form>`; }
+            
+            function renderAdminCommissionModelForm(item = {}) {
+                const modelData = item.id ? item : { name: '', tiers: [{ rangeInf: 0, rangeSup: null, rates: {} }] };
+                return `<form data-id="${modelData.id || ''}">
+                    <input name="name" placeholder="Nome do Modelo (Ex: Modelo Comercial 2024)" class="form-input text-sm mb-4" value="${modelData.name || ''}" required>
+                    <div id="tiers-table-container">${renderCommissionModelTable(modelData, true)}</div>
+                    <div class="flex justify-between mt-4">
+                       <button type="button" id="addTierBtn" class="text-sm text-blue-600 hover:underline">+ Adicionar Faixa</button>
+                       <button type="submit" class="btn btn-primary text-sm w-auto !py-2">Salvar Modelo</button>
+                    </div>
                 </form>`;
             }
             
             // --- Employee View ---
-            function renderEmployeeDashboard() {
+            function renderEmployeeDashboard() { /* Logic updated to use active model */
                 let content = '';
-                 if (state.dataErrors.commissionModels || state.dataErrors.contracts || state.dataErrors.employees) {
-                    content = `<div class="card text-center"><p class="text-red-600 font-semibold">Não foi possível carregar os dados necessários para o cálculo de comissões.</p><p class="text-sm mt-2">Por favor, contate um administrador para verificar as permissões do banco de dados.</p></div>`;
+                if (state.dataErrors.commissionModels || state.dataErrors.contracts || state.dataErrors.employees) {
+                    content = `<div class="card text-center"><p class="text-red-600 font-semibold">Não foi possível carregar os dados necessários.</p><p class="text-sm mt-2">Contate um administrador.</p></div>`;
                     return `${renderHeader('Dashboard de Comissões')}<main class="p-6">${content}</main>`;
                 }
 
                 const employeeProfile = state.employees.find(emp => emp.name === state.userProfile.name);
-                
                 if (!employeeProfile) {
-                    content = `<div class="card text-center"><p class="text-red-500">Seu perfil de funcionário não foi encontrado. Contate um administrador.</p></div>`;
+                    content = `<div class="card text-center"><p class="text-red-500">Seu perfil de funcionário não foi encontrado.</p></div>`;
                 } else {
                     const myContracts = state.contracts.filter(c => c.participants?.includes(employeeProfile.id));
-                    const commissionModel = state.commissionModels[0];
+                    const activeModel = state.commissionModels.find(m => m.id === state.settings.activeCommissionModelId);
                     let totalBonus = 0;
 
-                    if (!commissionModel || !commissionModel.tiers) {
-                        content = `<div class="card text-center"><p class="text-orange-500">Nenhum modelo de comissão foi configurado no sistema ainda.</p></div>`;
+                    if (!activeModel || !activeModel.tiers) {
+                        content = `<div class="card text-center"><p class="text-orange-500">Nenhum modelo de comissão ativo foi configurado no sistema.</p></div>`;
                     } else {
                         const commissionRows = myContracts.map(contract => {
-                            const tier = commissionModel.tiers.find(t => contract.value >= t.rangeInf && (t.rangeSup === null || contract.value <= t.rangeSup));
+                            const tier = activeModel.tiers.find(t => contract.value >= t.rangeInf && (t.rangeSup === null || contract.value <= t.rangeSup));
                             const myRate = tier && tier.rates ? (tier.rates[employeeProfile.id] || 0) : 0;
                             const myBonus = contract.value * myRate;
                             totalBonus += myBonus;
@@ -447,20 +413,7 @@
                             </tr>`;
                         }).join('');
 
-                        content = `
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                            <div class="card !p-4"><div class="text-sm text-gray-500">Seu Bônus Total Calculado</div><div class="text-3xl font-bold">${formatCurrency(totalBonus)}</div></div>
-                            <div class="card !p-4"><div class="text-sm text-gray-500">Contratos Participados</div><div class="text-3xl font-bold">${myContracts.length}</div></div>
-                            </div>
-                            <div class="card">
-                                <h2 class="text-xl font-semibold mb-4">Detalhamento de Comissões</h2>
-                                <div class="table-container">
-                                    <table class="w-full text-sm table">
-                                        <thead><tr><th>Contrato</th><th>Valor Total</th><th>Faixa de Comissão</th><th>Sua Taxa</th><th>Seu Bônus</th></tr></thead>
-                                        <tbody>${commissionRows.length ? commissionRows : '<tr><td colspan="5" class="text-center text-gray-500 py-4">Você ainda não participou de nenhum contrato.</td></tr>'}</tbody>
-                                    </table>
-                                </div>
-                            </div>`;
+                        content = `<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6"><div class="card !p-4"><div class="text-sm text-gray-500">Seu Bônus Total (Modelo: ${activeModel.name})</div><div class="text-3xl font-bold">${formatCurrency(totalBonus)}</div></div><div class="card !p-4"><div class="text-sm text-gray-500">Contratos Participados</div><div class="text-3xl font-bold">${myContracts.length}</div></div></div><div class="card"><h2 class="text-xl font-semibold mb-4">Detalhamento de Comissões</h2><div class="table-container"><table class="w-full text-sm table"><thead><tr><th>Contrato</th><th>Valor Total</th><th>Faixa de Comissão</th><th>Sua Taxa</th><th>Seu Bônus</th></tr></thead><tbody>${commissionRows.length ? commissionRows : '<tr><td colspan="5" class="text-center text-gray-500 py-4">Você ainda não participou de nenhum contrato.</td></tr>'}</tbody></table></div></div>`;
                     }
                 }
                 return `${renderHeader('Dashboard de Comissões')}<main class="p-6">${content}</main>`;
@@ -476,86 +429,66 @@
                 }
             }
 
-            async function handleLogin(e) {
-                e.preventDefault();
-                const btn = e.target.querySelector('button[type="submit"]');
-                const originalText = btn.innerHTML;
-                btn.disabled = true;
-                btn.innerHTML = `<div class="loader loader-sm mx-auto"></div>`;
-                try {
-                    await signInWithEmailAndPassword(auth, e.target.email.value, e.target.password.value);
-                } catch (error) {
-                    showMessage("Falha no login", `Erro: ${error.code}. Verifique seu email e senha.`);
-                    btn.disabled = false;
-                    btn.innerHTML = originalText;
-                }
-            }
+            async function handleLogin(e) { /* Unchanged */ e.preventDefault(); const btn = e.target.querySelector('button[type="submit"]'); const originalText = btn.innerHTML; btn.disabled = true; btn.innerHTML = `<div class="loader loader-sm mx-auto"></div>`; try { await signInWithEmailAndPassword(auth, e.target.email.value, e.target.password.value); } catch (error) { alert(`Falha no login: ${error.code}`); btn.disabled = false; btn.innerHTML = originalText; } }
 
             function handleAdminClicks(e) {
                 const target = e.target;
-                if (target.closest('.btn-add-item')) handleAdminAddClick(target.closest('.btn-add-item').dataset.type);
-                else if (target.closest('.btn-edit-sm')) handleAdminEditClick(target.closest('.btn-edit-sm').dataset.type, target.closest('.btn-edit-sm').dataset.id);
-                else if (target.closest('.btn-danger-sm')) handleAdminDeleteClick(target.closest('.btn-danger-sm').dataset.type, target.closest('.btn-danger-sm').dataset.id);
-                else if (target.closest('aside a')) {
+                if (target.closest('.btn-add-item')) {
+                    state.adminAction = 'form';
+                    state.selectedItemId = null;
+                    render();
+                } else if (target.closest('.btn-edit-item')) {
+                    state.adminAction = 'form';
+                    state.selectedItemId = target.closest('.btn-edit-item').dataset.id;
+                    render();
+                } else if (target.closest('.btn-back')) {
+                    state.adminAction = 'list';
+                    state.selectedItemId = null;
+                    render();
+                } else if (target.closest('.btn-danger-sm')) {
+                    handleAdminDeleteClick(target.closest('.btn-danger-sm').dataset.type, target.closest('.btn-danger-sm').dataset.id);
+                } else if (target.closest('aside a')) {
                     e.preventDefault();
                     state.adminView = target.closest('aside a').dataset.view;
+                    state.adminAction = 'list';
+                    state.selectedItemId = null;
                     location.hash = state.adminView;
                     render();
+                } else if (target.id === 'saveSettingsBtn') {
+                    const activeModelId = document.getElementById('activeModelSelect').value;
+                    setDoc(settingsDocRef, { activeCommissionModelId: activeModelId }, { merge: true })
+                        .then(() => alert('Configurações salvas!'))
+                        .catch(err => alert('Erro ao salvar: ' + err.message));
+                } else if (target.id === 'addTierBtn') {
+                    const tableBody = document.querySelector('#tiers-table-container table tbody');
+                    const newIndex = tableBody.rows.length;
+                    const newRow = tableBody.insertRow();
+                    newRow.id = `tier-row-${newIndex}`;
+                    newRow.innerHTML = `
+                        <td><input type="text" class="form-input bg-gray-100" value="Faixa ${newIndex + 1}" disabled></td>
+                        <td><input type="number" name="rangeInf" class="form-input" value=""></td>
+                        <td><input type="number" name="rangeSup" class="form-input" placeholder="em branco para infinito" value=""></td>
+                        ${state.employees.map(e => `<td><input type="number" step="0.001" name="rate_${e.id}" class="form-input" value="0"></td>`).join('')}
+                        <td><button type="button" class="btn-danger-sm remove-tier-btn" data-row-id="tier-row-${newIndex}">×</button></td>
+                    `;
+                } else if (target.classList.contains('remove-tier-btn')) {
+                    target.closest('tr').remove();
                 }
             }
             
-            function handleAdminAddClick(type) {
-                if (state.dataErrors[type + 's'] || (type === 'commissionModel' && state.dataErrors.employees)) {
-                    showMessage('Erro de Dados', 'Não é possível adicionar um item pois os dados base não puderam ser carregados. Verifique as permissões e atualize a página.');
-                    return;
-                }
-                const formRenderers = { user: renderAdminUserForm, employee: renderAdminEmployeeForm, contract: renderAdminContractForm, commissionModel: renderAdminCommissionModelForm };
-                const titleMap = { user: 'Adicionar Usuário', employee: 'Adicionar Funcionário', contract: 'Adicionar Contrato', commissionModel: 'Adicionar Modelo de Comissão' };
-                showModal(titleMap[type], formRenderers[type]());
-                attachModalFormListeners(type);
-            }
-
-            function handleAdminEditClick(type, id) {
-                if (state.dataErrors[type + 's']) {
-                     showMessage('Erro de Dados', 'Não é possível editar um item pois os dados base não puderam ser carregados. Verifique as permissões e atualize a página.');
-                    return;
-                }
-                const item = state[`${type}s`].find(i => i.id === id);
-                const formRenderers = { user: renderAdminUserForm, employee: renderAdminEmployeeForm, contract: renderAdminContractForm, commissionModel: renderAdminCommissionModelForm };
-                const titleMap = { user: 'Editar Usuário', employee: 'Editar Funcionário', contract: 'Editar Contrato', commissionModel: 'Editar Modelo de Comissão' };
-                showModal(titleMap[type], formRenderers[type](item));
-                attachModalFormListeners(type, id);
-            }
-
             async function handleAdminDeleteClick(type, id) {
-                showConfirmation('Confirmar Exclusão', `Tem certeza que deseja excluir este item? Esta ação não pode ser desfeita.`, async () => {
+                if (confirm(`Tem certeza que deseja excluir este item?`)) {
                     try { await deleteDoc(doc(db, `${type}s`, id)); } 
-                    catch (error) { showMessage('Erro', `Não foi possível excluir o item: ${error.message}`); }
-                });
+                    catch (error) { alert('Erro ao excluir: ' + error.message); }
+                }
             }
             
-            function attachModalFormListeners(type, id) {
-                const form = document.getElementById('modalBody').querySelector('form');
-                if (form) {
-                    form.addEventListener('submit', (e) => {
-                        e.preventDefault();
-                        handleAdminFormSubmit(form, type, id);
-                    });
+            appEl.addEventListener('submit', (e) => {
+                if (e.target.tagName === 'FORM') {
+                    const type = state.adminView.slice(0, -1);
+                    handleAdminFormSubmit(e.target, type, state.selectedItemId);
                 }
-                if (type === 'commissionModel') {
-                    document.getElementById('modalBody').addEventListener('click', e => {
-                        if (e.target.id === 'addTierBtn') {
-                            const newTierHtml = renderAdminCommissionModelForm({tiers: [{}]}).match(/<div class="p-3.*?tier-row.*?<\/div>/s)[0];
-                            const tempDiv = document.createElement('div');
-                            tempDiv.innerHTML = newTierHtml;
-                            document.getElementById('tiersContainer').appendChild(tempDiv.firstChild);
-                        }
-                        if (e.target.classList.contains('remove-tier-btn')) {
-                            e.target.closest('.tier-row').remove();
-                        }
-                    });
-                }
-            }
+            });
 
             async function handleAdminFormSubmit(form, type, id) {
                 const formData = new FormData(form);
@@ -564,39 +497,12 @@
 
                 try {
                     let data = {};
-                    if (type === 'user') {
-                        data = { name: formData.get('name'), email: formData.get('email'), isManager: form.querySelector('[name="isManager"]').checked, isAdmin: form.querySelector('[name="isAdmin"]').checked };
-                        if (id) {
-                            await setDoc(doc(usersCol, id), data, { merge: true });
-                        } else {
-                            const password = formData.get('password');
-                            if (!password || password.length < 6) throw new Error("Senha deve ter no mínimo 6 caracteres.");
-                            const creationAppName = 'userCreationApp';
-                            const creationApp = getApps().find(app => app.name === creationAppName) || initializeApp(firebaseConfig, creationAppName);
-                            const tempAuth = getAuth(creationApp);
-                            const userCredential = await createUserWithEmailAndPassword(tempAuth, data.email, password);
-                            await setDoc(doc(usersCol, userCredential.user.uid), data);
-                            await signOut(tempAuth);
+                    if (type === 'user' || type === 'employee' || type === 'contract') {
+                         formData.forEach((value, key) => { if(key !== 'participants') data[key] = value; });
+                        if (type === 'user') {
+                            data.isManager = form.querySelector('[name="isManager"]').checked;
+                            data.isAdmin = form.querySelector('[name="isAdmin"]').checked;
                         }
-                    } else if (type === 'commissionModel') {
-                        data.name = formData.get('name');
-                        data.tiers = [];
-                        form.querySelectorAll('.tier-row').forEach(row => {
-                            const rangeSupValue = parseFloat(row.querySelector('[name="rangeSup"]').value);
-                            const tierData = {
-                                rangeInf: parseFloat(row.querySelector('[name="rangeInf"]').value) || 0,
-                                rangeSup: isNaN(rangeSupValue) || rangeSupValue === 0 ? null : rangeSupValue,
-                                rates: {}
-                            };
-                            state.employees.forEach(emp => {
-                                const rateInput = row.querySelector(`[name="rate_${emp.id}"]`);
-                                if (rateInput && rateInput.value) tierData.rates[emp.id] = parseFloat(rateInput.value) / 100;
-                            });
-                            data.tiers.push(tierData);
-                        });
-                        data.tiers.sort((a,b) => a.rangeInf - b.rangeInf);
-                    } else {
-                        formData.forEach((value, key) => { if(key !== 'participants') data[key] = value; });
                         if (type === 'employee') {
                             data.salary = parseFloat(data.salary);
                             data.admissionDate = new Date(data.admissionDate + 'T00:00:00');
@@ -606,15 +512,48 @@
                             data.closingDate = new Date(data.closingDate + 'T00:00:00');
                             data.participants = Array.from(form.querySelectorAll('[name="participants"]:checked')).map(el => el.value);
                         }
+                    } else if (type === 'commissionModel') {
+                        data.name = formData.get('name');
+                        data.tiers = [];
+                        form.querySelectorAll('#tiers-table-container tbody tr').forEach(row => {
+                            const rangeSupValue = parseFloat(row.querySelector('[name="rangeSup"]').value);
+                            const tierData = {
+                                rangeInf: parseFloat(row.querySelector('[name="rangeInf"]').value) || 0,
+                                rangeSup: isNaN(rangeSupValue) || rangeSupValue === 0 ? null : rangeSupValue,
+                                rates: {}
+                            };
+                            state.employees.forEach(emp => {
+                                const rateInput = row.querySelector(`[name="rate_${emp.id}"]`);
+                                if (rateInput) tierData.rates[emp.id] = parseFloat(rateInput.value || 0) / 100;
+                            });
+                            data.tiers.push(tierData);
+                        });
+                        data.tiers.sort((a,b) => a.rangeInf - b.rangeInf);
                     }
 
                     const collectionRef = collection(db, `${type}s`);
-                    if (id) await setDoc(doc(collectionRef, id), data, { merge: true });
-                    else if (type !== 'user') await addDoc(collectionRef, data);
+                    if (id) {
+                        await setDoc(doc(collectionRef, id), data, { merge: true });
+                    } else {
+                        // Special handling for user creation
+                        if (type === 'user') {
+                             const password = formData.get('password');
+                            if (!password || password.length < 6) throw new Error("Senha deve ter no mínimo 6 caracteres.");
+                            const creationAppName = 'userCreationApp';
+                            const creationApp = getApps().find(app => app.name === creationAppName) || initializeApp(firebaseConfig, creationAppName);
+                            const tempAuth = getAuth(creationApp);
+                            const userCredential = await createUserWithEmailAndPassword(tempAuth, data.email, password);
+                            await setDoc(doc(usersCol, userCredential.user.uid), data);
+                            await signOut(tempAuth);
+                        } else {
+                           await addDoc(collectionRef, data);
+                        }
+                    }
                     
-                    closeModal();
+                    state.adminAction = 'list';
+                    render();
                 } catch (error) {
-                    showMessage(`Erro ao Salvar`, `Ocorreu um erro: ${error.message}`);
+                    alert(`Erro ao Salvar: ${error.message}`);
                     btn.disabled = false;
                 }
             }
@@ -624,6 +563,8 @@
                 const h = window.location.hash.replace('#', '');
                 const valid = ['dashboard', 'users', 'employees', 'contracts', 'commissionModels'];
                 state.adminView = valid.includes(h) ? h : 'dashboard';
+                state.adminAction = 'list';
+                state.selectedItemId = null;
             }
             
             window.addEventListener('hashchange', () => {
@@ -633,7 +574,9 @@
                 }
             });
             
-            performSignIn();
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                 signInWithCustomToken(auth, __initial_auth_token).catch(err => console.error(err));
+            }
         });
     </script>
 </body>
