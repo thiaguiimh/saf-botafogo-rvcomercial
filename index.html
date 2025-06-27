@@ -3,438 +3,395 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RV Comercial - Análise de Comissões</title>
+    <title>Suíte de Análise de Comissões (Firebase)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        :root { --cor-fundo: #f5f5f7; --cor-painel: #ffffff; --cor-texto-primario: #1d1d1f; --cor-texto-secundario: #6e6e73; --cor-input-fundo: #f5f5f7; --cor-borda: #d2d2d7; --cor-azul-apple: #0071e3; }
-        body { font-family: 'Inter', sans-serif; background-color: var(--cor-fundo); color: var(--cor-texto-primario); -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
-        .panel { background-color: var(--cor-painel); border-radius: 1rem; padding: 1.5rem; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid rgba(0,0,0,0.05); }
-        .btn { padding: 0.625rem 1.25rem; border-radius: 0.75rem; font-weight: 600; transition: all 0.2s ease-in-out; border: none; cursor: pointer; }
-        .btn-dark { background-color: var(--cor-texto-primario); color: var(--cor-painel); }
-        .btn-dark:hover { background-color: #333; }
-        .btn-dark:disabled { background-color: #555; color: #aaa; cursor: not-allowed; }
-        .btn-light { background-color: #e8e8ed; color: var(--cor-texto-primario); }
-        .btn-light:hover { background-color: #ddd; }
-        h1, h2, h3 { color: var(--cor-texto-primario); }
-        .table-header th { color: var(--cor-texto-secundario); text-transform: none; font-size: 0.875rem; border-bottom: 1px solid #e8e8ed; }
-        .table-row td { color: var(--cor-texto-primario); border-bottom: 1px solid var(--cor-fundo); }
-        .form-input { width: 100%; background-color: var(--cor-input-fundo); border: 1px solid var(--cor-input-fundo); border-radius: 0.75rem; padding: 0.625rem 1rem; transition: border-color 0.2s ease; }
-        .form-input:focus { outline: none; border-color: var(--cor-azul-apple); box-shadow: 0 0 0 2px rgba(0, 113, 227, 0.2); }
-        #auth-status { text-align: center; padding: 0.75rem; border-radius: 0.75rem; font-weight: 500;}
-        .auth-success { background-color: rgba(49, 207, 120, 0.1); color: #1e874f; }
-        .auth-fail { background-color: rgba(255, 59, 48, 0.1); color: #d1272b; }
-        .loader { border: 4px solid #e8e8ed; border-top: 4px solid var(--cor-texto-primario); border-radius: 50%; width: 28px; height: 28px; animation: spin 1s linear infinite; margin: 0 auto; }
+        :root {
+            --background-color: #f8f9fa;
+            --card-background: #ffffff;
+            --text-primary: #1d1d1f;
+            --text-secondary: #555;
+            --accent-blue: #007bff;
+            --border-color: #dee2e6;
+        }
+        body { font-family: 'Inter', sans-serif; background-color: var(--background-color); color: var(--text-primary); -webkit-font-smoothing: antialiased; }
+        .card { background: var(--card-background); border-radius: 0.75rem; border: 1px solid var(--border-color); padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .nav-link { padding: 0.5rem 1rem; border-radius: 0.5rem; font-weight: 500; cursor: pointer; transition: all 0.2s; color: var(--text-secondary); }
+        .nav-link.active { background-color: var(--accent-blue); color: white; }
+        .nav-link:not(.active):hover { background-color: #eef2ff; }
+        .btn { padding: 0.5rem 1rem; border-radius: 0.5rem; font-weight: 500; transition: all 0.2s; border: none; }
+        .btn-primary { background-color: var(--accent-blue); color: white; }
+        .btn-primary:hover { background-color: #0069d9; }
+        .btn-danger { background-color: #dc3545; color: white; padding: 0.25rem 0.5rem; font-size: 0.75rem;}
+        .form-input { width: 100%; padding: 0.6rem 0.8rem; border: 1px solid #ced4da; border-radius: 0.375rem; background-color: #fff; transition: border-color .15s ease-in-out,box-shadow .15s ease-in-out; }
+        .form-input:focus { border-color: #80bdff; outline: 0; box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25); }
+        .table-container { max-height: 280px; overflow-y: auto; }
+        .table thead th { text-align: left; padding: 0.75rem; color: var(--text-secondary); font-weight: 600; background-color: #f8f9fa; position: sticky; top: 0; font-size: 0.8rem; border-bottom: 2px solid var(--border-color); }
+        .table tbody td { padding: 0.75rem; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+        .summary-card { background: linear-gradient(135deg, #343a40, #495057); color: white; }
+        .heatmap-grid { display: grid; gap: 4px; }
+        .heatmap-cell { padding: 0.5rem; border-radius: 4px; font-weight: 600; color: white; text-align: center; font-size: 0.8rem; min-height: 50px; display: flex; align-items: center; justify-content: center; }
+        .heatmap-header { font-weight: 600; padding: 0.5rem; text-align: center; font-size: 0.75rem; }
+        .heatmap-label { font-weight: 500; padding-right: 1rem; text-align: right; display: flex; align-items: center; justify-content: flex-end; font-size: 0.8rem; }
+        .loader { border: 3px solid #dee2e6; border-top: 3px solid var(--accent-blue); border-radius: 50%; width: 30px; height: 30px; animation: spin 0.8s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
-<body>
-
-    <div id="app-container" class="hidden">
-        <header id="app-header" class="bg-white/80 backdrop-blur-md shadow-sm border-b border-gray-200 p-4 sticky top-0 z-40">
-            <div class="max-w-screen-2xl mx-auto flex justify-between items-center">
-                <h1 class="text-xl font-semibold text-gray-800">RV <span class="text-blue-600">Comercial</span></h1>
-                <div id="user-info-header" class="flex items-center space-x-4"></div>
+<body class="p-4">
+    <div id="app" class="max-w-screen-2xl mx-auto">
+        <header class="bg-white shadow-sm border-b border-gray-200 p-4 sticky top-0 z-40 mb-6">
+             <div class="container mx-auto flex justify-between items-center">
+                <h1 class="text-xl font-semibold text-gray-800">
+                    Suíte de Análise de <span class="text-blue-600">Comissões</span>
+                </h1>
+                 <nav class="flex items-center bg-gray-100 p-1 rounded-lg">
+                    <a id="navCalculator" class="nav-link active text-sm">Calculadora</a>
+                    <a id="navAnalysis" class="nav-link text-sm">Análise de Sensibilidade</a>
+                </nav>
             </div>
         </header>
 
-        <main id="app-content" class="max-w-screen-2xl mx-auto"></main>
+        <main id="app-content" class="container mx-auto">
+             <div id="initial-loading" class="flex flex-col items-center justify-center h-full p-8">
+                <div class="loader mb-3"></div>
+                <p class="text-gray-600">Conectando ao banco de dados...</p>
+            </div>
+        </main>
     </div>
-
-    <div id="loading-screen" class="fixed inset-0 flex flex-col items-center justify-center bg-gray-100">
-        <div class="loader"></div>
-        <p id="loading-message" class="mt-4 text-gray-600">A iniciar...</p>
-    </div>
-    
-    <div id="modal-container" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4 hidden">
-        <div id="modal-content" class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-lg"></div>
-    </div>
-    
-    <div id="notification-container" class="fixed top-6 right-6 z-[100] space-y-3 w-full max-w-sm"></div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, onSnapshot, addDoc, doc, deleteDoc, writeBatch, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        let db, auth;
-        let contractsCollection, teamCollection, usersProfileCollection;
-        let unsubscribers = [];
-
-        const state = {
-            currentUser: null,
-            userProfile: null,
-            team: [], 
-            contracts: [], 
-            isAuthReady: false,
-            currentView: 'login',
-            targets: {
-                pre2025: [{ faixa: 3, value: 90000000 }, { faixa: 2, value: 63000000 }, { faixa: 1, value: 36000000 }],
-                from2025: [{ faixa: 3, value: 30000000 }, { faixa: 2, value: 21000000 }, { faixa: 1, value: 12000000 }]
-            }
+        const firebaseConfig = {
+            apiKey: "AIzaSyAs9tsz3wsSjYlmbu8_7NnEbKxqsFV2ATo",
+            authDomain: "rvcomercial-fc7c9.firebaseapp.com",
+            projectId: "rvcomercial-fc7c9",
+            storageBucket: "rvcomercial-fc7c9.appspot.com",
+            messagingSenderId: "373252435120",
+            appId: "1:373252435120:web:817b4e65f46a2a572adf75"
         };
 
+        const state = {
+            employees: [],
+            contracts: [],
+            selectedContractIds: new Set(),
+            commissionTiers: [
+                 { rangeInf: 0, rangeSup: 1000000, rates: { "Marcelo Furtado": 0.0090, "Paula Young": 0.00207, "Carolina Chrispim": 0.00109, "Nathan Lemos": 0.00109, "Milena Franco": 0.00052, "Nathalia Carvalho": 0.00034, "Vitoria Damacena": 0.00032 } }, { rangeInf: 1000000.01, rangeSup: 5000000, rates: { "Marcelo Furtado": 0.0095, "Paula Young": 0.00218, "Carolina Chrispim": 0.00115, "Nathan Lemos": 0.00115, "Milena Franco": 0.00055, "Nathalia Carvalho": 0.00036, "Vitoria Damacena": 0.00034 } }, { rangeInf: 5000000.01, rangeSup: 10000000, rates: { "Marcelo Furtado": 0.0100, "Paula Young": 0.00230, "Carolina Chrispim": 0.00121, "Nathan Lemos": 0.00121, "Milena Franco": 0.00058, "Nathalia Carvalho": 0.00038, "Vitoria Damacena": 0.00036 } }, { rangeInf: 10000000.01, rangeSup: 50000000, rates: { "Marcelo Furtado": 0.0095, "Paula Young": 0.00218, "Carolina Chrispim": 0.00115, "Nathan Lemos": 0.00115, "Milena Franco": 0.00055, "Nathalia Carvalho": 0.00036, "Vitoria Damacena": 0.00034 } }, { rangeInf: 50000000.01, rangeSup: 100000000, rates: { "Marcelo Furtado": 0.0090, "Paula Young": 0.00207, "Carolina Chrispim": 0.00109, "Nathan Lemos": 0.00109, "Milena Franco": 0.00052, "Nathalia Carvalho": 0.00034, "Vitoria Damacena": 0.00032 } },
+            ],
+            sensitivityPoints: [10000000, 20000000, 30000000, 40000000, 50000000, 60000000, 75000000, 90000000]
+        };
+        
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        signInAnonymously(auth).catch(error => console.error("Anonymous sign-in failed:", error));
+
+        const employeesCol = collection(db, "employees");
+        const contractsCol = collection(db, "contracts");
+
+        const appContent = document.getElementById('app-content');
+        const initialLoadingDiv = document.getElementById('initial-loading');
+
         const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+        const formatDate = (dateString) => dateString ? new Date(dateString + 'T00:00:00').toLocaleDateString('pt-BR') : 'N/A';
+        const formatPercent = (value) => isNaN(value) ? '0,00%' : new Intl.NumberFormat('pt-BR', { style: 'percent', minimumFractionDigits: 2 }).format(value);
+        const formatMultiple = (value) => isNaN(value) ? '0,0x' : `${value.toFixed(1).replace('.',',')}x`;
+        
+        function calculateAllBonuses(contractList) {
+            const model = document.getElementById('calculationModel')?.value || 'byTier';
+            const totalRevenue = contractList.reduce((sum, c) => sum + c.value, 0);
+            const employeeBonuses = state.employees.map(e => ({ ...e, bonus: 0 }));
 
-        async function initializeFirebase() {
-            const loadingMessage = document.getElementById('loading-message');
-            try {
-                const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
-                    apiKey: "AIzaSyAs9tsz3wsSjYlmbu8_7NnEbKxqsFV2ATo",
-                    authDomain: "rvcomercial-fc7c9.firebaseapp.com",
-                    projectId: "rvcomercial-fc7c9",
-                    storageBucket: "rvcomercial-fc7c9.firebasestorage.app",
-                    messagingSenderId: "373252435120",
-                    appId: "1:373252435120:web:817b4e65f46a2a572adf75"
-                };
-                const app = initializeApp(firebaseConfig);
-                db = getFirestore(app);
-                auth = getAuth(app);
+            employeeBonuses.forEach(employee => {
+                const admissionDate = new Date(employee.admissionDate);
+                let totalBonusForEmployee = 0;
                 
-                const appId = firebaseConfig.projectId;
+                contractList.forEach(contract => {
+                    const closingDate = new Date(contract.closingDate);
+                    if (closingDate < admissionDate) return;
 
-                usersProfileCollection = collection(db, 'users_profile');
-                teamCollection = collection(db, 'public_data', appId, 'team');
-                contractsCollection = collection(db, 'public_data', appId, 'contracts');
-
-                onAuthStateChanged(auth, handleAuthStateChange);
-
-            } catch (error) {
-                console.error("Firebase Init Error:", error);
-                loadingMessage.innerHTML = `<div class="auth-fail p-4">Erro fatal ao iniciar. Verifique a consola.</div>`;
-            }
-        }
-        
-        async function handleAuthStateChange(user) {
-            if (user) {
-                state.currentUser = user;
-                const userDoc = await getDoc(doc(usersProfileCollection, user.uid));
-                if (userDoc.exists() && userDoc.data().isAdmin) {
-                    state.userProfile = { id: user.uid, ...userDoc.data() };
-                    state.isAuthReady = true;
-                    listenToData();
-                    state.currentView = 'dashboard';
-                } else {
-                     showNotification("Acesso negado. Apenas administradores podem usar esta ferramenta.", "error", 10000);
-                     await handleLogout();
-                }
-            } else {
-                state.currentUser = null;
-                state.userProfile = null;
-                state.isAuthReady = false;
-                state.currentView = 'login';
-                unsubscribers.forEach(unsub => unsub());
-                unsubscribers = [];
-            }
-            renderApp();
-        }
-
-        function listenToData() {
-            if (!state.isAuthReady || unsubscribers.length > 0) return;
-            
-            const contractsUnsub = onSnapshot(contractsCollection, snap => {
-                state.contracts = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                if (state.currentView === 'dashboard') calculateAndRenderAll();
-            }, err => {
-                console.error("Contracts listener error:", err.code, err.message);
-                showNotification(`Erro ao carregar contratos (${err.code}). Verifique as regras de segurança.`, 'error');
+                    if (model === 'fullValue') {
+                         const tier = state.commissionTiers.find(t => contract.value >= t.rangeInf && contract.value <= t.rangeSup);
+                         const rate = tier ? tier.rates[employee.name] || 0 : 0;
+                         totalBonusForEmployee += contract.value * rate;
+                    } else { // byTier
+                        let contractTierBonus = 0;
+                        let valueLeft = contract.value;
+                        let lastTierSup = 0;
+                        for (const tier of state.commissionTiers) {
+                            if (valueLeft <= 0) break;
+                            const tierRate = tier.rates[employee.name] || 0;
+                            const tierSize = tier.rangeSup - lastTierSup;
+                            const valueInTier = Math.min(valueLeft, tierSize);
+                            contractTierBonus += valueInTier * tierRate;
+                            valueLeft -= valueInTier;
+                            lastTierSup = tier.rangeSup;
+                        }
+                        totalBonusForEmployee += contractTierBonus;
+                    }
+                });
+                employee.bonus = totalBonusForEmployee;
             });
-            unsubscribers.push(contractsUnsub);
+            const totalBonus = employeeBonuses.reduce((sum, e) => sum + e.bonus, 0);
+            return { totalRevenue, totalBonus, breakdown: employeeBonuses };
+        }
 
-            const teamUnsub = onSnapshot(teamCollection, snap => {
-                state.team = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                 if (state.currentView === 'dashboard' || state.currentView === 'manageTeam') renderApp();
-            }, err => {
-                console.error("Team listener error:", err.code, err.message);
-                showNotification(`Erro ao carregar equipa (${err.code}). Verifique as regras de segurança.`, 'error');
-            });
-            unsubscribers.push(teamUnsub);
-        }
-        
-        async function handleLogin(email, password) {
-            try {
-                await signInWithEmailAndPassword(auth, email, password);
-            } catch (error) {
-                console.error("Login failed:", error.code);
-                showNotification(`Falha no login (${error.code})`, 'error');
-                throw error;
-            }
-        }
-        
-        async function handleLogout() {
-            await signOut(auth);
-        }
-        
-        function renderApp() {
-            const appContainer = document.getElementById('app-container');
-            const loadingScreen = document.getElementById('loading-screen');
-            const appContent = document.getElementById('app-content');
-            
-            if (appContent) appContent.innerHTML = '';
-            
-            if (state.currentUser && state.userProfile) {
-                loadingScreen.style.display = 'none';
-                appContainer.style.display = 'block';
-                renderHeader();
-
-                switch (state.currentView) {
-                    case 'dashboard': renderDashboard(); break;
-                    case 'manageTeam': renderManageTeamPage(); break;
-                }
-            } else {
-                appContainer.style.display = 'none';
-                loadingScreen.style.display = 'flex';
-                loadingScreen.innerHTML = '';
-                renderLoginPage(loadingScreen);
-            }
-        }
-        
-        function renderLoginPage(container) {
-            container.innerHTML = `
-                <div class="w-full max-w-sm bg-white shadow-xl rounded-xl p-8 border border-gray-200">
-                    <h2 class="text-2xl font-semibold text-gray-800 text-center mb-6">RV Comercial</h2>
-                    <form id="login-form" class="space-y-5">
-                        <div>
-                            <label for="email" class="block text-xs font-medium text-gray-600 mb-1">Email</label>
-                            <input id="email" type="email" required class="form-input" placeholder="seu.email@exemplo.com">
+        function renderAppContent() {
+            initialLoadingDiv.style.display = 'none';
+            appContent.innerHTML = `
+                <main id="pageCalculator">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="lg:col-span-1 flex flex-col space-y-6">
+                            ${renderPeopleCard()}
+                            ${renderContractsCard()}
                         </div>
-                        <div>
-                            <label for="password" class="block text-xs font-medium text-gray-600 mb-1">Senha</label>
-                            <input id="password" type="password" required class="form-input" placeholder="••••••••">
+                        <div class="lg:col-span-2">
+                            ${renderSimulationCard()}
                         </div>
-                        <button type="submit" class="w-full btn btn-dark">Entrar</button>
-                    </form>
-                </div>`;
-            document.getElementById('login-form').addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const btn = e.target.querySelector('button');
-                btn.disabled = true;
-                btn.textContent = 'A entrar...';
-                try {
-                    const email = document.getElementById('email').value;
-                    const password = document.getElementById('password').value;
-                    await handleLogin(email, password);
-                } catch(error) {
-                    btn.disabled = false;
-                    btn.textContent = 'Entrar';
-                }
-            });
-        }
-        
-        function renderHeader() {
-            const userInfoHeader = document.getElementById('user-info-header');
-            userInfoHeader.innerHTML = `
-                 <button id="nav-dashboard" class="text-sm font-medium text-gray-600 hover:text-blue-600">Dashboard</button>
-                 <button id="nav-manage-team" class="text-sm font-medium text-gray-600 hover:text-blue-600">Gerir Equipa</button>
-                 <span class="text-gray-300">|</span>
-                 <span class="text-sm text-gray-600">${state.userProfile.name}</span>
-                 <button id="logout-btn" class="text-sm font-medium text-blue-600 hover:text-blue-700">Sair</button>`;
-            document.getElementById('logout-btn').onclick = handleLogout;
-            document.getElementById('nav-dashboard').onclick = () => { state.currentView = 'dashboard'; renderApp(); };
-            document.getElementById('nav-manage-team').onclick = () => { state.currentView = 'manageTeam'; renderApp(); };
-        }
-        
-        function renderDashboard() {
-            const appContent = document.getElementById('app-content');
-            appContent.innerHTML = `<div class="min-h-screen lg:grid lg:grid-cols-12 gap-8 p-4 lg:p-8">
-                <aside class="lg:col-span-4 xl:col-span-3 flex flex-col gap-8">
-                    ${renderControlsPanel()}
-                </aside>
-                <main class="lg:col-span-8 xl:col-span-9 flex flex-col gap-8 mt-8 lg:mt-0">
-                    ${renderResultsPanel()}
-                </main>
-            </div>`;
-            attachDashboardListeners();
-            calculateAndRenderAll();
-        }
-        
-        function renderControlsPanel() {
-             return `
-                <div class="panel">
-                     <h2 class="text-2xl font-bold mb-6">Parâmetros</h2>
-                     <div class="space-y-6">
-                         <div><h3 class="text-lg font-semibold mb-3">Pesos por Cargo</h3><div class="space-y-3">
-                            <div class="flex justify-between items-center"><label for="peso_diretor" class="text-gray-600">Diretor</label><input type="number" id="peso_diretor" value="44" class="form-input w-20 text-center"></div>
-                            <div class="flex justify-between items-center"><label for="peso_gerente" class="text-gray-600">Gerente</label><input type="number" id="peso_gerente" value="8" class="form-input w-20 text-center"></div>
-                            <div class="flex justify-between items-center"><label for="peso_especialista" class="text-gray-600">Especialista</label><input type="number" id="peso_especialista" value="4" class="form-input w-20 text-center"></div>
-                            <div class="flex justify-between items-center"><label for="peso_pleno" class="text-gray-600">Designer Pleno</label><input type="number" id="peso_pleno" value="2" class="form-input w-20 text-center"></div>
-                            <div class="flex justify-between items-center"><label for="peso_junior" class="text-gray-600">Analista Júnior</label><input type="number" id="peso_junior" value="1" class="form-input w-20 text-center"></div>
-                         </div></div>
-                         <hr class="border-gray-100">
-                         <div><h3 class="text-lg font-semibold mb-3">Comissão 2025+ (%)</h3><div class="space-y-3">
-                            <div class="flex justify-between items-center"><label for="perc_2025_f1" class="text-gray-600">Faixa 1</label><input type="number" id="perc_2025_f1" value="1.0" step="0.01" class="form-input w-20 text-center"></div>
-                            <div class="flex justify-between items-center"><label for="perc_2025_f2" class="text-gray-600">Faixa 2</label><input type="number" id="perc_2025_f2" value="2.0" step="0.01" class="form-input w-20 text-center"></div>
-                            <div class="flex justify-between items-center"><label for="perc_2025_f3" class="text-gray-600">Faixa 3</label><input type="number" id="perc_2025_f3" value="3.4" step="0.01" class="form-input w-20 text-center"></div>
-                         </div></div>
-                          <hr class="border-gray-100">
-                         <div><h3 class="text-lg font-semibold mb-3">Comissão Pré-2025 (%)</h3><div class="space-y-3">
-                            <div class="flex justify-between items-center"><label for="perc_pre2025_f1" class="text-gray-600">Faixa 1</label><input type="number" id="perc_pre2025_f1" value="0.75" step="0.01" class="form-input w-20 text-center"></div>
-                            <div class="flex justify-between items-center"><label for="perc_pre2025_f2" class="text-gray-600">Faixa 2</label><input type="number" id="perc_pre2025_f2" value="1.0" step="0.01" class="form-input w-20 text-center"></div>
-                            <div class="flex justify-between items-center"><label for="perc_pre2025_f3" class="text-gray-600">Faixa 3</label><input type="number" id="perc_pre2025_f3" value="1.5" step="0.01" class="form-input w-20 text-center"></div>
-                         </div></div>
-                     </div>
-                </div>
-                <div class="panel">
-                    <h2 class="text-2xl font-bold mb-6">Lançar Contrato</h2>
-                    <form id="contract-form" class="space-y-4">
-                        <div><label for="contract-client" class="block text-sm font-medium text-gray-600 mb-1">Cliente</label><input type="text" id="contract-client" required class="form-input"></div>
-                        <div><label for="contract-value" class="block text-sm font-medium text-gray-600 mb-1">Valor (R$)</label><input type="number" id="contract-value" required class="form-input"></div>
-                        <div><label for="contract-date" class="block text-sm font-medium text-gray-600 mb-1">Data</label><input type="date" id="contract-date" required class="form-input"></div>
-                        <button type="submit" class="w-full btn btn-dark">Adicionar Contrato</button>
-                    </form>
-                </div>`;
-        }
-        
-        function renderResultsPanel() {
-            return `
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div class="panel"><h3 class="font-semibold mb-1">Contratos Pré-2025</h3><p class="text-4xl font-bold" id="vgv-pre2025">R$ 0,00</p><p class="text-sm text-gray-500 mt-2">Faixa: <span class="font-bold" id="faixa-pre2025">Nenhuma</span></p><p class="text-sm text-gray-500">Bónus: <span class="font-bold text-green-600" id="bonus-pre2025">R$ 0,00</span></p></div>
-                    <div class="panel"><h3 class="font-semibold mb-1">Contratos 2025+</h3><p class="text-4xl font-bold" id="vgv-2025">R$ 0,00</p><p class="text-sm text-gray-500 mt-2">Faixa: <span class="font-bold" id="faixa-2025">Nenhuma</span></p><p class="text-sm text-gray-500">Bónus: <span class="font-bold text-green-600" id="bonus-2025">R$ 0,00</span></p></div>
-                </div>
-                <div class="panel"><h2 class="text-2xl font-bold mb-4">Resultado de Comissões</h2><div class="overflow-x-auto"><table class="min-w-full"><thead class="table-header"><tr><th class="px-4 py-3 text-left">Funcionário</th><th class="px-4 py-3 text-left">Comissão Pré-2025</th><th class="px-4 py-3 text-left">Comissão 2025+</th><th class="px-4 py-3 text-left">Comissão Total</th><th class="px-4 py-3 text-left">Bónus (x Salários)</th></tr></thead><tbody id="commission-results"></tbody></table></div></div>
-                <div class="panel"><h2 class="text-2xl font-bold mb-4">Contratos Lançados</h2><div class="overflow-x-auto max-h-96"><table class="min-w-full"><thead class="table-header sticky top-0 bg-white"><tr><th class="px-4 py-3 text-left">Cliente</th><th class="px-4 py-3 text-left">Valor</th><th class="px-4 py-3 text-left">Data</th><th class="px-4 py-3 text-left"></th></tr></thead><tbody id="contracts-list"></tbody></table></div></div>`;
-        }
-        
-        function attachDashboardListeners() {
-            document.getElementById('contract-form').addEventListener('submit', (e) => { e.preventDefault(); addContract({client: document.getElementById('contract-client').value, value: parseFloat(document.getElementById('contract-value').value), date: document.getElementById('contract-date').value }); e.target.reset(); });
-            document.querySelectorAll('.panel input[type=number]').forEach(input => input.addEventListener('change', calculateAndRenderAll));
-            const contractList = document.getElementById('contracts-list');
-            if(contractList) contractList.addEventListener('click', e => {
-                const button = e.target.closest('.delete-contract-btn');
-                if (button) {
-                    const id = button.dataset.id;
-                    deleteContract(id);
-                }
-            });
-        }
-        
-        function renderManageTeamPage() {
-            const appContent = document.getElementById('app-content');
-            const teamRows = state.team.sort((a, b) => a.name.localeCompare(b.name)).map(member => `
-                <tr class="table-row">
-                    <td class="p-4 whitespace-nowrap"><div class="text-sm font-semibold">${member.name}</div><div class="text-xs text-gray-500">${member.role}</div></td>
-                    <td class="p-4 whitespace-nowrap text-sm font-mono">${formatCurrency(member.salary)}</td>
-                    <td class="p-4 whitespace-nowrap text-sm text-gray-600">${new Date(member.hireDate + 'T00:00:00').toLocaleDateString('pt-BR')}</td>
-                    <td class="p-4 whitespace-nowrap text-sm text-center"><button class="delete-team-btn text-gray-400 hover:text-red-500" data-id="${member.id}">✖</button></td>
-                </tr>`).join('');
-            
-            appContent.innerHTML = `<div class="p-4 lg:p-8">
-                <div class="panel">
-                    <h2 class="text-2xl font-bold mb-4">Gerir Equipa</h2>
-                     <div class="overflow-x-auto max-h-[60vh]">
-                        <table class="min-w-full">
-                             <thead class="table-header sticky top-0 bg-white">
-                                <tr>
-                                    <th class="px-4 py-3 text-left">Nome</th>
-                                    <th class="px-4 py-3 text-left">Salário</th>
-                                    <th class="px-4 py-3 text-left">Admissão</th>
-                                    <th class="px-4 py-3 text-left">Ações</th>
-                                </tr>
-                            </thead>
-                            <tbody id="team-list-body">${teamRows}</tbody>
-                        </table>
                     </div>
-                     ${state.team.length === 0 ? `<div class="text-center p-8 text-gray-500">Nenhum membro na equipa. Adicione um abaixo.</div>`: ''}
+                </main>
+                <main id="pageAnalysis" class="hidden"></main>
+            `;
+            attachMainEventListeners();
+            renderUI();
+        }
+
+        function renderPeopleCard() {
+            return `
+                <div class="card">
+                    <h2 class="text-lg font-semibold mb-3">Gerenciar Pessoas</h2>
+                    <div class="space-y-3">
+                        <input type="text" id="empName" placeholder="Nome" class="form-input text-sm">
+                        <input type="text" id="empRole" placeholder="Cargo" class="form-input text-sm">
+                        <input type="number" id="empSalary" placeholder="Salário" class="form-input text-sm">
+                        <input type="date" id="empDate" class="form-input text-sm">
+                    </div>
+                    <button id="addEmployeeBtn" class="btn btn-primary w-full mt-4 text-sm">Adicionar Pessoa</button>
+                    <div class="table-container mt-4 border rounded-md">
+                        <table class="w-full text-sm table"><tbody id="employeesTableBody"></tbody></table>
+                    </div>
                 </div>
-                 <div class="panel mt-8">
-                    <h2 class="text-2xl font-bold mb-6">Adicionar Novo Funcionário</h2>
-                    <form id="team-form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div><label for="team-name" class="block text-sm font-medium text-gray-600 mb-1">Nome</label><input type="text" id="team-name" required class="form-input"></div>
-                        <div><label for="team-role" class="block text-sm font-medium text-gray-600 mb-1">Cargo</label><input type="text" id="team-role" required class="form-input"></div>
-                        <div><label for="team-salary" class="block text-sm font-medium text-gray-600 mb-1">Salário (R$)</label><input type="number" id="team-salary" required class="form-input"></div>
-                        <div><label for="team-hire" class="block text-sm font-medium text-gray-600 mb-1">Data de Admissão</label><input type="date" id="team-hire" required class="form-input"></div>
-                        <div class="md:col-span-2"><button type="submit" class="w-full btn btn-dark">Adicionar à Equipa</button></div>
-                    </form>
+            `;
+        }
+
+        function renderContractsCard() {
+             return `
+                <div class="card">
+                    <h2 class="text-lg font-semibold mb-3">Gerenciar Contratos</h2>
+                    <div class="space-y-3">
+                        <input type="text" id="contractName" placeholder="Nome do Contrato" class="form-input text-sm">
+                        <input type="number" id="contractValue" placeholder="Valor" class="form-input text-sm">
+                        <input type="date" id="contractDate" class="form-input text-sm">
+                    </div>
+                    <button id="addContractBtn" class="btn btn-primary w-full mt-4 text-sm">Adicionar Contrato</button>
+                    <div class="table-container mt-4 border rounded-md">
+                        <table class="w-full text-sm table"><tbody id="contractsTableBody"></tbody></table>
+                    </div>
                 </div>
-            </div>`;
-            document.getElementById('team-list-body').addEventListener('click', e => {
-                const button = e.target.closest('.delete-team-btn');
-                if (button) {
-                    const id = button.dataset.id;
-                    deleteTeamMember(id);
+            `;
+        }
+
+        function renderSimulationCard() {
+            return `
+                <div class="card">
+                    <h2 class="text-lg font-semibold mb-3">Simulação de Bônus</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="font-medium text-sm">Modelo de Cálculo</label>
+                            <select id="calculationModel" class="form-input text-sm">
+                                <option value="byTier" selected>Por Faixa (Recomendado)</option>
+                                <option value="fullValue">Valor Cheio</option>
+                            </select>
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="font-medium text-sm">Selecione os Contratos para Simular:</label>
+                            <div id="contractsCheckboxContainer" class="table-container border rounded-md p-2 mt-1 bg-gray-50 max-h-40"></div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 summary-card p-4 rounded-lg">
+                        <div><p class="text-xs opacity-80 uppercase font-semibold">Receita Total</p><p id="totalRevenue" class="text-2xl font-bold">R$ 0,00</p></div>
+                        <div><p class="text-xs opacity-80 uppercase font-semibold">Bônus Total</p><p id="totalBonus" class="text-2xl font-bold">R$ 0,00</p></div>
+                        <div><p class="text-xs opacity-80 uppercase font-semibold">Comissão Efetiva</p><p id="effectiveCommission" class="text-2xl font-bold">0,00%</p></div>
+                    </div>
+                    <div class="mt-4">
+                        <h3 class="text-md font-semibold mb-2">Detalhamento por Colaborador</h3>
+                        <div class="table-container border rounded-md">
+                            <table class="w-full text-sm table">
+                                <thead><tr><th>Colaborador</th><th class="text-right">Bônus</th><th class="text-right">% Salário</th></tr></thead>
+                                <tbody id="bonusBreakdownTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function renderUI() {
+            if (document.getElementById('employeesTableBody')) renderEmployees();
+            if (document.getElementById('contractsTableBody')) renderContracts();
+            if (document.getElementById('contractsCheckboxContainer')) renderContractsForSim();
+            updateSimulationResults();
+        }
+
+        function renderEmployees() {
+            const tableBody = document.getElementById('employeesTableBody');
+            tableBody.innerHTML = state.employees.map(emp => `
+                <tr>
+                    <td>
+                        <div class="font-semibold text-xs">${emp.name}</div>
+                        <div class="text-xs text-gray-500">${emp.role} | Adm: ${formatDate(emp.admissionDate)}</div>
+                    </td>
+                    <td class="text-right"><button class="btn-danger" data-id="${emp.id}">×</button></td>
+                </tr>
+            `).join('');
+            tableBody.querySelectorAll('.btn-danger').forEach(btn => btn.addEventListener('click', () => deleteDoc(doc(db, "employees", btn.dataset.id))));
+        }
+
+        function renderContracts() {
+            const tableBody = document.getElementById('contractsTableBody');
+            tableBody.innerHTML = state.contracts.map(c => `
+                 <tr>
+                    <td>
+                        <div class="font-semibold text-xs">${c.name}</div>
+                        <div class="text-xs text-gray-500">${formatCurrency(c.value)} | ${formatDate(c.closingDate)}</div>
+                    </td>
+                    <td class="text-right"><button class="btn-danger" data-id="${c.id}">×</button></td>
+                </tr>
+            `).join('');
+             tableBody.querySelectorAll('.btn-danger').forEach(btn => btn.addEventListener('click', () => deleteDoc(doc(db, "contracts", btn.dataset.id))));
+        }
+        
+        function renderContractsForSim() {
+            document.getElementById('contractsCheckboxContainer').innerHTML = state.contracts.map(c => `
+                <div class="flex items-center justify-between p-1 hover:bg-gray-100 rounded">
+                    <label class="text-xs flex-grow cursor-pointer" for="sim-contract-${c.id}">${c.name} (${formatDate(c.closingDate)})</label>
+                    <input type="checkbox" id="sim-contract-${c.id}" data-id="${c.id}" class="sim-contract-checkbox" ${state.selectedContractIds.has(c.id) ? 'checked' : ''}>
+                </div>
+            `).join('');
+            document.getElementById('contractsCheckboxContainer').addEventListener('change', e => {
+                 if (e.target.matches('.sim-contract-checkbox')) {
+                    const id = e.target.dataset.id;
+                    if (e.target.checked) state.selectedContractIds.add(id);
+                    else state.selectedContractIds.delete(id);
+                    updateSimulationResults();
                 }
             });
-            document.getElementById('team-form').addEventListener('submit', (e) => { e.preventDefault(); addTeamMember({name: document.getElementById('team-name').value, role: document.getElementById('team-role').value, salary: parseFloat(document.getElementById('team-salary').value), hireDate: document.getElementById('team-hire').value }); e.target.reset(); });
+        }
+
+        function updateSimulationResults() {
+             if (!document.getElementById('totalRevenue')) return; // Exit if UI not rendered
+            const simContracts = state.contracts.filter(c => state.selectedContractIds.has(c.id));
+            const { totalRevenue, totalBonus, breakdown } = calculateAllBonuses(simContracts);
+            document.getElementById('totalRevenue').textContent = formatCurrency(totalRevenue);
+            document.getElementById('totalBonus').textContent = formatCurrency(totalBonus);
+            document.getElementById('effectiveCommission').textContent = formatPercent(totalRevenue > 0 ? totalBonus / totalRevenue : 0);
+
+            document.getElementById('bonusBreakdownTableBody').innerHTML = breakdown.map(emp => {
+                const bonusAsSalaryPercent = emp.salary > 0 ? emp.bonus / emp.salary : 0;
+                return `<tr><td>${emp.name}</td><td class="text-right">${formatCurrency(emp.bonus)}</td><td class="text-right ${bonusAsSalaryPercent > 0 ? 'text-green-600' : ''}">${formatPercent(bonusAsSalaryPercent)}</td></tr>`;
+            }).join('');
+        }
+
+        function renderAnalysisPage() {
+            const pageAnalysis = document.getElementById('pageAnalysis');
+            pageAnalysis.innerHTML = `<div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                <div class="card"><h2 class="text-lg font-semibold mb-3">Heatmap: Bônus Total (R$)</h2><div id="totalBonusHeatmapContainer"></div></div>
+                <div class="card"><h2 class="text-lg font-semibold mb-3">Heatmap: Bônus x Salário</h2><div id="salaryMultipleHeatmapContainer"></div></div>
+            </div>`;
+            generateHeatmaps();
         }
         
-        function showNotification(message, type = 'info', duration = 4000) {
-            const container = document.getElementById('notification-container');
-            const id = `notif-${Date.now()}`;
-            const notif = document.createElement('div');
-            notif.id = id;
-            let styles = 'p-4 rounded-lg shadow-lg flex items-start space-x-3 transition-opacity duration-300';
-            if (type === 'error') styles += ' bg-red-50 text-red-700';
-            else if (type === 'success') styles += ' bg-green-50 text-green-700';
-            else styles += ' bg-blue-50 text-blue-700';
-            notif.className = styles;
-            notif.innerHTML = `<p class="flex-1">${message}</p><button onclick="document.getElementById('${id}').remove()" class="text-gray-400 hover:text-gray-600">✖</button>`;
-            container.appendChild(notif);
-            setTimeout(() => { notif.style.opacity = '0'; setTimeout(() => notif.remove(), 300); }, duration);
-        }
+        function generateHeatmaps() {
+            const simContracts = state.contracts.filter(c => state.selectedContractIds.has(c.id));
+            if (simContracts.length === 0) {
+                 document.getElementById('totalBonusHeatmapContainer').innerHTML = `<p class="text-center text-gray-500 p-4">Selecione contratos na calculadora para ver a análise.</p>`;
+                 document.getElementById('salaryMultipleHeatmapContainer').innerHTML = '';
+                 return;
+            }
 
-        function getParameters() {
-            const safeParse = (id) => parseFloat(document.getElementById(id)?.value) || 0;
-            return {
-                percentages: {
-                    pre2025: {1:safeParse('perc_pre2025_f1')/100, 2:safeParse('perc_pre2025_f2')/100, 3:safeParse('perc_pre2025_f3')/100},
-                    from2025: {1:safeParse('perc_2025_f1')/100, 2:safeParse('perc_2025_f2')/100, 3:safeParse('perc_2025_f3')/100}
-                },
-                weights: { "Diretor Comercial": safeParse('peso_diretor'), "Diretor de Comunicação & Branding": safeParse('peso_diretor'), "Diretor de Marketing & Merchandising": safeParse('peso_diretor'), "Gerente Comercial": safeParse('peso_gerente'), "Gerente de Branding": safeParse('peso_gerente'), "Especialista": safeParse('peso_especialista'), "Designer Pleno": safeParse('peso_pleno'), "Analista Júnior": safeParse('peso_junior'), }
-            };
-        }
-
-        function calculateAndRenderAll() {
-            if (!document.getElementById('commission-results') || !state.isAuthReady) return;
-            const params = getParameters();
-            const vgvPre2025 = state.contracts.filter(c => new Date(c.date) < new Date('2025-01-01')).reduce((sum, c) => sum + c.value, 0);
-            const vgvFrom2025 = state.contracts.filter(c => new Date(c.date) >= new Date('2025-01-01')).reduce((sum, c) => sum + c.value, 0);
-            let faixaPre2025 = 0; for (const t of state.targets.pre2025) { if (vgvPre2025 >= t.value) { faixaPre2025 = t.faixa; break; } }
-            const percPre2025 = faixaPre2025 > 0 ? params.percentages.pre2025[faixaPre2025] : 0;
-            let faixaFrom2025 = 0; for (const t of state.targets.from2025) { if (vgvFrom2025 >= t.value) { faixaFrom2025 = t.faixa; break; } }
-            const percFrom2025 = faixaFrom2025 > 0 ? params.percentages.from2025[faixaFrom2025] : 0;
-            const bonusPoolPre2025 = vgvPre2025 * percPre2025;
-            const bonusPoolFrom2025 = vgvFrom2025 * percFrom2025;
-            const teamEligiblePre2025 = state.team.filter(m => new Date(m.hireDate) < new Date('2025-01-01'));
-            const totalWeightPre2025 = teamEligiblePre2025.reduce((sum, m) => sum + (params.weights[m.role] || 0), 0);
-            const totalWeightFrom2025 = state.team.reduce((sum, m) => sum + (params.weights[m.role] || 0), 0);
+            const baseRevenue = simContracts.reduce((sum, c) => sum + c.value, 0);
+            let allTotalBonuses = [];
+            let allSalaryMultiples = {};
+            state.employees.forEach(e => allSalaryMultiples[e.name] = []);
             
-            const resultsEl = document.getElementById('commission-results');
-            if (resultsEl) resultsEl.innerHTML = '';
-            state.team.sort((a,b) => (params.weights[b.role] || 0) - (params.weights[a.role] || 0)).forEach(member => {
-                const weight = params.weights[member.role] || 0;
-                const commissionPre2025 = (new Date(member.hireDate) < new Date('2025-01-01') && totalWeightPre2025 > 0) ? (weight / totalWeightPre2025) * bonusPoolPre2025 : 0;
-                const commissionFrom2025 = totalWeightFrom2025 > 0 ? (weight / totalWeightFrom2025) * bonusPoolFrom2025 : 0;
-                const totalCommission = commissionPre2025 + commissionFrom2025;
-                const bonusInSalaries = member.salary > 0 ? totalCommission / member.salary : 0;
-                if(resultsEl) resultsEl.innerHTML += `<tr class="table-row ${totalCommission > 0 ? 'bg-green-50' : ''}"><td class="p-4"><div class="text-sm font-semibold">${member.name}</div><div class="text-xs text-gray-500">${member.role}</div></td><td class="p-4 text-sm font-mono">${formatCurrency(commissionPre2025)}</td><td class="p-4 text-sm font-mono">${formatCurrency(commissionFrom2025)}</td><td class="p-4 text-sm font-semibold font-mono">${formatCurrency(totalCommission)}</td><td class="p-4 text-sm font-semibold text-blue-600">${bonusInSalaries.toFixed(2)}x</td></tr>`;
+            state.sensitivityPoints.forEach(targetRevenue => {
+                const scalingFactor = baseRevenue > 0 ? targetRevenue / baseRevenue : 0;
+                const scaledContracts = simContracts.map(c => ({ ...c, value: c.value * scalingFactor }));
+                const { totalBonus, breakdown } = calculateAllBonuses(scaledContracts);
+                allTotalBonuses.push(totalBonus);
+                breakdown.forEach(emp => allSalaryMultiples[emp.name].push(emp.salary > 0 ? emp.bonus / emp.salary : 0));
             });
-            document.getElementById('vgv-pre2025').textContent = formatCurrency(vgvPre2025);
-            document.getElementById('faixa-pre2025').textContent = faixaPre2025 > 0 ? `Faixa ${faixaPre2025}` : 'Nenhuma';
-            document.getElementById('bonus-pre2025').textContent = formatCurrency(bonusPoolPre2025);
-            document.getElementById('vgv-2025').textContent = formatCurrency(vgvFrom2025);
-            document.getElementById('faixa-2025').textContent = faixaFrom2025 > 0 ? `Faixa ${faixaFrom2025}` : 'Nenhuma';
-            document.getElementById('bonus-2025').textContent = formatCurrency(bonusPoolFrom2025);
-            renderContractsList();
-        }
+            
+            const renderHeatmap = (containerId, data, formatter, valueExtractor) => {
+                const container = document.getElementById(containerId);
+                const allValues = Object.values(data).flat();
+                const min = Math.min(...allValues);
+                const max = Math.max(...allValues);
+                
+                const getColor = (value) => {
+                    const percentage = max === min ? 0.5 : (value - min) / (max - min);
+                    const r = 224 + (79 - 224) * percentage; const g = 231 + (70 - 231) * percentage; const b = 254 + (229 - 254) * percentage;
+                    return `rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)})`;
+                };
 
-        function renderContractsList() {
-            const listEl = document.getElementById('contracts-list');
-            if(!listEl) return;
-            listEl.innerHTML = state.contracts.sort((a,b) => new Date(b.date) - new Date(a.date)).map(c => `
-                <tr class="table-row">
-                    <td class="p-4 whitespace-nowrap text-sm font-semibold">${c.client}</td>
-                    <td class="p-4 whitespace-nowrap text-sm font-mono">${formatCurrency(c.value)}</td>
-                    <td class="p-4 whitespace-nowrap text-sm">${new Date(c.date + 'T00:00:00').toLocaleDateString('pt-BR')}</td>
-                    <td class="p-4 text-center"><button class="delete-contract-btn text-gray-400 hover:text-red-500" data-id="${c.id}">✖</button></td>
-                </tr>`).join('');
+                let html = `<div class="heatmap-grid" style="grid-template-columns: 1fr repeat(${Object.keys(data).length}, 1fr);">`;
+                html += `<div class="heatmap-header">Receita</div>`;
+                Object.keys(data).forEach(key => html += `<div class="heatmap-header">${key.split(' ')[0]}</div>`);
+                
+                state.sensitivityPoints.forEach((revenue, rowIndex) => {
+                    html += `<div class="heatmap-label">${formatCurrency(revenue/1000000)}M</div>`;
+                    Object.keys(data).forEach(key => {
+                        const value = valueExtractor(data, key, rowIndex);
+                        html += `<div class="heatmap-cell" style="background-color: ${getColor(value)};">${formatter(value)}</div>`;
+                    });
+                });
+                container.innerHTML = html + `</div>`;
+            };
+            
+            renderHeatmap('totalBonusHeatmapContainer', {'Bônus Total': allTotalBonuses}, formatCurrency, (d, k, i) => d[k][i]);
+            renderHeatmap('salaryMultipleHeatmapContainer', allSalaryMultiples, formatMultiple, (d, k, i) => d[k][i]);
         }
-
-        async function addContract(data) { if(!data.client || !data.date || isNaN(data.value)) {showNotification("Preencha todos os campos do contrato.", "error"); return;} try { await addDoc(contractsCollection, data); showNotification("Contrato adicionado!", "success");} catch (e) { console.error(e); showNotification("Falha ao salvar contrato.", "error"); } }
-        async function addTeamMember(data) { if(!data.name || !data.role || !data.hireDate || isNaN(data.salary)) {showNotification("Preencha todos os campos do funcionário.", "error"); return;} try { await addDoc(teamCollection, data); showNotification("Funcionário adicionado!", "success"); } catch (e) { console.error(e); showNotification("Falha ao salvar funcionário.", "error"); } }
-        async function deleteContract(id) { if (confirm("Excluir este contrato?")) try { await deleteDoc(doc(contractsCollection, id)); showNotification("Contrato excluído.", "success"); } catch (e) { console.error(e); showNotification("Falha ao excluir.", "error"); } }
-        async function deleteTeamMember(id) { if (confirm("Remover este membro?")) try { await deleteDoc(doc(teamCollection, id)); showNotification("Membro removido.", "success"); } catch (e) { console.error(e); showNotification("Falha ao remover.", "error"); } }
         
-        document.addEventListener('DOMContentLoaded', initializeFirebase);
+        function attachMainEventListeners() {
+             document.getElementById('navCalculator').addEventListener('click', (e) => {
+                e.target.classList.add('active');
+                document.getElementById('navAnalysis').classList.remove('active');
+                document.getElementById('pageCalculator').classList.remove('hidden');
+                document.getElementById('pageAnalysis').classList.add('hidden');
+            });
+            document.getElementById('navAnalysis').addEventListener('click', (e) => {
+                e.target.classList.add('active');
+                document.getElementById('navCalculator').classList.remove('active');
+                document.getElementById('pageCalculator').classList.add('hidden');
+                document.getElementById('pageAnalysis').classList.remove('hidden');
+                renderAnalysisPage();
+            });
+            document.getElementById('addEmployeeBtn').addEventListener('click', () => {
+                addDoc(employeesCol, {
+                    name: document.getElementById('empName').value, role: document.getElementById('empRole').value,
+                    salary: parseFloat(document.getElementById('empSalary').value), admissionDate: document.getElementById('empDate').value
+                });
+            });
+            document.getElementById('addContractBtn').addEventListener('click', () => {
+                addDoc(contractsCol, {
+                    name: document.getElementById('contractName').value, value: parseFloat(document.getElementById('contractValue').value),
+                    closingDate: document.getElementById('contractDate').value
+                });
+            });
+            document.getElementById('calculationModel').addEventListener('change', updateSimulationResults);
+        }
+
+        onSnapshot(employeesCol, snapshot => {
+            state.employees = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            if(document.getElementById('pageCalculator')) renderUI(); else renderAppContent();
+        });
+        onSnapshot(contractsCol, snapshot => {
+            state.contracts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+             if(document.getElementById('pageCalculator')) renderUI(); else renderAppContent();
+        });
     </script>
 </body>
 </html>
