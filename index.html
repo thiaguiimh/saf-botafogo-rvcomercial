@@ -25,73 +25,131 @@
         .btn:disabled { background-color: #6c757d; cursor: not-allowed; }
         .btn-primary { background-color: var(--accent-blue); color: white; }
         .btn-primary:hover:not(:disabled) { background-color: #0069d9; }
+        .btn-danger { background-color: #dc3545; color: white; }
         .btn-danger-sm { background-color: #dc3545; color: white; padding: 0.25rem 0.5rem; font-size: 0.75rem; border-radius: 0.25rem;}
         .btn-edit-sm { background-color: #6c757d; color: white; padding: 0.25rem 0.5rem; font-size: 0.75rem; border-radius: 0.25rem;}
         .form-input { width: 100%; padding: 0.6rem 0.8rem; border: 1px solid #ced4da; border-radius: 0.375rem; background-color: #fff; }
         .table-container { max-height: 400px; overflow-x: auto; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 0.5rem;}
         .table thead th { text-align: left; padding: 0.75rem; font-weight: 600; background-color: #f8f9fa; position: sticky; top: 0; font-size: 0.8rem; border-bottom: 2px solid var(--border-color); white-space: nowrap; }
         .table tbody td { padding: 0.75rem; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
-        .loader { border: 3px solid #dee2e6; border-top: 3px solid var(--accent-blue); border-radius: 50%; width: 30px; height: 30px; animation: spin 0.8s linear infinite; }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid var(--accent-blue); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
         .loader-sm { width: 16px; height: 16px; border-width: 2px; }
-        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index: 50; padding: 1rem;}
-        .modal-content { background: white; padding: 1.5rem; border-radius: 0.75rem; width: 100%; max-width: 900px; max-height: 90vh; display: flex; flex-direction: column; }
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; z-index: 50; padding: 1rem;}
+        .modal-content { background: white; padding: 1.5rem; border-radius: 0.75rem; width: 100%; max-width: 500px; max-height: 90vh; display: flex; flex-direction: column; }
         .modal-body { overflow-y: auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
     <div id="app" class="min-h-screen"></div>
-    <div id="modal-container" class="hidden"></div>
+    <div id="modal-container"></div>
 
     <script type="module">
+        // Firebase Imports
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, doc, addDoc, setDoc, deleteDoc, onSnapshot, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, addDoc, setDoc, deleteDoc, onSnapshot, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyAs9tsz3wsSjYlmbu8_7NnEbKxqsFV2ATo",
-            authDomain: "rvcomercial-fc7c9.firebaseapp.com",
-            projectId: "rvcomercial-fc7c9",
-            storageBucket: "rvcomercial-fc7c9.appspot.com",
-            messagingSenderId: "373252435120",
-            appId: "1:373252435120:web:817b4e65f46a2a572adf75"
-        };
-        
+        // --- App Setup ---
         const appEl = document.getElementById('app');
         const modalContainer = document.getElementById('modal-container');
+
+        // Use environment variables for Firebase config and authentication
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
 
         let state = {
-            currentUser: null, userProfile: null, employees: [], contracts: [], commissionModels: [], users: [],
-            currentView: 'loading', adminView: 'dashboard', unsubscribe: [],
+            currentUser: null,
+            userProfile: null,
+            employees: [],
+            contracts: [],
+            commissionModels: [],
+            users: [],
+            currentView: 'loading',
+            adminView: 'dashboard',
+            loadingMessage: 'Inicializando...',
+            unsubscribe: [],
         };
-        
+
+        // --- Collections ---
         const usersCol = collection(db, "users");
         const employeesCol = collection(db, "employees");
         const contractsCol = collection(db, "contracts");
         const commissionModelsCol = collection(db, "commissionModels");
 
-        function parseHash() {
-            const h = window.location.hash.replace('#', '');
-            const valid = ['dashboard','users','employees','contracts','commissionModels'];
-            if (valid.includes(h)) state.adminView = h;
+        // --- Helper Functions ---
+        const formatCurrency = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
+        const formatDate = (d) => d ? new Date(d.seconds * 1000).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : 'N/A';
+        const formatPercent = (v) => new Intl.NumberFormat('pt-BR', { style: 'percent', minimumFractionDigits: 3, maximumFractionDigits: 3 }).format(v || 0);
+
+        // --- Modal System ---
+        function showModal(title, content, actions = '') {
+            modalContainer.innerHTML = `<div class="modal-overlay">
+                <div class="modal-content" style="max-width: 900px;">
+                    <div class="flex justify-between items-center mb-4 pb-2 border-b">
+                        <h3 class="text-xl font-semibold">${title}</h3>
+                        <button id="closeModalBtn" class="font-bold text-2xl hover:text-red-500 transition-colors">×</button>
+                    </div>
+                    <div id="modalBody" class="modal-body">${content}</div>
+                    <div id="modalActions" class="mt-4 pt-2 border-t flex justify-end gap-2">${actions}</div>
+                </div>
+            </div>`;
+            document.getElementById('closeModalBtn').addEventListener('click', closeModal);
+            modalContainer.querySelector('.modal-overlay').addEventListener('click', e => e.target === e.currentTarget && closeModal());
+        }
+        function closeModal() {
+            modalContainer.innerHTML = '';
+        }
+        function showMessage(title, message) {
+             const actions = `<button id="okBtn" class="btn btn-primary">OK</button>`;
+             showModal(title, `<p>${message}</p>`, actions);
+             document.getElementById('okBtn').addEventListener('click', closeModal);
+        }
+        function showConfirmation(title, message, onConfirm) {
+            const actions = `<button id="cancelBtn" class="btn">Cancelar</button><button id="confirmBtn" class="btn btn-danger">Confirmar</button>`;
+            showModal(title, `<p>${message}</p>`, actions);
+            document.getElementById('cancelBtn').addEventListener('click', closeModal);
+            document.getElementById('confirmBtn').addEventListener('click', () => {
+                onConfirm();
+                closeModal();
+            });
         }
 
+        // --- Authentication & Data Loading ---
+        async function performSignIn() {
+             try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("Authentication failed:", error);
+                state.currentView = 'login';
+                render();
+            }
+        }
+        
         onAuthStateChanged(auth, async (user) => {
             state.unsubscribe.forEach(unsub => unsub());
-            state = { ...state, currentUser: user, userProfile: null, employees: [], contracts: [], commissionModels: [], users:[], unsubscribe: [], currentView: 'loading' };
+            state = { ...state, currentUser: user, userProfile: null, employees: [], contracts: [], commissionModels: [], users:[], unsubscribe: [] };
 
-            if (user) {
+            if (user && !user.isAnonymous) {
+                state.loadingMessage = 'Carregando perfil do usuário...';
+                state.currentView = 'loading';
+                render();
                 try {
                     const userDocSnap = await getDoc(doc(db, "users", user.uid));
                     if (userDocSnap.exists()) {
                         state.userProfile = { id: user.uid, ...userDocSnap.data() };
                         initializeDataListeners();
-                    } else { throw new Error("Perfil de usuário não encontrado. Contate o administrador."); }
+                    } else {
+                        throw new Error("Perfil de usuário não encontrado. Contate o administrador.");
+                    }
                 } catch (error) {
-                    alert(error.message);
+                    showMessage("Erro de Autenticação", error.message);
                     await signOut(auth);
                 }
             } else {
@@ -99,228 +157,302 @@
                 render();
             }
         });
-        
-        function initializeDataListeners() {
-            let loaded = 0;
-            const collectionsToLoad = state.userProfile?.isAdmin ? 4 : 3;
 
-            const onDataLoad = () => {
-                loaded++;
-                if (loaded >= collectionsToLoad) {
-                    if (state.currentView === 'loading') {
-                        if (state.userProfile.isAdmin) {
-                            state.currentView = 'admin';
-                            parseHash();
-                        }
-                        else if (state.userProfile.isManager) state.currentView = 'gestor';
-                        else state.currentView = 'funcionario';
+        function initializeDataListeners() {
+            let loadedCount = 0;
+            const collectionsToLoad = state.userProfile?.isAdmin ? ['users', 'employees', 'contracts', 'commissionModels'] : ['employees', 'contracts', 'commissionModels'];
+
+            const onDataLoaded = () => {
+                loadedCount++;
+                if (loadedCount >= collectionsToLoad.length) {
+                    if (state.userProfile.isAdmin) {
+                        state.currentView = 'admin';
+                        parseHash();
+                    } else {
+                        state.currentView = 'employee';
                     }
                     render();
                 }
             };
 
-            const collections = { employees: employeesCol, contracts: contractsCol, commissionModels: commissionModelsCol };
-            if (state.userProfile?.isAdmin) collections.users = usersCol;
-
-            for (const key in collections) {
-                const unsub = onSnapshot(collections[key], snapshot => {
+            collectionsToLoad.forEach(key => {
+                state.loadingMessage = `Carregando ${key}...`;
+                render();
+                const unsub = onSnapshot(collection(db, key), snapshot => {
                     state[key] = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-                    onDataLoad();
-                }, error => console.error(`Error listening to ${key}:`, error));
+                    onDataLoaded();
+                }, error => {
+                    console.error(`Error listening to ${key}:`, error);
+                    showMessage("Erro de Dados", `Não foi possível carregar os dados de "${key}". Verifique as permissões do Firestore.`);
+                });
                 state.unsubscribe.push(unsub);
-            }
+            });
         }
         
+        // --- Rendering Engine ---
         function render() {
             const viewRenderers = {
-                loading: () => `<div class="flex items-center justify-center h-screen"><div class="loader"></div></div>`,
+                loading: () => `<div class="flex flex-col items-center justify-center h-screen"><div class="loader"></div><p class="mt-4 text-lg text-gray-600">${state.loadingMessage}</p></div>`,
                 login: renderLogin,
                 admin: renderAdminDashboard,
-                gestor: renderGestorDashboard,
-                funcionario: renderFuncionarioDashboard,
+                employee: renderEmployeeDashboard,
             };
             appEl.innerHTML = (viewRenderers[state.currentView] || viewRenderers.login)();
             attachEventListeners();
         }
 
-        const formatCurrency = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
-        const formatDate = (d) => d ? new Date(d + 'T00:00:00').toLocaleDateString('pt-BR') : 'N/A';
-        const formatPercent = (v) => isNaN(v) ? '0,000%' : new Intl.NumberFormat('pt-BR', { style: 'percent', minimumFractionDigits: 3, maximumFractionDigits: 3 }).format(v || 0);
-        
-        function openModal(title, formHtml) {
-             modalContainer.innerHTML = `<div class="modal-overlay"><div class="modal-content">
-                <div class="flex justify-between items-center mb-4"><h3 class="text-lg font-semibold">${title}</h3><button id="closeModalBtn" class="font-bold text-xl">×</button></div>
-                <div id="modalFormContainer" class="modal-body">${formHtml}</div>
-             </div></div>`;
-             modalContainer.classList.remove('hidden');
-             document.getElementById('closeModalBtn').addEventListener('click', closeModal);
-             modalContainer.querySelector('.modal-overlay').addEventListener('click', e => e.target === e.currentTarget && closeModal());
-        }
-        function closeModal() { modalContainer.innerHTML = ''; modalContainer.classList.add('hidden'); }
-        
-        function renderHeader(title, navHtml = '') {
+        // --- Views ---
+        function renderHeader(title) {
             return `<header class="bg-white shadow-sm border-b p-4 sticky top-0 z-40">
                 <div class="container mx-auto flex justify-between items-center">
-                    <h1 class="text-xl font-semibold">${title}</h1>
-                    <button id="logoutBtn" class="btn btn-primary text-sm">Sair</button>
-                </div></header>`;
+                    <h1 class="text-2xl font-bold text-gray-800">${title}</h1>
+                    <div class="flex items-center gap-4">
+                        <span class="text-sm text-gray-600">Olá, ${state.userProfile?.name || ''}</span>
+                        <button id="logoutBtn" class="btn btn-primary text-sm">Sair</button>
+                    </div>
+                </div>
+            </header>`;
         }
-
+        
         function renderLogin() {
-            return `<div class="flex items-center justify-center min-h-screen"><div class="card w-full max-w-sm">
-            <h1 class="text-xl font-semibold text-center mb-4">Acesso ao Portal de Comissões</h1><form id="loginForm" class="space-y-4">
-            <input id="email" type="email" placeholder="Email" class="form-input" required><input id="password" type="password" placeholder="Senha" class="form-input" required>
-            <button type="submit" class="btn btn-primary w-full">Entrar</button></form></div></div>`;
+            return `<div class="flex items-center justify-center min-h-screen bg-gray-100">
+                <div class="card w-full max-w-md shadow-lg">
+                    <h1 class="text-2xl font-bold text-center mb-2">Suíte de Comissões</h1>
+                    <p class="text-center text-gray-500 mb-6">Acesse com suas credenciais.</p>
+                    <form id="loginForm" class="space-y-4">
+                        <input id="email" type="email" placeholder="Email" class="form-input" required>
+                        <input id="password" type="password" placeholder="Senha" class="form-input" required>
+                        <button type="submit" class="btn btn-primary w-full !py-3 !text-base">Entrar</button>
+                    </form>
+                </div>
+            </div>`;
         }
 
-        // --- ADMIN DASHBOARD & COMPONENTS ---
         function renderAdminDashboard() {
-            const navItems = [
-                { key: 'dashboard', label: 'Dashboard' },
-                { key: 'users', label: 'Usuários' },
-                { key: 'employees', label: 'Funcionários' },
-                { key: 'contracts', label: 'Contratos' },
+             const navItems = [
+                { key: 'dashboard', label: 'Dashboard' }, { key: 'users', label: 'Usuários' },
+                { key: 'employees', label: 'Funcionários' }, { key: 'contracts', label: 'Contratos' },
                 { key: 'commissionModels', label: 'Modelos de Comissão' }
-            ];
-            const adminNav = navItems.map(item => `<a href="#" class="block px-4 py-2 rounded-md text-sm font-medium ${state.adminView === item.key ? 'bg-[var(--sidebar-active-bg)] text-white' : 'text-[var(--sidebar-text)] hover:bg-[var(--sidebar-active-bg)] hover:text-white'}" data-view="${item.key}">${item.label}</a>`).join('');
+             ];
+             const adminNav = navItems.map(item => `<a href="#" class="block px-4 py-2 rounded-md text-sm font-medium ${state.adminView === item.key ? 'bg-[var(--sidebar-active-bg)] text-white' : 'text-[var(--sidebar-text)] hover:bg-[var(--sidebar-active-bg)] hover:text-white'}" data-view="${item.key}">${item.label}</a>`).join('');
             
-            const viewRenderers = {
-                dashboard: () => `<div class="card">Bem-vindo ao painel de administração. Use o menu à esquerda para gerenciar o sistema.</div>`,
-                users: () => renderAdminCard('Usuários', renderAdminUserTable()),
-                employees: () => renderAdminCard('Funcionários', renderAdminEmployeeTable()),
-                contracts: () => renderAdminCard('Contratos', renderAdminContractTable()),
-                commissionModels: () => renderAdminCard('Modelos de Comissão', renderAdminCommissionModelTable()),
-            };
+             const viewRenderers = {
+                 dashboard: renderAdminMainDashboard,
+                 users: () => renderAdminCard('Usuários', renderAdminUserTable(), 'user'),
+                 employees: () => renderAdminCard('Funcionários', renderAdminEmployeeTable(), 'employee'),
+                 contracts: () => renderAdminCard('Contratos', renderAdminContractTable(), 'contract'),
+                 commissionModels: () => renderAdminCard('Modelos de Comissão', renderAdminCommissionModelTable(), 'commissionModel'),
+             };
 
-            return `${renderHeader('Painel Administrativo')}
+             return `${renderHeader('Painel Administrativo')}
                 <div class="flex">
                     <aside class="w-64 bg-[var(--sidebar-bg)] p-4 h-[calc(100vh-81px)] sticky top-[81px]">
                         <nav class="space-y-1">${adminNav}</nav>
                     </aside>
-                    <main class="flex-1 p-6">
+                    <main class="flex-1 p-6 bg-gray-50">
                         ${(viewRenderers[state.adminView] || viewRenderers.dashboard)()}
                     </main>
                 </div>`;
         }
-        function renderAdminCard(title, tableHtml) {
-            const type = title.toLowerCase().replace(/ /g, '').replace('ários','ary').replace('ões','ion').slice(0,-1); // Simplified mapping
-            return `<div class="card"><div class="flex justify-between items-center mb-4">
-                <h2 class="text-lg font-semibold">${title}</h2>
-                <button class="btn-add-item text-sm btn btn-primary" data-type="${type}">Adicionar</button>
-            </div><div class="table-container">${tableHtml}</div></div>`;
-        }
         
-        function renderAdminUserTable() {
-            return `<table class="w-full text-sm table"><tbody>
-                ${state.users.map(u => `<tr><td><div class="font-semibold">${u.name}</div><div class="text-xs text-gray-500">${u.email}</div></td><td class="text-right space-x-2"><button class="btn-edit-sm" data-type="user" data-id="${u.id}">Editar</button></td></tr>`).join('')}
-            </tbody></table>`;
-        }
-        function renderAdminEmployeeTable() {
-            return `<table class="w-full text-sm table"><tbody>
-                ${state.employees.map(e => `<tr><td><div class="font-semibold">${e.name}</div><div class="text-xs text-gray-500">${e.roleTitle}</div></td><td class="text-right space-x-2"><button class="btn-edit-sm" data-type="employee" data-id="${e.id}">Editar</button><button class="btn-danger-sm" data-type="employee" data-id="${e.id}">×</button></td></tr>`).join('')}
-            </tbody></table>`;
-        }
-        function renderAdminContractTable() {
-            return `<table class="w-full text-sm table"><tbody>
-                ${state.contracts.map(c => `<tr><td><div class="font-semibold">${c.name}</div><div class="text-xs text-gray-500">${formatCurrency(c.value)}</div></td><td class="text-right space-x-2"><button class="btn-edit-sm" data-type="contract" data-id="${c.id}">Editar</button><button class="btn-danger-sm" data-type="contract" data-id="${c.id}">×</button></td></tr>`).join('')}
-            </tbody></table>`;
-        }
-        function renderAdminCommissionModelTable() {
-            return `<table class="w-full text-sm table"><tbody>
-                ${state.commissionModels.map(m => `<tr><td><div class="font-semibold">${m.name}</div></td><td class="text-right space-x-2"><button class="btn-edit-sm" data-type="commissionModel" data-id="${m.id}">Editar</button><button class="btn-danger-sm" data-type="commissionModel" data-id="${m.id}">×</button></td></tr>`).join('')}
-            </tbody></table>`;
+        function renderAdminMainDashboard() {
+            // Calculations for the dashboard
+            const totalRevenue = state.contracts.reduce((acc, c) => acc + (c.value || 0), 0);
+            
+            const salesByProperty = state.contracts.reduce((acc, c) => {
+                const prop = c.commercialProperty || 'Não especificado';
+                acc[prop] = (acc[prop] || 0) + (c.value || 0);
+                return acc;
+            }, {});
+
+            const maxPropValue = Math.max(...Object.values(salesByProperty), 1);
+
+            // This is a complex calculation, let's pre-calculate all commissions
+            let totalCommissions = 0;
+            const model = state.commissionModels[0]; // Assuming one model for now
+            if (model) {
+                state.contracts.forEach(contract => {
+                    const tier = model.tiers?.find(t => contract.value >= t.rangeInf && contract.value <= t.rangeSup);
+                    if (tier && contract.participants) {
+                        contract.participants.forEach(employeeId => {
+                             if(tier.rates[employeeId]) {
+                                totalCommissions += contract.value * tier.rates[employeeId];
+                             }
+                        });
+                    }
+                });
+            }
+
+            const effectiveRate = totalRevenue > 0 ? totalCommissions / totalRevenue : 0;
+
+            const kpiCards = `
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+                    <div class="card !p-4"><div class="text-sm text-gray-500">Receita Total de Contratos</div><div class="text-3xl font-bold">${formatCurrency(totalRevenue)}</div></div>
+                    <div class="card !p-4"><div class="text-sm text-gray-500">Total de Comissões</div><div class="text-3xl font-bold">${formatCurrency(totalCommissions)}</div></div>
+                    <div class="card !p-4"><div class="text-sm text-gray-500">Taxa Efetiva de Comissão</div><div class="text-3xl font-bold">${formatPercent(effectiveRate)}</div></div>
+                </div>
+            `;
+            
+            const chart = `
+                <div class="card">
+                    <h3 class="text-lg font-semibold mb-4">Vendas por Propriedade Comercial</h3>
+                    <div class="space-y-4">
+                        ${Object.entries(salesByProperty).map(([prop, val]) => `
+                            <div>
+                                <div class="flex justify-between text-sm mb-1">
+                                    <span class="font-medium">${prop}</span>
+                                    <span>${formatCurrency(val)}</span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-4">
+                                    <div class="bg-blue-500 h-4 rounded-full" style="width: ${(val / maxPropValue) * 100}%"></div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+            
+            return `<div>${kpiCards}${chart}</div>`;
         }
 
-        function renderAdminUserForm(item = {}) {
-            return `<form class="space-y-2" data-id="${item.id || ''}">
-                <input name="name" placeholder="Nome Completo" class="form-input text-sm" value="${item.name || ''}" required>
-                <input name="email" type="email" placeholder="Email (para login)" class="form-input text-sm" value="${item.email || ''}" required>
-                ${!item.id ? `<input name="password" type="password" placeholder="Senha (mínimo 6 caracteres)" class="form-input text-sm" required>` : ''}
-                <div class="flex gap-4"><label class="text-sm"><input type="checkbox" name="isManager" ${item.isManager ? 'checked' : ''}> Gestor</label>
-                <label class="text-sm"><input type="checkbox" name="isAdmin" ${item.isAdmin ? 'checked' : ''}> Admin</label></div>
-                <button type="submit" class="btn btn-primary text-sm w-full">Salvar</button>
-            </form>`;
+        function renderAdminCard(title, tableHtml, type) {
+            return `<div class="card"><div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold">${title}</h2>
+                <button class="btn-add-item text-sm btn btn-primary" data-type="${type}">Adicionar ${type.replace('Model', '')}</button>
+            </div><div class="table-container">${tableHtml}</div></div>`;
         }
-        function renderAdminEmployeeForm(item = {}) {
-            return `<form class="space-y-2" data-id="${item.id || ''}">
-                <input name="name" placeholder="Nome do Funcionário" class="form-input text-sm" value="${item.name || ''}" required>
-                <input name="roleTitle" placeholder="Cargo" class="form-input text-sm" value="${item.roleTitle || ''}" required>
-                <input name="salary" type="number" placeholder="Salário" class="form-input text-sm" value="${item.salary || ''}" required>
-                <input name="admissionDate" type="date" title="Data de Admissão" class="form-input text-sm" value="${item.admissionDate || ''}" required>
-                <button type="submit" class="btn btn-primary text-sm w-full">Salvar</button>
-            </form>`;
-        }
+
+        function renderAdminUserTable() { /* Unchanged */ return `<table class="w-full text-sm table"><tbody>${state.users.map(u => `<tr><td><div class="font-semibold">${u.name}</div><div class="text-xs text-gray-500">${u.email} | ${u.isAdmin ? 'Admin' : ''} ${u.isManager ? 'Gestor' : ''}</div></td><td class="text-right space-x-2"><button class="btn-edit-sm" data-type="user" data-id="${u.id}">Editar</button></td></tr>`).join('')}</tbody></table>`; }
+        function renderAdminEmployeeTable() { /* Unchanged */ return `<table class="w-full text-sm table"><tbody>${state.employees.map(e => `<tr><td><div class="font-semibold">${e.name}</div><div class="text-xs text-gray-500">${e.roleTitle}</div></td><td class="text-right space-x-2"><button class="btn-edit-sm" data-type="employee" data-id="${e.id}">Editar</button><button class="btn-danger-sm" data-type="employee" data-id="${e.id}">×</button></td></tr>`).join('')}</tbody></table>`; }
+        function renderAdminContractTable() { return `<table class="w-full text-sm table"><thead><th>Empresa / Propriedade</th><th>Valor</th><th>Data</th><th>Ações</th></thead><tbody>${state.contracts.map(c => `<tr><td><div class="font-semibold">${c.companyName}</div><div class="text-xs text-gray-500">${c.commercialProperty}</div></td><td>${formatCurrency(c.value)}</td><td>${formatDate(c.closingDate)}</td><td class="text-right space-x-2"><button class="btn-edit-sm" data-type="contract" data-id="${c.id}">Editar</button><button class="btn-danger-sm" data-type="contract" data-id="${c.id}">×</button></td></tr>`).join('')}</tbody></table>`; }
+        function renderAdminCommissionModelTable() { /* Unchanged */ return `<table class="w-full text-sm table"><tbody>${state.commissionModels.map(m => `<tr><td><div class="font-semibold">${m.name}</div></td><td class="text-right space-x-2"><button class="btn-edit-sm" data-type="commissionModel" data-id="${m.id}">Editar</button><button class="btn-danger-sm" data-type="commissionModel" data-id="${m.id}">×</button></td></tr>`).join('')}</tbody></table>`; }
+        
+        // --- Forms ---
+        function renderAdminUserForm(item = {}) { /* Unchanged, logic moved to submit handler */ return `<form class="space-y-4" data-id="${item.id || ''}"><input name="name" placeholder="Nome Completo" class="form-input text-sm" value="${item.name || ''}" required><input name="email" type="email" placeholder="Email (para login)" class="form-input text-sm" value="${item.email || ''}" required>${!item.id ? `<input name="password" type="password" placeholder="Senha (mínimo 6 caracteres)" class="form-input text-sm" required>` : ''}<div class="flex gap-4"><label class="text-sm flex items-center gap-2"><input type="checkbox" name="isManager" ${item.isManager ? 'checked' : ''}> Gestor</label><label class="text-sm flex items-center gap-2"><input type="checkbox" name="isAdmin" ${item.isAdmin ? 'checked' : ''}> Admin</label></div><button type="submit" class="btn btn-primary text-sm w-full !py-2">Salvar</button></form>`;}
+        function renderAdminEmployeeForm(item = {}) { const admissionDate = item.admissionDate?.seconds ? new Date(item.admissionDate.seconds * 1000).toISOString().split('T')[0] : ''; return `<form class="space-y-4" data-id="${item.id || ''}"><input name="name" placeholder="Nome do Funcionário" class="form-input text-sm" value="${item.name || ''}" required><input name="roleTitle" placeholder="Cargo" class="form-input text-sm" value="${item.roleTitle || ''}" required><input name="salary" type="number" step="0.01" placeholder="Salário" class="form-input text-sm" value="${item.salary || ''}" required><label class="text-xs">Data de Admissão</label><input name="admissionDate" type="date" class="form-input text-sm" value="${admissionDate}" required><button type="submit" class="btn btn-primary text-sm w-full !py-2">Salvar</button></form>`;}
         function renderAdminContractForm(item = {}) {
-            return `<form class="space-y-2" data-id="${item.id || ''}">
-                 <input name="name" placeholder="Nome do Contrato" class="form-input text-sm" value="${item.name || ''}" required>
-                 <input name="value" type="number" placeholder="Valor" class="form-input text-sm" value="${item.value || ''}" required>
-                 <input name="closingDate" type="date" title="Data de Fechamento" class="form-input text-sm" value="${item.closingDate || ''}" required>
-                 <div class="text-sm font-medium mt-2">Participantes:</div>
-                 <div class="max-h-24 overflow-y-auto p-2 border rounded">
+            const closingDate = item.closingDate?.seconds ? new Date(item.closingDate.seconds * 1000).toISOString().split('T')[0] : '';
+            return `<form class="space-y-4" data-id="${item.id || ''}">
+                <input name="companyName" placeholder="Nome da Empresa" class="form-input text-sm" value="${item.companyName || ''}" required>
+                <input name="commercialProperty" placeholder="Propriedade Comercial (Ex: Naming Rights)" class="form-input text-sm" value="${item.commercialProperty || ''}" required>
+                <input name="value" type="number" step="0.01" placeholder="Valor do Contrato" class="form-input text-sm" value="${item.value || ''}" required>
+                <label class="text-xs">Data de Fechamento</label><input name="closingDate" type="date" class="form-input text-sm" value="${closingDate}" required>
+                <div class="text-sm font-medium">Participantes do Contrato:</div>
+                <div class="max-h-32 overflow-y-auto p-2 border rounded-md grid grid-cols-2 gap-2">
                     ${state.employees.map(e => `<label class="flex items-center text-xs gap-2"><input type="checkbox" name="participants" value="${e.id}" ${item.participants?.includes(e.id) ? 'checked' : ''}>${e.name}</label>`).join('')}
-                 </div>
-                 <button type="submit" class="btn btn-primary text-sm w-full">Salvar</button>
+                </div>
+                <button type="submit" class="btn btn-primary text-sm w-full !py-2">Salvar Contrato</button>
             </form>`;
         }
         function renderAdminCommissionModelForm(item = {}) {
-            const tiers = item.tiers && item.tiers.length ? item.tiers : [{}];
-            const tierRows = tiers.map(tier => {
-                const rateInputs = state.employees.map(emp => `<div class="flex flex-col"><label class="text-xs">${emp.name}</label><input type="number" step="0.001" name="rate_${emp.id}" class="form-input text-xs" value="${(tier.rates?.[emp.id] || 0)*100}"></div>`).join('');
-                return `<div class="p-2 border rounded mt-2 tier-row"><div class="flex gap-2 items-center mb-2"><input type="number" placeholder="De" class="form-input text-sm" name="rangeInf" value="${tier.rangeInf ?? ''}"><input type="number" placeholder="Até" class="form-input text-sm" name="rangeSup" value="${tier.rangeSup ?? ''}"><button type="button" class="remove-tier-btn text-red-500 text-xs ml-auto">×</button></div><div class="grid gap-2" style="grid-template-columns:repeat(${state.employees.length},minmax(0,1fr))">${rateInputs}</div></div>`;
-            }).join('');
-            return `<form class="space-y-2" data-id="${item.id || ''}">
-                <input name="name" placeholder="Nome do Modelo" class="form-input text-sm" value="${item.name || ''}" required>
-                <div id="tiersContainer">${tierRows}</div>
-                <button type="button" id="addTierBtn" class="text-xs text-blue-600">+ Adicionar Faixa</button>
-                <button type="submit" class="btn btn-primary text-sm w-full mt-2">Salvar</button>
-            </form>`;
+             const tiers = item.tiers && item.tiers.length ? item.tiers : [{rangeInf: 0, rangeSup: 0, rates: {}}];
+             const tierRows = tiers.map((tier, index) => {
+                 const rateInputs = state.employees.map(emp => `<div class="flex flex-col"><label class="text-xs text-gray-600 truncate" title="${emp.name}">${emp.name.split(' ')[0]}</label><input type="number" step="0.001" name="rate_${emp.id}" class="form-input text-xs" value="${(tier.rates?.[emp.id] || 0) * 100}" placeholder="%"></div>`).join('');
+                 return `<div class="p-3 border rounded-md mt-2 tier-row bg-gray-50">
+                     <div class="flex gap-2 items-center mb-2">
+                        <span class="text-sm font-bold text-gray-500">Faixa ${index + 1}</span>
+                        <input type="number" placeholder="De (R$)" class="form-input text-sm" name="rangeInf" value="${tier.rangeInf ?? ''}">
+                        <input type="number" placeholder="Até (R$)" class="form-input text-sm" name="rangeSup" value="${tier.rangeSup ?? ''}">
+                        <button type="button" class="remove-tier-btn text-red-500 font-bold ml-auto text-lg hover:text-red-700">×</button>
+                     </div>
+                     <label class="text-xs font-bold text-gray-500">Taxas de Comissão (%)</label>
+                     <div class="grid gap-2 mt-1" style="grid-template-columns:repeat(auto-fill,minmax(80px,1fr))">${rateInputs}</div>
+                 </div>`;
+             }).join('');
+             return `<form class="space-y-2" data-id="${item.id || ''}">
+                 <input name="name" placeholder="Nome do Modelo (Ex: Modelo Comercial 2024)" class="form-input text-sm" value="${item.name || ''}" required>
+                 <div id="tiersContainer">${tierRows}</div>
+                 <button type="button" id="addTierBtn" class="text-sm text-blue-600 hover:underline mt-2">+ Adicionar Faixa de Comissão</button>
+                 <button type="submit" class="btn btn-primary text-sm w-full mt-4 !py-2">Salvar Modelo</button>
+             </form>`;
         }
         
-        // --- GESTOR & FUNCIONARIO DASHBOARDS ---
-        function renderGestorDashboard() { return renderCalculator('gestor'); }
-        function renderFuncionarioDashboard() { return renderCalculator('funcionario'); }
+        // --- Employee View ---
+        function renderEmployeeDashboard() {
+            let content = '';
+            // Find the employee profile linked to the user profile
+            const employeeProfile = state.employees.find(emp => emp.name === state.userProfile.name);
+            
+            if (!employeeProfile) {
+                content = `<div class="card text-center"><p class="text-red-500">Seu perfil de funcionário não foi encontrado. Contate um administrador.</p></div>`;
+            } else {
+                const myContracts = state.contracts.filter(c => c.participants?.includes(employeeProfile.id));
+                const commissionModel = state.commissionModels[0]; // Assume one main model
+                let totalBonus = 0;
 
-        function renderCalculator(profile) { /* ... */ }
-        
-        // --- EVENT LISTENERS ---
+                if (!commissionModel) {
+                     content = `<div class="card text-center"><p class="text-orange-500">Nenhum modelo de comissão foi configurado no sistema ainda.</p></div>`;
+                } else {
+                    const commissionRows = myContracts.map(contract => {
+                        const tier = commissionModel.tiers.find(t => contract.value >= t.rangeInf && contract.value <= t.rangeSup);
+                        const myRate = tier ? (tier.rates[employeeProfile.id] || 0) : 0;
+                        const myBonus = contract.value * myRate;
+                        totalBonus += myBonus;
+                        return `<tr>
+                            <td><div class="font-semibold">${contract.companyName}</div><div class="text-xs text-gray-500">${contract.commercialProperty}</div></td>
+                            <td>${formatCurrency(contract.value)}</td>
+                            <td>${tier ? `Faixa (${formatCurrency(tier.rangeInf)} - ${formatCurrency(tier.rangeSup)})` : 'Fora da faixa'}</td>
+                            <td>${formatPercent(myRate)}</td>
+                            <td class="font-semibold">${formatCurrency(myBonus)}</td>
+                        </tr>`;
+                    }).join('');
+
+                    content = `
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                           <div class="card !p-4"><div class="text-sm text-gray-500">Seu Bônus Total Calculado</div><div class="text-3xl font-bold">${formatCurrency(totalBonus)}</div></div>
+                           <div class="card !p-4"><div class="text-sm text-gray-500">Contratos Participados</div><div class="text-3xl font-bold">${myContracts.length}</div></div>
+                        </div>
+                        <div class="card">
+                            <h2 class="text-xl font-semibold mb-4">Detalhamento de Comissões</h2>
+                            <div class="table-container">
+                                <table class="w-full text-sm table">
+                                    <thead><tr><th>Contrato</th><th>Valor Total</th><th>Faixa de Comissão</th><th>Sua Taxa</th><th>Seu Bônus</th></tr></thead>
+                                    <tbody>${commissionRows}</tbody>
+                                </table>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+            return `${renderHeader('Dashboard de Comissões')}<main class="p-6">${content}</main>`;
+        }
+
+        // --- Event Listeners & Handlers ---
         function attachEventListeners() {
             appEl.querySelector('#logoutBtn')?.addEventListener('click', () => signOut(auth));
             if (state.currentView === 'login') {
                 appEl.querySelector('#loginForm')?.addEventListener('submit', handleLogin);
             } else if (state.currentView === 'admin') {
                 appEl.addEventListener('click', handleAdminClicks);
-            } else if (state.currentView === 'gestor' || state.currentView === 'funcionario') {
-                appEl.querySelector('#calculatorForm')?.addEventListener('submit', handleBonusCalculation);
             }
         }
-        
+
         async function handleLogin(e) {
             e.preventDefault();
             const btn = e.target.querySelector('button[type="submit"]');
+            const originalText = btn.innerHTML;
             btn.disabled = true;
             btn.innerHTML = `<div class="loader loader-sm mx-auto"></div>`;
             try {
                 await signInWithEmailAndPassword(auth, e.target.email.value, e.target.password.value);
             } catch (error) {
-                alert("Falha no login: " + error.message);
+                showMessage("Falha no login", `Erro: ${error.code}. Verifique seu email e senha.`);
                 btn.disabled = false;
-                btn.textContent = 'Entrar';
+                btn.innerHTML = originalText;
             }
         }
 
         function handleAdminClicks(e) {
-            if (e.target.matches('.btn-add-item')) {
-                handleAdminAddClick(e.target.dataset.type);
-            }
-            if (e.target.matches('.btn-edit-sm')) {
-                handleAdminEditClick(e.target.dataset.type, e.target.dataset.id);
-            }
-            if (e.target.matches('.btn-danger-sm')) {
-                handleAdminDeleteClick(e.target.dataset.type, e.target.dataset.id);
-            }
-            if (e.target.matches('aside a')) {
+            const target = e.target;
+            if (target.closest('.btn-add-item')) {
+                handleAdminAddClick(target.closest('.btn-add-item').dataset.type);
+            } else if (target.closest('.btn-edit-sm')) {
+                handleAdminEditClick(target.closest('.btn-edit-sm').dataset.type, target.closest('.btn-edit-sm').dataset.id);
+            } else if (target.closest('.btn-danger-sm')) {
+                handleAdminDeleteClick(target.closest('.btn-danger-sm').dataset.type, target.closest('.btn-danger-sm').dataset.id);
+            } else if (target.closest('aside a')) {
                 e.preventDefault();
-                state.adminView = e.target.dataset.view;
+                state.adminView = target.closest('aside a').dataset.view;
                 location.hash = state.adminView;
                 render();
             }
@@ -329,7 +461,7 @@
         function handleAdminAddClick(type) {
             const formRenderers = { user: renderAdminUserForm, employee: renderAdminEmployeeForm, contract: renderAdminContractForm, commissionModel: renderAdminCommissionModelForm };
             const titleMap = { user: 'Adicionar Usuário', employee: 'Adicionar Funcionário', contract: 'Adicionar Contrato', commissionModel: 'Adicionar Modelo de Comissão' };
-            openModal(titleMap[type], formRenderers[type]());
+            showModal(titleMap[type], formRenderers[type]());
             attachModalFormListeners(type);
         }
 
@@ -337,17 +469,22 @@
             const item = state[`${type}s`].find(i => i.id === id);
             const formRenderers = { user: renderAdminUserForm, employee: renderAdminEmployeeForm, contract: renderAdminContractForm, commissionModel: renderAdminCommissionModelForm };
             const titleMap = { user: 'Editar Usuário', employee: 'Editar Funcionário', contract: 'Editar Contrato', commissionModel: 'Editar Modelo de Comissão' };
-            openModal(titleMap[type], formRenderers[type](item));
+            showModal(titleMap[type], formRenderers[type](item));
             attachModalFormListeners(type, id);
         }
-        
-        async function handleAdminDeleteClick(type, id) {
-            if (confirm(`Tem certeza?`)) { await deleteDoc(doc(db, `${type}s`, id)); }
-        }
 
+        async function handleAdminDeleteClick(type, id) {
+            showConfirmation('Confirmar Exclusão', `Tem certeza que deseja excluir este item? Esta ação não pode ser desfeita.`, async () => {
+                try {
+                    await deleteDoc(doc(db, `${type}s`, id));
+                } catch (error) {
+                    showMessage('Erro', `Não foi possível excluir o item: ${error.message}`);
+                }
+            });
+        }
+        
         function attachModalFormListeners(type, id) {
-            const formContainer = document.getElementById('modalFormContainer');
-            const form = formContainer.querySelector('form');
+            const form = document.getElementById('modalBody').querySelector('form');
             if (form) {
                 form.addEventListener('submit', (e) => {
                     e.preventDefault();
@@ -355,16 +492,12 @@
                 });
             }
             if (type === 'commissionModel') {
-                formContainer.addEventListener('click', e => {
+                document.getElementById('modalBody').addEventListener('click', e => {
                     if (e.target.id === 'addTierBtn') {
-                        const container = document.getElementById('tiersContainer');
-                        const newRow = document.createElement('div');
-                        newRow.className = 'p-2 border rounded mt-2 tier-row';
-                        const item = { tiers: [{}] }; // Dummy item to generate the row HTML
-                        const formHtml = renderAdminCommissionModelForm(item);
-                        const tierRowHtml = formHtml.match(/<div class="p-2.*?tier-row">.*?<\/div>/s)[0];
-                        newRow.innerHTML = tierRowHtml;
-                        container.appendChild(newRow);
+                        const newTierHtml = renderAdminCommissionModelForm({tiers: [{}]}).match(/<div class="p-3.*?tier-row.*?<\/div>/s)[0];
+                        const tempDiv = document.createElement('div');
+                        tempDiv.innerHTML = newTierHtml;
+                        document.getElementById('tiersContainer').appendChild(tempDiv.firstChild);
                     }
                     if (e.target.classList.contains('remove-tier-btn')) {
                         e.target.closest('.tier-row').remove();
@@ -375,45 +508,59 @@
 
         async function handleAdminFormSubmit(form, type, id) {
             const formData = new FormData(form);
-            let data = {};
             const btn = form.querySelector('button[type="submit"]');
             btn.disabled = true;
 
             try {
+                let data = {};
                 if (type === 'user') {
-                    data = {
-                        name: formData.get('name'), email: formData.get('email'),
-                        isManager: form.querySelector('[name="isManager"]').checked,
-                        isAdmin: form.querySelector('[name="isAdmin"]').checked,
-                        isEmployee: true
-                    };
+                    data = { name: formData.get('name'), email: formData.get('email'), isManager: form.querySelector('[name="isManager"]').checked, isAdmin: form.querySelector('[name="isAdmin"]').checked };
                     if (id) {
                         await setDoc(doc(usersCol, id), data, { merge: true });
                     } else {
                         const password = formData.get('password');
-                        if(!password || password.length < 6) throw new Error("Senha deve ter no mínimo 6 caracteres.");
-                        const userCredential = await createUserWithEmailAndPassword(auth, data.email, password);
-                        await setDoc(doc(usersCol, userCredential.user.uid), data);
+                        if (!password || password.length < 6) throw new Error("Senha deve ter no mínimo 6 caracteres.");
+                        // This part is tricky as it requires a separate admin-privileged environment to create users without logging in as them.
+                        // For this demo, we'll assume an admin can create users.
+                         try {
+                           const tempAuth = getAuth(initializeApp(firebaseConfig, 'Secondary'));
+                           const userCredential = await createUserWithEmailAndPassword(tempAuth, data.email, password);
+                           await setDoc(doc(usersCol, userCredential.user.uid), data);
+                           await signOut(tempAuth);
+                         } catch (e) {
+                            throw new Error(`Não foi possível criar o usuário. O email já pode estar em uso ou ser inválido. Firebase error: ${e.code}`)
+                         }
                     }
                 } else if (type === 'commissionModel') {
                     data.name = formData.get('name');
                     data.tiers = [];
                     form.querySelectorAll('.tier-row').forEach(row => {
                         const tierData = {
-                            rangeInf: parseFloat(row.querySelector('[name="rangeInf"]').value || 0),
-                            rangeSup: parseFloat(row.querySelector('[name="rangeSup"]').value || 0),
+                            rangeInf: parseFloat(row.querySelector('[name="rangeInf"]').value) || 0,
+                            rangeSup: parseFloat(row.querySelector('[name="rangeSup"]').value) || Infinity,
                             rates: {}
                         };
                         state.employees.forEach(emp => {
                             const rateInput = row.querySelector(`[name="rate_${emp.id}"]`);
-                            if (rateInput) tierData.rates[emp.id] = parseFloat(rateInput.value || 0) / 100;
+                            if (rateInput && rateInput.value) tierData.rates[emp.id] = parseFloat(rateInput.value) / 100;
                         });
                         data.tiers.push(tierData);
                     });
-                } else {
-                    for (let [key, value] of formData.entries()) { data[key] = value; }
-                    if (type === 'employee') data.salary = parseFloat(data.salary);
-                    if (type === 'contract') data.value = parseFloat(data.value);
+                     // Sort tiers by lower bound
+                    data.tiers.sort((a,b) => a.rangeInf - b.rangeInf);
+                } else { // employee and contract
+                    formData.forEach((value, key) => {
+                       if(key !== 'participants') data[key] = value;
+                    });
+                    if (type === 'employee') {
+                         data.salary = parseFloat(data.salary);
+                         data.admissionDate = new Date(data.admissionDate);
+                    }
+                    if (type === 'contract') {
+                        data.value = parseFloat(data.value);
+                        data.closingDate = new Date(data.closingDate);
+                        data.participants = Array.from(form.querySelectorAll('[name="participants"]:checked')).map(el => el.value);
+                    }
                 }
 
                 const collectionRef = collection(db, `${type}s`);
@@ -424,28 +571,28 @@
                 }
                 closeModal();
             } catch (error) {
-                alert(`Erro ao salvar: ${error.message}`);
+                showMessage(`Erro ao Salvar`, `Ocorreu um erro: ${error.message}`);
                 btn.disabled = false;
             }
         }
         
-        function handleBonusCalculation(e) { /* Unchanged */ }
-
-        render();
+        // --- Initial Load ---
+        function parseHash() {
+            const h = window.location.hash.replace('#', '');
+            const valid = ['dashboard', 'users', 'employees', 'contracts', 'commissionModels'];
+            if (valid.includes(h)) state.adminView = h;
+            else state.adminView = 'dashboard';
+        }
+        
         window.addEventListener('hashchange', () => {
             if (state.currentView === 'admin') {
                 parseHash();
                 render();
             }
         });
-
-        // Fallback in case Firebase auth does not initialize
-        setTimeout(() => {
-            if (state.currentView === 'loading') {
-                state.currentView = 'login';
-                render();
-            }
-        }, 5000);
+        
+        // Start the application
+        performSignIn();
 
     </script>
 </body>
