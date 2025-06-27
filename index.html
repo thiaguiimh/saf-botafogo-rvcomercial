@@ -19,7 +19,6 @@
         .card { background: var(--card-background); border-radius: 0.75rem; border: 1px solid var(--border-color); padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
         .nav-link { padding: 0.5rem 1rem; border-radius: 0.5rem; font-weight: 500; cursor: pointer; transition: all 0.2s; color: var(--text-secondary); }
         .nav-link.active { background-color: var(--accent-blue); color: white; }
-        .nav-link:not(.active):hover { background-color: #e9ecef; }
         .btn { padding: 0.6rem 1.2rem; border-radius: 0.5rem; font-weight: 500; transition: all 0.2s; border: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;}
         .btn:disabled { background-color: #6c757d; cursor: not-allowed; }
         .btn-primary { background-color: var(--accent-blue); color: white; }
@@ -32,8 +31,8 @@
         .table tbody td { padding: 0.75rem; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
         .loader { border: 3px solid #dee2e6; border-top: 3px solid var(--accent-blue); border-radius: 50%; width: 30px; height: 30px; animation: spin 0.8s linear infinite; }
         .loader-sm { width: 16px; height: 16px; border-width: 2px; }
-        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index: 50; }
-        .modal-content { background: white; padding: 1.5rem; border-radius: 0.75rem; width: 90%; max-width: 800px; max-height: 90vh; overflow-y: auto;}
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index: 50; padding: 1rem;}
+        .modal-content { background: white; padding: 1.5rem; border-radius: 0.75rem; width: 100%; max-width: 800px; max-height: 90vh; overflow-y: auto;}
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
@@ -93,20 +92,19 @@
             } else {
                 state.currentView = 'login';
             }
-            if (previousView !== state.currentView || ['login', 'loading'].includes(previousView)) {
-                render();
-            }
+            render();
         });
         
         function initializeDataListeners() {
-            const collections = { employees: employeesCol, contracts: contractsCol, commissionModels: commissionModelsCol };
-            if (state.userProfile?.isAdmin) collections.users = usersCol;
+            const collections = { users: usersCol, employees: employeesCol, contracts: contractsCol, commissionModels: commissionModelsCol };
 
             for (const key in collections) {
                 const unsub = onSnapshot(collections[key], snapshot => {
                     state[key] = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-                    render();
-                });
+                    if(!['loading', 'login'].includes(state.currentView)) {
+                         render();
+                    }
+                }, error => console.error(`Error listening to ${key}:`, error));
                 state.unsubscribe.push(unsub);
             }
         }
@@ -125,24 +123,16 @@
 
         const formatCurrency = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
         const formatDate = (d) => d ? new Date(d + 'T00:00:00').toLocaleDateString('pt-BR') : 'N/A';
-        const formatPercent = (v) => isNaN(v) ? '0,00%' : new Intl.NumberFormat('pt-BR', { style: 'percent', minimumFractionDigits: 3 }).format(v || 0);
-
-        function openModal(title, formHtml, onSubmit) {
-            modalContainer.innerHTML = `<div class="modal-overlay"><div class="modal-content">
+        const formatPercent = (v) => isNaN(v) ? '0,000%' : new Intl.NumberFormat('pt-BR', { style: 'percent', minimumFractionDigits: 3, maximumFractionDigits: 3 }).format(v || 0);
+        
+        function openModal(title, formHtml) {
+             modalContainer.innerHTML = `<div class="modal-overlay"><div class="modal-content">
                 <div class="flex justify-between items-center mb-4"><h3 class="text-lg font-semibold">${title}</h3><button id="closeModalBtn" class="font-bold text-xl">×</button></div>
-                <form id="modalForm">${formHtml}</form>
-            </div></div>`;
-            modalContainer.classList.remove('hidden');
-            document.getElementById('modalForm').addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const btn = e.target.querySelector('button[type="submit"]');
-                btn.disabled = true;
-                btn.innerHTML = `<div class="loader loader-sm mx-auto"></div>`;
-                await onSubmit(e.target);
-                closeModal();
-            });
-            document.getElementById('closeModalBtn').addEventListener('click', closeModal);
-            modalContainer.querySelector('.modal-overlay').addEventListener('click', e => e.target === e.currentTarget && closeModal());
+                <div id="modalFormContainer">${formHtml}</div>
+             </div></div>`;
+             modalContainer.classList.remove('hidden');
+             document.getElementById('closeModalBtn').addEventListener('click', closeModal);
+             modalContainer.querySelector('.modal-overlay').addEventListener('click', e => e.target === e.currentTarget && closeModal());
         }
         function closeModal() { modalContainer.classList.add('hidden'); }
         
@@ -157,13 +147,14 @@
                 </div></header>`;
         }
 
-        function renderLogin() { /* ... unchanged ... */ return `<div class="flex items-center justify-center min-h-screen"><div class="card w-full max-w-sm">
+        function renderLogin() {
+            return `<div class="flex items-center justify-center min-h-screen"><div class="card w-full max-w-sm">
             <h1 class="text-xl font-semibold text-center mb-4">Acesso ao Portal de Comissões</h1><form id="loginForm" class="space-y-4">
             <input id="email" type="email" placeholder="Email" class="form-input" required><input id="password" type="password" placeholder="Senha" class="form-input" required>
             <button type="submit" class="btn btn-primary w-full">Entrar</button></form></div></div>`;
         }
-        
-        // --- Admin Dashboard & Components ---
+
+        // --- ADMIN DASHBOARD ---
         function renderAdminDashboard() {
             return `${renderHeader('Painel Administrativo')}
                 <main class="container mx-auto grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -181,6 +172,7 @@
             </div><div class="table-container">${tableHtml}</div></div>`;
         }
         
+        // --- ADMIN TABLES ---
         function renderAdminUserTable() {
              return `<table class="w-full text-sm table"><tbody>
                 ${state.users.map(u => `<tr><td><div class="font-semibold">${u.name}</div><div class="text-xs text-gray-500">${u.email}</div></td><td class="text-right space-x-2"><button class="btn-edit-sm" data-type="user" data-id="${u.id}">Editar</button></td></tr>`).join('')}
@@ -202,63 +194,122 @@
             </tbody></table>`;
         }
 
-        // --- Admin Forms (for Modals) ---
-        function renderAdminUserForm(item = {}) { /* ... */ }
-        function renderAdminEmployeeForm(item = {}) { /* ... */ }
-        function renderAdminContractForm(item = {}) { /* ... */ }
+        // --- ADMIN FORMS ---
+        function renderAdminUserForm(item = {}) {
+            return `<form class="space-y-2" data-type="user" data-id="${item.id || ''}">
+                <input name="name" placeholder="Nome Completo" class="form-input text-sm" value="${item.name || ''}" required>
+                <input name="email" type="email" placeholder="Email (para login)" class="form-input text-sm" value="${item.email || ''}" required ${item.id ? 'readonly' : ''}>
+                ${!item.id ? `<input name="password" type="password" placeholder="Senha (mín. 6 caracteres)" class="form-input text-sm" required>` : ''}
+                <div class="flex gap-4 pt-2"><label class="text-sm flex items-center gap-2"><input type="checkbox" name="isManager" ${item.isManager ? 'checked' : ''}> Gestor</label>
+                <label class="text-sm flex items-center gap-2"><input type="checkbox" name="isAdmin" ${item.isAdmin ? 'checked' : ''}> Admin</label></div>
+                <button type="submit" class="btn btn-primary text-sm w-full mt-2">Salvar</button>
+            </form>`;
+        }
+        function renderAdminEmployeeForm(item = {}) {
+             return `<form class="space-y-2" data-type="employee" data-id="${item.id || ''}">
+                <input name="name" placeholder="Nome do Funcionário" class="form-input text-sm" value="${item.name || ''}" required>
+                <input name="roleTitle" placeholder="Cargo" class="form-input text-sm" value="${item.roleTitle || ''}" required>
+                <input name="salary" type="number" step="0.01" placeholder="Salário" class="form-input text-sm" value="${item.salary || ''}" required>
+                <input name="admissionDate" type="date" title="Data de Admissão" class="form-input text-sm" value="${item.admissionDate || ''}" required>
+                <button type="submit" class="btn btn-primary text-sm w-full">Salvar</button>
+            </form>`;
+        }
+        function renderAdminContractForm(item = {}) {
+             const modelOptions = state.commissionModels.map(m => `<option value="${m.id}" ${item.commissionModelId === m.id ? 'selected' : ''}>${m.name}</option>`).join('');
+             return `<form class="space-y-2" data-type="contract" data-id="${item.id || ''}">
+                 <input name="name" placeholder="Nome do Contrato" class="form-input text-sm" value="${item.name || ''}" required>
+                 <input name="value" type="number" step="0.01" placeholder="Valor" class="form-input text-sm" value="${item.value || ''}" required>
+                 <input name="closingDate" type="date" title="Data de Fechamento" class="form-input text-sm" value="${item.closingDate || ''}" required>
+                 <select name="commissionModelId" class="form-input text-sm" required><option value="">Selecione o Modelo de Comissão</option>${modelOptions}</select>
+                 <button type="submit" class="btn btn-primary text-sm w-full">Salvar</button>
+            </form>`;
+        }
         function renderAdminCommissionModelForm(item = {}) {
             let tiersHtml = item.tiers?.map((tier, tierIndex) => `
                 <div class="p-2 border rounded mt-2 tier-row">
-                    <div class="grid grid-cols-3 gap-2">
-                        <input name="tier_${tierIndex}_rangeInf" placeholder="De" class="form-input text-sm" value="${tier.rangeInf}">
-                        <input name="tier_${tierIndex}_rangeSup" placeholder="Até" class="form-input text-sm" value="${tier.rangeSup}">
-                        <button type="button" class="btn-danger-sm remove-tier-btn">Remover Faixa</button>
+                    <div class="grid grid-cols-2 lg:grid-cols-3 gap-2">
+                        <input name="rangeInf" placeholder="De" class="form-input text-sm" value="${tier.rangeInf}">
+                        <input name="rangeSup" placeholder="Até" class="form-input text-sm" value="${tier.rangeSup}">
+                        <button type="button" class="btn-danger-sm remove-tier-btn col-span-2 lg:col-span-1">Remover Faixa</button>
                     </div>
                     <div class="mt-2 text-xs font-semibold">Taxas por Funcionário (%):</div>
-                    <div class="grid grid-cols-2 gap-2 mt-1">
-                        ${state.employees.map(emp => `
-                            <label class="text-xs flex items-center gap-2">${emp.name}
-                                <input type="number" step="0.001" name="tier_${tierIndex}_rate_${emp.id}" class="form-input text-xs" value="${(tier.rates?.[emp.id] || 0) * 100}">
-                            </label>`).join('')}
+                    <div class="grid grid-cols-2 gap-x-4 gap-y-2 mt-1">
+                        ${state.employees.map(emp => `<label class="text-xs flex items-center justify-between gap-2">${emp.name}
+                            <input type="number" step="0.001" name="rate_${emp.id}" class="form-input text-xs w-20" value="${(tier.rates?.[emp.id] || 0) * 100}"></label>`).join('')}
                     </div>
                 </div>`).join('') || '';
 
             return `<form class="space-y-2" data-type="commissionModel" data-id="${item.id || ''}">
                  <input name="name" placeholder="Nome do Modelo" class="form-input text-sm" value="${item.name || ''}" required>
                  <div id="tiersContainer">${tiersHtml}</div>
-                 <button type="button" id="addTierBtn" class="text-xs text-blue-600">+ Adicionar Faixa de Valor</button>
-                 <button type="submit" class="btn btn-primary text-sm w-full mt-4">Salvar Modelo de Comissão</button>
+                 <button type="button" id="addTierBtn" class="text-xs text-blue-600 mt-2">+ Adicionar Faixa de Valor</button>
+                 <button type="submit" class="btn btn-primary text-sm w-full mt-4">Salvar Modelo</button>
             </form>`;
         }
         
-        // --- Gestor/Funcionário Dashboard ---
-        function renderGestorDashboard() { /* ... stub ... */ return `${renderHeader('Painel do Gestor')} <p>Em construção</p>`; }
-        function renderFuncionarioDashboard() { /* ... stub ... */ return `${renderHeader('Painel do Funcionário')} <p>Em construção</p>`; }
+        // --- GESTOR & FUNCIONARIO DASHBOARDS ---
+        function renderGestorDashboard() {
+            return `${renderHeader('Painel do Gestor')}
+                    <main class="container mx-auto">
+                        ${renderCalculator('gestor')}
+                    </main>`;
+        }
+        function renderFuncionarioDashboard() {
+            return `${renderHeader('Painel do Funcionário')}
+                    <main class="container mx-auto">
+                        ${renderCalculator('funcionario')}
+                    </main>`;
+        }
 
-        // --- Event Listeners ---
+        function renderCalculator(profile) {
+            const contractOptions = state.contracts.map(c => `<label class="flex items-center gap-2 text-sm"><input type="checkbox" name="selectedContracts" value="${c.id}">${c.name} (${formatCurrency(c.value)})</label>`).join('');
+            return `<div class="card">
+                <h2 class="text-lg font-semibold mb-4">Calculadora de Bônus</h2>
+                <form id="calculatorForm" data-profile="${profile}">
+                    <div class="mb-4">
+                        <label class="font-medium text-sm">Selecione os Contratos para Simular:</label>
+                        <div class="table-container p-2 mt-1 bg-gray-50">${contractOptions}</div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Calcular Bônus</button>
+                </form>
+                <div id="bonusResult" class="mt-4"></div>
+            </div>`;
+        }
+
+        // --- EVENT LISTENERS ---
         function attachEventListeners() {
             appEl.querySelector('#logoutBtn')?.addEventListener('click', () => signOut(auth));
-            if (state.currentView === 'login') appEl.querySelector('#loginForm')?.addEventListener('submit', handleLogin);
-            if (state.currentView === 'admin') {
+            if (state.currentView === 'login') {
+                appEl.querySelector('#loginForm')?.addEventListener('submit', handleLogin);
+            } else if (state.currentView === 'admin') {
                 appEl.querySelectorAll('.btn-add-item').forEach(btn => btn.addEventListener('click', handleAdminAddClick));
                 appEl.querySelectorAll('.btn-edit-sm').forEach(btn => btn.addEventListener('click', handleAdminEditClick));
                 appEl.querySelectorAll('.btn-danger-sm').forEach(btn => btn.addEventListener('click', handleAdminDeleteClick));
+            } else if (state.currentView === 'gestor' || state.currentView === 'funcionario') {
+                appEl.querySelector('#calculatorForm')?.addEventListener('submit', handleBonusCalculation);
             }
         }
         
-        async function handleLogin(e) { /* ... as before ... */ }
-        
+        async function handleLogin(e) {
+            e.preventDefault();
+            const btn = e.target.querySelector('button[type="submit"]');
+            btn.disabled = true;
+            btn.innerHTML = `<div class="loader loader-sm mx-auto"></div>`;
+            try {
+                await signInWithEmailAndPassword(auth, e.target.email.value, e.target.password.value);
+            } catch (error) {
+                alert("Falha no login: " + error.message);
+                btn.disabled = false;
+                btn.textContent = 'Entrar';
+            }
+        }
+
         function handleAdminAddClick(e) {
             const type = e.target.dataset.type;
-            const formRenderers = {
-                user: renderAdminUserForm, employee: renderAdminEmployeeForm,
-                contract: renderAdminContractForm, commissionModel: renderAdminCommissionModelForm
-            };
-            const titleMap = {
-                user: 'Adicionar Usuário', employee: 'Adicionar Funcionário',
-                contract: 'Adicionar Contrato', commissionModel: 'Adicionar Modelo de Comissão'
-            };
-            openModal(titleMap[type], formRenderers[type](), (form) => handleAdminFormSubmit(form, type));
+            const formRenderers = { user: renderAdminUserForm, employee: renderAdminEmployeeForm, contract: renderAdminContractForm, commissionModel: renderAdminCommissionModelForm };
+            const titleMap = { user: 'Adicionar Usuário', employee: 'Adicionar Funcionário', contract: 'Adicionar Contrato', commissionModel: 'Adicionar Modelo de Comissão' };
+            openModal(titleMap[type], formRenderers[type]());
+            document.getElementById('modalFormContainer').querySelector('form').addEventListener('submit', (e) => handleAdminFormSubmit(e, type));
             if (type === 'commissionModel') attachTierFormListeners();
         }
 
@@ -267,15 +318,11 @@
             const id = e.target.dataset.id;
             const item = state[`${type}s`].find(i => i.id === id);
             
-            const formRenderers = {
-                user: renderAdminUserForm, employee: renderAdminEmployeeForm,
-                contract: renderAdminContractForm, commissionModel: renderAdminCommissionModelForm
-            };
-            const titleMap = {
-                user: 'Editar Usuário', employee: 'Editar Funcionário',
-                contract: 'Editar Contrato', commissionModel: 'Editar Modelo de Comissão'
-            };
-            openModal(titleMap[type], formRenderers[type](item), (form) => handleAdminFormSubmit(form, type, id));
+            const formRenderers = { user: renderAdminUserForm, employee: renderAdminEmployeeForm, contract: renderAdminContractForm, commissionModel: renderAdminCommissionModelForm };
+            const titleMap = { user: 'Editar Usuário', employee: 'Editar Funcionário', contract: 'Editar Contrato', commissionModel: 'Editar Modelo de Comissão' };
+
+            openModal(titleMap[type], formRenderers[type](item));
+            document.getElementById('modalFormContainer').querySelector('form').addEventListener('submit', (e) => handleAdminFormSubmit(e, type, id));
             if (type === 'commissionModel') attachTierFormListeners();
         }
         
@@ -289,50 +336,118 @@
             const formData = new FormData(form);
             let data = {};
             
-            if (type === 'commissionModel') {
+            if (type === 'user') {
+                try {
+                    const name = formData.get('name');
+                    const email = formData.get('email');
+                    const isManager = form.querySelector('[name="isManager"]').checked;
+                    const isAdmin = form.querySelector('[name="isAdmin"]').checked;
+                    
+                    if (id) {
+                        await setDoc(doc(usersCol, id), { name, email, isManager, isAdmin }, { merge: true });
+                    } else {
+                        const password = formData.get('password');
+                        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                        await setDoc(doc(usersCol, userCredential.user.uid), { name, email, isManager, isAdmin, isEmployee: true });
+                    }
+                 } catch (error) { alert(`Erro ao salvar usuário: ${error.message}`); }
+            } else if (type === 'commissionModel') {
                 data.name = formData.get('name');
                 data.tiers = [];
                 const tierRows = form.querySelectorAll('.tier-row');
-                tierRows.forEach((row, index) => {
+                tierRows.forEach(row => {
                     const tierData = {
-                        rangeInf: parseFloat(row.querySelector(`[name="tier_${index}_rangeInf"]`).value),
-                        rangeSup: parseFloat(row.querySelector(`[name="tier_${index}_rangeSup"]`).value),
+                        rangeInf: parseFloat(row.querySelector('[name="rangeInf"]').value || 0),
+                        rangeSup: parseFloat(row.querySelector('[name="rangeSup"]').value || 0),
                         rates: {}
                     };
                     state.employees.forEach(emp => {
-                        const rateValue = row.querySelector(`[name="tier_${index}_rate_${emp.id}"]`).value;
-                        tierData.rates[emp.id] = parseFloat(rateValue) / 100;
+                        const rateValue = row.querySelector(`[name="rate_${emp.id}"]`).value;
+                        tierData.rates[emp.id] = parseFloat(rateValue || 0) / 100;
                     });
                     data.tiers.push(tierData);
                 });
-            } else { /* ... other form processing ... */ }
-
-            const collectionRef = collection(db, `${type}s`);
-            if (id) {
-                await setDoc(doc(collectionRef, id), data, { merge: true });
             } else {
-                await addDoc(collectionRef, data);
+                for (let [key, value] of formData.entries()) {
+                    if (form.querySelectorAll(`[name=${key}]`).length > 1) { // Checkboxes
+                        if (!data[key]) data[key] = [];
+                        data[key].push(value);
+                    } else { data[key] = value; }
+                }
+                if (type === 'employee') data.salary = parseFloat(data.salary);
+                if (type === 'contract') {
+                    data.value = parseFloat(data.value);
+                    if (!data.participants) data.participants = [];
+                }
+            }
+
+            if (type !== 'user') {
+                const collectionRef = collection(db, `${type}s`);
+                if (id) await setDoc(doc(collectionRef, id), data, { merge: true });
+                else await addDoc(collectionRef, data);
             }
         }
         
         function attachTierFormListeners() {
-            document.getElementById('addTierBtn')?.addEventListener('click', () => {
-                const container = document.getElementById('tiersContainer');
-                const tierIndex = container.children.length;
-                const newRow = document.createElement('div');
-                newRow.innerHTML = renderAdminCommissionModelForm({tiers:[{}]}).match(/<div class="p-2.*?<\/div>/s)[0].replace(/tier_0/g, `tier_${tierIndex}`);
-                container.appendChild(newRow.firstChild);
-            });
-            document.getElementById('modalForm').addEventListener('click', e => {
+            const form = document.getElementById('modalFormContainer');
+            form.addEventListener('click', e => {
+                if (e.target.id === 'addTierBtn') {
+                    const container = document.getElementById('tiersContainer');
+                    const newRow = document.createElement('div');
+                    newRow.innerHTML = renderAdminCommissionModelForm({ tiers:[{}] }).match(/<div class="p-2.*?<\/div>/s)[0];
+                    container.appendChild(newRow.firstChild);
+                }
                 if (e.target.classList.contains('remove-tier-btn')) {
                     e.target.closest('.tier-row').remove();
                 }
             });
         }
         
-        // --- Initial Load ---
+        // --- BONUS CALCULATION ---
+        function handleBonusCalculation(e) {
+            e.preventDefault();
+            const form = e.target;
+            const profile = form.dataset.profile;
+            const selectedContractIds = Array.from(form.querySelectorAll('[name="selectedContracts"]:checked')).map(el => el.value);
+            const selectedContracts = state.contracts.filter(c => selectedContractIds.includes(c.id));
+            
+            let resultsHtml = '';
+            
+            selectedContracts.forEach(contract => {
+                const commissionModel = state.commissionModels.find(m => m.id === contract.commissionModelId);
+                if (!commissionModel) {
+                    resultsHtml += `<p>Contrato ${contract.name} não possui modelo de comissão válido.</p>`;
+                    return;
+                }
+                const contractValue = contract.value;
+                const tier = commissionModel.tiers.find(t => contractValue >= t.rangeInf && contractValue < t.rangeSup);
+                if(!tier) {
+                     resultsHtml += `<p>Contrato ${contract.name} não se encaixa em nenhuma faixa de valor.</p>`;
+                     return;
+                }
+                
+                resultsHtml += `<div class="mt-4 border-t pt-2"><h4 class="font-semibold">${contract.name} (${formatCurrency(contractValue)})</h4>`;
+                
+                if (profile === 'gestor') {
+                    state.employees.forEach(emp => {
+                        const rate = tier.rates[emp.id] || 0;
+                        const bonus = contractValue * rate;
+                        resultsHtml += `<p class="text-sm">${emp.name}: ${formatCurrency(bonus)} (${formatPercent(rate)})</p>`;
+                    });
+                } else if (profile === 'funcionario') {
+                    const empId = state.userProfile.employeeId || state.currentUser.uid; // Fallback to UID if employeeId not set
+                    const rate = tier.rates[empId] || 0;
+                    const bonus = contractValue * rate;
+                    resultsHtml += `<p class="text-sm">Seu Bônus: ${formatCurrency(bonus)} (${formatPercent(rate)})</p>`;
+                }
+                resultsHtml += `</div>`;
+            });
+            
+            document.getElementById('bonusResult').innerHTML = resultsHtml;
+        }
+        
+        // Initial render
         render();
-
     </script>
 </body>
 </html>
