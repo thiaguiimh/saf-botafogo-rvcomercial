@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Suíte de Comissões</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -37,7 +38,9 @@
         .table-editable input { width: 100%; padding: 0.5rem; border: 1px solid transparent; border-radius: 0.25rem; }
         .table-editable input:hover { border-color: #cbd5e1; }
         .table-editable input:focus { border-color: var(--accent-blue); outline: none; box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25); }
-
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; z-index: 50; padding: 1rem;}
+        .modal-content { background: white; padding: 1.5rem; border-radius: 0.75rem; width: 100%; max-width: 500px; max-height: 90vh; display: flex; flex-direction: column; }
+        .modal-body { overflow-y: auto; }
         .loader { border: 4px solid #f3f3f3; border-top: 4px solid var(--accent-blue); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
         .loader-sm { width: 16px; height: 16px; border-width: 2px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
@@ -45,6 +48,8 @@
 </head>
 <body>
     <div id="app" class="min-h-screen"></div>
+    <div id="modal-container"></div>
+    <input type="file" id="csv-importer" class="hidden" accept=".csv">
 
     <script type="module">
         // Firebase Imports
@@ -55,6 +60,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             // --- App Setup ---
             const appEl = document.getElementById('app');
+            const modalContainer = document.getElementById('modal-container');
 
             const fallbackFirebaseConfig = {
                 apiKey: "AIzaSyAs9tsz3wsSjYlmbu8_7NnEbKxqsFV2ATo",
@@ -79,7 +85,7 @@
                 adminView: 'dashboard', 
                 adminAction: 'list',
                 selectedItemId: null,
-                selectedAnalysisScenario: 'all', // 'all', 'scenario1', 'scenario2', 'scenario3'
+                selectedAnalysisScenario: 'all', 
                 loadingMessage: 'Inicializando...', unsubscribe: [],
                 dataErrors: {},
             };
@@ -274,10 +280,23 @@
 
             // --- PAGE RENDERERS (List & Form) ---
             function renderListPage(title, tableHtml, type) {
-                return `<div class="card"><div class="flex justify-between items-center mb-4">
-                    <h2 class="text-xl font-semibold">${title}</h2>
-                    <button class="btn-add-item text-sm btn btn-primary" data-type="${type}">Adicionar</button>
-                </div><div>${tableHtml}</div></div>`;
+                const importControls = type === 'contract' ? `
+                    <div class="flex items-center gap-2">
+                        <button id="download-template-btn" class="btn text-sm">Baixar Modelo</button>
+                        <button id="import-csv-btn" class="btn btn-primary text-sm">Importar Planilha</button>
+                    </div>
+                ` : '';
+
+                return `<div class="card">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-semibold">${title}</h2>
+                        <div class="flex items-center gap-2">
+                            ${importControls}
+                            <button class="btn-add-item text-sm btn btn-primary" data-type="${type}">Adicionar</button>
+                        </div>
+                    </div>
+                    <div>${tableHtml}</div>
+                </div>`;
             }
             
             function renderFormPage(title, formHtml, type) {
@@ -791,6 +810,10 @@
                     `;
                 } else if (target.classList.contains('remove-tier-btn')) {
                     target.closest('tr').remove();
+                } else if (target.id === 'import-csv-btn') {
+                    document.getElementById('csv-importer').click();
+                } else if (target.id === 'download-template-btn') {
+                    handleDownloadTemplate();
                 }
             }
             
@@ -888,6 +911,150 @@
                 }
             }
             
+            // --- CSV Import Logic ---
+            function handleDownloadTemplate() {
+                const sortedEmployees = getSortedEmployees();
+                const headers = [
+                    "Empresa", "Propriedade Comercial", "Valor", "Data",
+                    "Cenário 1", "Cenário 2", "Cenário 3",
+                    ...sortedEmployees.map(e => e.name)
+                ];
+                const csvContent = headers.join(',') + '\n';
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement("a");
+                const url = URL.createObjectURL(blob);
+                link.setAttribute("href", url);
+                link.setAttribute("download", "modelo_importacao_contratos.csv");
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+
+            document.getElementById('csv-importer').addEventListener('change', (event) => {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                Papa.parse(file, {
+                    header: true,
+                    skipEmptyLines: true,
+                    complete: (results) => {
+                        processImportedData(results.data);
+                    },
+                    error: (err) => {
+                        alert("Erro ao ler o arquivo CSV: " + err.message);
+                    }
+                });
+                event.target.value = ''; // Reset file input
+            });
+
+            function processImportedData(data) {
+                const existingProperties = new Set(state.contracts.map(c => c.commercialProperty));
+                const seenInFile = new Set();
+                const duplicates = [];
+                const nonDuplicates = [];
+
+                data.forEach(row => {
+                    const prop = row["Propriedade Comercial"];
+                    if (!prop) return; // Skip rows without a property name
+
+                    if (existingProperties.has(prop) || seenInFile.has(prop)) {
+                        duplicates.push(row);
+                    } else {
+                        nonDuplicates.push(row);
+                    }
+                    seenInFile.add(prop);
+                });
+
+                if (duplicates.length > 0) {
+                    showImportConfirmation(duplicates, nonDuplicates);
+                } else {
+                    uploadContracts(nonDuplicates);
+                }
+            }
+            
+            function showImportConfirmation(duplicates, nonDuplicates) {
+                const duplicateList = duplicates.map(d => `<li>${d["Propriedade Comercial"]}</li>`).join('');
+                const content = `
+                    <p>As seguintes propriedades comerciais já existem no banco de dados ou estão duplicadas na planilha:</p>
+                    <ul class="list-disc list-inside my-2 max-h-40 overflow-y-auto">${duplicateList}</ul>
+                    <p>Deseja importar mesmo assim?</p>
+                `;
+                
+                modalContainer.innerHTML = `<div class="modal-overlay">
+                    <div class="modal-content">
+                        <h3 class="text-lg font-semibold mb-2">Duplicidades Encontradas</h3>
+                        <div class="modal-body">${content}</div>
+                        <div class="flex justify-end gap-2 mt-4">
+                            <button id="cancel-import" class="btn">Cancelar Tudo</button>
+                            <button id="import-non-duplicates" class="btn">Importar Apenas Não Duplicados (${nonDuplicates.length})</button>
+                            <button id="import-all" class="btn btn-primary">Importar Mesmo Assim (${duplicates.length + nonDuplicates.length})</button>
+                        </div>
+                    </div>
+                </div>`;
+
+                document.getElementById('cancel-import').addEventListener('click', () => modalContainer.innerHTML = '');
+                document.getElementById('import-non-duplicates').addEventListener('click', () => {
+                    uploadContracts(nonDuplicates);
+                    modalContainer.innerHTML = '';
+                });
+                document.getElementById('import-all').addEventListener('click', () => {
+                    uploadContracts([...nonDuplicates, ...duplicates]);
+                    modalContainer.innerHTML = '';
+                });
+            }
+
+            async function uploadContracts(contractsToUpload) {
+                if (contractsToUpload.length === 0) {
+                    alert("Nenhum contrato novo para importar.");
+                    return;
+                }
+
+                const employeeNameMap = state.employees.reduce((acc, emp) => {
+                    acc[emp.name] = emp.id;
+                    return acc;
+                }, {});
+
+                const batch = writeBatch(db);
+
+                contractsToUpload.forEach(row => {
+                    const participants = [];
+                    Object.keys(row).forEach(key => {
+                        if (employeeNameMap[key] && String(row[key]).toUpperCase() === 'TRUE') {
+                            participants.push(employeeNameMap[key]);
+                        }
+                    });
+
+                    const scenarios = [];
+                    if (String(row["Cenário 1"]).toUpperCase() === 'TRUE') scenarios.push('scenario1');
+                    if (String(row["Cenário 2"]).toUpperCase() === 'TRUE') scenarios.push('scenario2');
+                    if (String(row["Cenário 3"]).toUpperCase() === 'TRUE') scenarios.push('scenario3');
+                    
+                    // Basic date parsing (DD/MM/YYYY)
+                    const dateParts = row.Data.split('/');
+                    const closingDate = new Date(+dateParts[2], dateParts[1] - 1, +dateParts[0]);
+
+                    const newContract = {
+                        companyName: row.Empresa,
+                        commercialProperty: row["Propriedade Comercial"],
+                        value: parseFloat(row.Valor.replace(/[^0-9,-]+/g,"").replace(",", ".")) || 0,
+                        closingDate: closingDate,
+                        participants: participants,
+                        scenarios: scenarios,
+                    };
+                    
+                    const newDocRef = doc(contractsCol);
+                    batch.set(newDocRef, newContract);
+                });
+
+                try {
+                    await batch.commit();
+                    alert(`${contractsToUpload.length} contratos importados com sucesso!`);
+                } catch (error) {
+                    alert("Erro ao importar contratos: " + error.message);
+                }
+            }
+
             // --- Initial Load ---
             function parseHash() {
                 const h = window.location.hash.replace('#', '');
