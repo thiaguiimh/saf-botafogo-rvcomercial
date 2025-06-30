@@ -79,6 +79,7 @@
                 adminView: 'dashboard', 
                 adminAction: 'list',
                 selectedItemId: null,
+                selectedAnalysisScenario: 'all', // 'all', 'scenario1', 'scenario2', 'scenario3'
                 loadingMessage: 'Inicializando...', unsubscribe: [],
                 dataErrors: {},
             };
@@ -333,98 +334,128 @@
             
             // --- Analysis Dashboard ---
             function renderAnalysisDashboard() {
-                // Chart 1: Revenue by Commercial Property
-                const salesByProperty = state.contracts.reduce((acc, c) => {
+                const scenario = state.selectedAnalysisScenario;
+                const filteredContracts = scenario === 'all' 
+                    ? state.contracts 
+                    : state.contracts.filter(c => c.scenarios?.includes(scenario));
+
+                const activeModel = state.commissionModels.find(m => m.id === state.settings.activeCommissionModelId);
+
+                // --- Calculate KPIs for the selected scenario ---
+                let totalCommissions = 0;
+                if (activeModel && activeModel.tiers) {
+                    filteredContracts.forEach(contract => {
+                        const tier = activeModel.tiers.find(t => contract.value >= t.rangeInf && (t.rangeSup === null || contract.value <= t.rangeSup));
+                        if (tier && contract.participants) {
+                            contract.participants.forEach(employeeId => {
+                                if (tier.rates && tier.rates[employeeId]) {
+                                    totalCommissions += contract.value * tier.rates[employeeId];
+                                }
+                            });
+                        }
+                    });
+                }
+                const totalRevenue = filteredContracts.reduce((acc, c) => acc + (c.value || 0), 0);
+                const effectiveRate = totalRevenue > 0 ? totalCommissions / totalRevenue : 0;
+
+                // --- Scenario Selector and KPIs ---
+                const header = `
+                    <div class="card">
+                        <div class="flex items-center gap-4">
+                            <label for="scenarioSelect" class="font-medium">Analisar Cenário:</label>
+                            <select id="scenarioSelect" class="form-input w-64">
+                                <option value="all" ${scenario === 'all' ? 'selected' : ''}>Todos os Cenários</option>
+                                <option value="scenario1" ${scenario === 'scenario1' ? 'selected' : ''}>Cenário 1</option>
+                                <option value="scenario2" ${scenario === 'scenario2' ? 'selected' : ''}>Cenário 2</option>
+                                <option value="scenario3" ${scenario === 'scenario3' ? 'selected' : ''}>Cenário 3</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div class="card !p-4"><div class="text-sm text-gray-500">Receita Total (${scenario})</div><div class="text-3xl font-bold">${formatCurrency(totalRevenue)}</div></div>
+                        <div class="card !p-4"><div class="text-sm text-gray-500">Total de Comissões (${scenario})</div><div class="text-3xl font-bold">${formatCurrency(totalCommissions)}</div></div>
+                        <div class="card !p-4"><div class="text-sm text-gray-500">Taxa Efetiva (${scenario})</div><div class="text-3xl font-bold">${formatPercent(effectiveRate)}</div></div>
+                    </div>`;
+
+                // --- Pie Chart: Revenue by Commercial Property ---
+                const salesByProperty = filteredContracts.reduce((acc, c) => {
                     const prop = c.commercialProperty || 'Não especificado';
                     acc[prop] = (acc[prop] || 0) + (c.value || 0);
                     return acc;
                 }, {});
-                const maxPropValue = Math.max(...Object.values(salesByProperty), 1);
-                const propertyChart = `
-                    <div class="card">
-                        <h3 class="text-lg font-semibold mb-4">Receita por Propriedade Comercial</h3>
-                        <div class="space-y-4">
-                            ${Object.keys(salesByProperty).length > 0 ? Object.entries(salesByProperty).map(([prop, val]) => `
-                                <div>
-                                    <div class="flex justify-between text-sm mb-1">
-                                        <span class="font-medium">${prop}</span>
-                                        <span>${formatCurrency(val)}</span>
-                                    </div>
-                                    <div class="w-full bg-gray-200 rounded-full h-4"><div class="bg-blue-500 h-4 rounded-full" style="width: ${(val / maxPropValue) * 100}%"></div></div>
-                                </div>`).join('') : '<p class="text-gray-500">Nenhum contrato cadastrado.</p>'}
-                        </div>
-                    </div>`;
 
-                // Chart 2: Contracts by Value Range
-                const valueRanges = [
-                    { label: 'Até 1M', min: 0, max: 1000000 }, { label: '1M - 5M', min: 1000001, max: 5000000 },
-                    { label: '5M - 10M', min: 5000001, max: 10000000 }, { label: 'Acima de 10M', min: 10000001, max: Infinity }
-                ];
-                const contractsByRange = valueRanges.map(range => ({
-                    ...range,
-                    count: state.contracts.filter(c => c.value >= range.min && c.value <= range.max).length
-                }));
-                const maxContractsInRange = Math.max(...contractsByRange.map(r => r.count), 1);
-                const rangeChart = `
-                    <div class="card">
-                        <h3 class="text-lg font-semibold mb-4">Contratos por Faixa de Valor</h3>
-                        <div class="space-y-4">
-                             ${contractsByRange.map(range => `
-                                <div>
-                                    <div class="flex justify-between text-sm mb-1">
-                                        <span class="font-medium">${range.label}</span>
-                                        <span>${range.count} contrato(s)</span>
-                                    </div>
-                                    <div class="w-full bg-gray-200 rounded-full h-4"><div class="bg-green-500 h-4 rounded-full" style="width: ${(range.count / maxContractsInRange) * 100}%"></div></div>
-                                </div>`).join('')}
-                        </div>
-                    </div>`;
+                let pieChartHtml = '<p class="text-gray-500">Nenhum contrato no cenário selecionado.</p>';
+                if (totalRevenue > 0) {
+                    const colors = ['#007bff', '#28a745', '#dc3545', '#ffc107', '#17a2b8', '#6610f2'];
+                    let gradientString = '';
+                    let currentPercentage = 0;
+                    const legendItems = Object.entries(salesByProperty).map(([prop, val], index) => {
+                        const percentage = (val / totalRevenue) * 100;
+                        const color = colors[index % colors.length];
+                        gradientString += `${color} ${currentPercentage}% ${currentPercentage + percentage}%, `;
+                        currentPercentage += percentage;
+                        return `<li class="flex items-center text-sm"><span class="w-4 h-4 rounded-full mr-2" style="background-color: ${color};"></span>${prop} (${percentage.toFixed(1)}%)</li>`;
+                    }).join('');
 
-                return `<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">${propertyChart}${rangeChart}</div>
-                        ${renderSensitivityMatrix()}`;
+                    gradientString = gradientString.slice(0, -2); // remove trailing comma and space
+                    
+                    pieChartHtml = `
+                        <div class="flex items-center justify-center gap-8">
+                            <div class="w-48 h-48 rounded-full" style="background: conic-gradient(${gradientString});"></div>
+                            <ul class="space-y-2">${legendItems}</ul>
+                        </div>
+                    `;
+                }
+                
+                const propertyChart = `<div class="card">
+                    <h3 class="text-lg font-semibold mb-4">Receita por Propriedade</h3>
+                    ${pieChartHtml}
+                </div>`;
+                
+                return `${header}<div class="grid grid-cols-1 lg:grid-cols-1 gap-6">${propertyChart}</div>${renderSensitivityMatrix(filteredContracts)}`;
             }
             
-            function renderSensitivityMatrix() {
+            function renderSensitivityMatrix(contracts) {
                 const activeModel = state.commissionModels.find(m => m.id === state.settings.activeCommissionModelId);
                  if (!activeModel) return '<div class="card text-center"><p class="text-orange-500">Selecione um Modelo de Comissão ativo no Dashboard para ver a análise de sensibilidade.</p></div>';
 
-                const currentRevenue = state.contracts.reduce((sum, c) => sum + c.value, 0);
-                if (currentRevenue === 0) return '<div class="card text-center"><p>Adicione contratos para calcular a matriz de sensibilidade.</p></div>';
+                const currentRevenue = contracts.reduce((sum, c) => sum + c.value, 0);
+                if (currentRevenue === 0) return '<div class="card text-center"><p>Adicione contratos ao cenário selecionado para calcular a matriz.</p></div>';
                 
-                // --- Calculation Logic ---
-                const contractMix = state.contracts.reduce((acc, contract) => {
+                const contractMix = contracts.reduce((acc, contract) => {
                     const valueKey = contract.value.toString();
-                    if (!acc[valueKey]) {
-                        acc[valueKey] = { count: 0, contract: contract };
-                    }
+                    if (!acc[valueKey]) acc[valueKey] = { count: 0, contract: contract };
                     acc[valueKey].count++;
                     return acc;
                 }, {});
 
                 const projections = [];
                 for (let i = -50; i <= 100; i += 25) {
-                    const projectedRevenue = currentRevenue * (1 + i / 100);
-                    const growthFactor = projectedRevenue / currentRevenue;
-                    
+                    if (i === 0) projections.push({ revenue: currentRevenue, bonuses: calculateBonusesForRevenue(currentRevenue, contractMix, activeModel) });
+                    else {
+                         const projectedRevenue = currentRevenue * (1 + i / 100);
+                         projections.push({ revenue: projectedRevenue, bonuses: calculateBonusesForRevenue(projectedRevenue, contractMix, activeModel) });
+                    }
+                }
+                
+                function calculateBonusesForRevenue(revenue, mix, model) {
+                    const growthFactor = revenue / currentRevenue;
                     const projectedBonuses = {};
                     getSortedEmployees().forEach(emp => { projectedBonuses[emp.id] = 0; });
-
-                    Object.values(contractMix).forEach(mix => {
-                        const projectedCount = mix.count * growthFactor;
-                        const tier = activeModel.tiers.find(t => mix.contract.value >= t.rangeInf && (t.rangeSup === null || mix.contract.value <= t.rangeSup));
+                    Object.values(mix).forEach(m => {
+                        const projectedCount = m.count * growthFactor;
+                        const tier = model.tiers.find(t => m.contract.value >= t.rangeInf && (t.rangeSup === null || m.contract.value <= t.rangeSup));
                         if (tier) {
-                            (mix.contract.participants || []).forEach(employeeId => {
-                                if (tier.rates && tier.rates[employeeId]) {
-                                    projectedBonuses[employeeId] += mix.contract.value * tier.rates[employeeId] * projectedCount;
+                            (m.contract.participants || []).forEach(empId => {
+                                if (tier.rates && tier.rates[empId]) {
+                                    projectedBonuses[empId] += m.contract.value * tier.rates[empId] * projectedCount;
                                 }
                             });
                         }
                     });
-
-                    projections.push({ revenue: projectedRevenue, bonuses: projectedBonuses });
+                    return projectedBonuses;
                 }
                 
-                // --- Rendering Logic ---
                 const sortedEmployees = getSortedEmployees();
                 const headers = ['Receita Projetada', ...sortedEmployees.map(e => e.name)];
                 const headerHtml = `<thead><tr>${headers.map(h => `<th class="text-center">${h}</th>`).join('')}</tr></thead>`;
@@ -446,7 +477,6 @@
                         ${sortedEmployees.map(emp => {
                             const salaryCount = row.salaries[emp.id];
                             const colorIntensity = maxSalaries > 0 ? (salaryCount / maxSalaries) : 0;
-                            // Interpolate lightness from 95% (light blue) to 30% (dark blue)
                             const lightness = 95 - (colorIntensity * 65);
                             const bgColor = `hsl(210, 100%, ${lightness}%)`;
                             return `<td class="text-center" style="background-color: ${bgColor}; color: ${lightness < 60 ? 'white' : 'black'}">
@@ -491,7 +521,7 @@
 
             function renderAdminContractTable() {
                 if(state.dataErrors.contracts) return renderErrorCard('Contratos', state.dataErrors.contracts);
-                return `<table class="w-full text-sm table"><thead><th>Empresa / Propriedade</th><th>Valor</th><th>Data</th><th>Ações</th></thead><tbody>${state.contracts.map(c => `<tr><td><div class="font-semibold">${c.companyName}</div><div class="text-xs text-gray-500">${c.commercialProperty}</div></td><td>${formatCurrency(c.value)}</td><td>${formatDate(c.closingDate)}</td><td class="text-right space-x-2"><button class="btn-edit-item btn-edit-sm" data-type="contract" data-id="${c.id}">Editar</button><button class="btn-danger-sm" data-type="contract" data-id="${c.id}">×</button></td></tr>`).join('')}</tbody></table>`;
+                return `<table class="w-full text-sm table"><thead><th>Empresa / Propriedade</th><th>Valor</th><th>Data</th><th>Cenários</th><th>Ações</th></thead><tbody>${state.contracts.map(c => `<tr><td><div class="font-semibold">${c.companyName}</div><div class="text-xs text-gray-500">${c.commercialProperty}</div></td><td>${formatCurrency(c.value)}</td><td>${formatDate(c.closingDate)}</td><td>${(c.scenarios || []).join(', ').replace(/scenario/g, 'Cenário ')}</td><td class="text-right space-x-2"><button class="btn-edit-item btn-edit-sm" data-type="contract" data-id="${c.id}">Editar</button><button class="btn-danger-sm" data-type="contract" data-id="${c.id}">×</button></td></tr>`).join('')}</tbody></table>`;
             }
             
              function renderAdminJobTitleTable() {
@@ -597,10 +627,22 @@
                     <input name="value" type="number" step="0.01" placeholder="Valor do Contrato" class="form-input text-sm" value="${item.value || ''}" required>
                     <label class="text-xs">Data de Fechamento</label>
                     <input name="closingDate" type="date" class="form-input text-sm" value="${closingDate}" required>
-                    <div class="text-sm font-medium">Participantes do Contrato:</div>
-                    <div><label class="flex items-center text-xs gap-2 mb-2 font-medium"><input type="checkbox" id="selectAllParticipants"> Selecionar Todos</label></div>
-                    <div id="participants-container" class="max-h-32 overflow-y-auto p-2 border rounded-md grid grid-cols-2 gap-2">
-                        ${getSortedEmployees().map(e => `<label class="flex items-center text-xs gap-2"><input type="checkbox" name="participants" value="${e.id}" ${item.participants?.includes(e.id) ? 'checked' : ''}>${e.name}</label>`).join('')}
+                    
+                    <div class="pt-2">
+                        <div class="text-sm font-medium">Cenários do Contrato:</div>
+                        <div class="flex gap-4 mt-2">
+                            <label class="flex items-center text-xs gap-2"><input type="checkbox" name="scenarios" value="scenario1" ${item.scenarios?.includes('scenario1') ? 'checked' : ''}> Cenário 1</label>
+                            <label class="flex items-center text-xs gap-2"><input type="checkbox" name="scenarios" value="scenario2" ${item.scenarios?.includes('scenario2') ? 'checked' : ''}> Cenário 2</label>
+                            <label class="flex items-center text-xs gap-2"><input type="checkbox" name="scenarios" value="scenario3" ${item.scenarios?.includes('scenario3') ? 'checked' : ''}> Cenário 3</label>
+                        </div>
+                    </div>
+
+                    <div class="pt-2">
+                        <div class="text-sm font-medium">Participantes do Contrato:</div>
+                        <div><label class="flex items-center text-xs gap-2 my-2 font-medium"><input type="checkbox" id="selectAllParticipants"> Selecionar Todos</label></div>
+                        <div id="participants-container" class="max-h-32 overflow-y-auto p-2 border rounded-md grid grid-cols-2 gap-2">
+                            ${getSortedEmployees().map(e => `<label class="flex items-center text-xs gap-2"><input type="checkbox" name="participants" value="${e.id}" ${item.participants?.includes(e.id) ? 'checked' : ''}>${e.name}</label>`).join('')}
+                        </div>
                     </div>
                     <button type="submit" class="btn btn-primary text-sm w-full !py-2 mt-4">Salvar Contrato</button>
                 </form>`;
@@ -675,6 +717,12 @@
 
                     if (state.adminAction === 'form' && state.adminView === 'contracts') {
                         attachContractFormListeners();
+                    }
+                    if (state.adminView === 'analysis') {
+                        document.getElementById('scenarioSelect')?.addEventListener('change', e => {
+                            state.selectedAnalysisScenario = e.target.value;
+                            render();
+                        });
                     }
                 }
             }
@@ -779,7 +827,7 @@
                         data = { name: formData.get('name'), order: parseInt(formData.get('order'), 10) };
                     }
                     else if (type === 'user' || type === 'employee' || type === 'contract') {
-                         formData.forEach((value, key) => { if(key !== 'participants') data[key] = value; });
+                        data = Object.fromEntries(formData.entries());
                         if (type === 'user') {
                             data.isManager = form.querySelector('[name="isManager"]').checked;
                             data.isAdmin = form.querySelector('[name="isAdmin"]').checked;
@@ -791,7 +839,8 @@
                         if (type === 'contract') {
                             data.value = parseFloat(data.value);
                             data.closingDate = new Date(data.closingDate + 'T00:00:00');
-                            data.participants = Array.from(form.querySelectorAll('[name="participants"]:checked')).map(el => el.value);
+                            data.participants = formData.getAll('participants');
+                            data.scenarios = formData.getAll('scenarios');
                         }
                     } else if (type === 'commissionModel') {
                         data.name = formData.get('name');
