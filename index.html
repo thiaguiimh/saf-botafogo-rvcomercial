@@ -540,7 +540,8 @@
 
             function renderAdminContractTable() {
                 if(state.dataErrors.contracts) return renderErrorCard('Contratos', state.dataErrors.contracts);
-                return `<table class="w-full text-sm table"><thead><th>Empresa / Propriedade</th><th>Valor</th><th>Data</th><th>Cenários</th><th>Ações</th></thead><tbody>${state.contracts.map(c => `<tr><td><div class="font-semibold">${c.companyName}</div><div class="text-xs text-gray-500">${c.commercialProperty}</div></td><td>${formatCurrency(c.value)}</td><td>${formatDate(c.closingDate)}</td><td>${(c.scenarios || []).join(', ').replace(/scenario/g, 'Cenário ')}</td><td class="text-right space-x-2"><button class="btn-edit-item btn-edit-sm" data-type="contract" data-id="${c.id}">Editar</button><button class="btn-danger-sm" data-type="contract" data-id="${c.id}">×</button></td></tr>`).join('')}</tbody></table>`;
+                const sortedContracts = [...state.contracts].sort((a, b) => (b.value || 0) - (a.value || 0));
+                return `<table class="w-full text-sm table"><thead><th>Empresa / Propriedade</th><th>Valor</th><th>Data</th><th>Cenários</th><th>Ações</th></thead><tbody>${sortedContracts.map(c => `<tr><td><div class="font-semibold">${c.companyName}</div><div class="text-xs text-gray-500">${c.commercialProperty}</div></td><td>${formatCurrency(c.value)}</td><td>${formatDate(c.closingDate)}</td><td>${(c.scenarios || []).join(', ').replace(/scenario/g, 'Cenário ')}</td><td class="text-right space-x-2"><button class="btn-edit-item btn-edit-sm" data-type="contract" data-id="${c.id}">Editar</button><button class="btn-danger-sm" data-type="contract" data-id="${c.id}">×</button></td></tr>`).join('')}</tbody></table>`;
             }
             
              function renderAdminJobTitleTable() {
