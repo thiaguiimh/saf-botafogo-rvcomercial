@@ -438,44 +438,39 @@
                 const activeModel = state.commissionModels.find(m => m.id === state.settings.activeCommissionModelId);
                  if (!activeModel) return '<div class="card text-center"><p class="text-orange-500">Selecione um Modelo de Comissão ativo no Dashboard para ver a análise de sensibilidade.</p></div>';
 
-                const currentRevenue = contracts.reduce((sum, c) => sum + c.value, 0);
-                if (currentRevenue === 0) return '<div class="card text-center"><p>Adicione contratos ao cenário selecionado para calcular a matriz.</p></div>';
+                const baseRevenue = contracts.reduce((sum, c) => sum + c.value, 0);
+                if (baseRevenue === 0) return '<div class="card text-center"><p>Adicione contratos ao cenário selecionado para calcular a matriz.</p></div>';
                 
-                const contractMix = contracts.reduce((acc, contract) => {
-                    const valueKey = contract.value.toString();
-                    if (!acc[valueKey]) acc[valueKey] = { count: 0, contract: contract };
-                    acc[valueKey].count++;
-                    return acc;
-                }, {});
+                // --- NEW CALCULATION LOGIC ---
+                const baseBonusByEmployee = {};
+                const averageBonusRateByEmployee = {};
+                const sortedEmployees = getSortedEmployees();
+                
+                sortedEmployees.forEach(emp => {
+                    const totalBonus = contracts.reduce((sum, contract) => {
+                        if (contract.participants?.includes(emp.id)) {
+                            const tier = activeModel.tiers.find(t => contract.value >= t.rangeInf && (t.rangeSup === null || contract.value <= t.rangeSup));
+                            if (tier && tier.rates && tier.rates[emp.id]) {
+                                return sum + (contract.value * tier.rates[emp.id]);
+                            }
+                        }
+                        return sum;
+                    }, 0);
+                    baseBonusByEmployee[emp.id] = totalBonus;
+                    averageBonusRateByEmployee[emp.id] = baseRevenue > 0 ? totalBonus / baseRevenue : 0;
+                });
 
                 const projections = [];
                 for (let i = -50; i <= 100; i += 25) {
-                    if (i === 0) projections.push({ revenue: currentRevenue, bonuses: calculateBonusesForRevenue(currentRevenue, contractMix, activeModel) });
-                    else {
-                         const projectedRevenue = currentRevenue * (1 + i / 100);
-                         projections.push({ revenue: projectedRevenue, bonuses: calculateBonusesForRevenue(projectedRevenue, contractMix, activeModel) });
-                    }
-                }
-                
-                function calculateBonusesForRevenue(revenue, mix, model) {
-                    const growthFactor = revenue / currentRevenue;
+                    const projectedRevenue = baseRevenue * (1 + i / 100);
                     const projectedBonuses = {};
-                    getSortedEmployees().forEach(emp => { projectedBonuses[emp.id] = 0; });
-                    Object.values(mix).forEach(m => {
-                        const projectedCount = m.count * growthFactor;
-                        const tier = model.tiers.find(t => m.contract.value >= t.rangeInf && (t.rangeSup === null || m.contract.value <= t.rangeSup));
-                        if (tier) {
-                            (m.contract.participants || []).forEach(empId => {
-                                if (tier.rates && tier.rates[empId]) {
-                                    projectedBonuses[empId] += m.contract.value * tier.rates[empId] * projectedCount;
-                                }
-                            });
-                        }
+                    sortedEmployees.forEach(emp => {
+                        projectedBonuses[emp.id] = projectedRevenue * averageBonusRateByEmployee[emp.id];
                     });
-                    return projectedBonuses;
+                    projections.push({ revenue: projectedRevenue, bonuses: projectedBonuses });
                 }
                 
-                const sortedEmployees = getSortedEmployees();
+                // --- Rendering Logic ---
                 const headers = ['Receita Projetada', ...sortedEmployees.map(e => e.name)];
                 const headerHtml = `<thead><tr>${headers.map(h => `<th class="text-center">${h}</th>`).join('')}</tr></thead>`;
                 
