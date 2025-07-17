@@ -86,7 +86,7 @@
                 adminAction: 'list',
                 selectedItemId: null,
                 selectedAnalysisScenario: 'all',
-                selectedSensitivityView: 'general',
+                selectedSensitivityEmployee: 'all',
                 loadingMessage: 'Inicializando...', unsubscribe: [],
                 dataErrors: {},
             };
@@ -460,10 +460,11 @@
                                 <option value="scenario2" ${scenario === 'scenario2' ? 'selected' : ''}>Cenário 2</option>
                                 <option value="scenario3" ${scenario === 'scenario3' ? 'selected' : ''}>Cenário 3</option>
                             </select>
-                            <div class="flex gap-2">
-                                <button data-sens-view="general" class="btn btn-primary text-sm ${state.selectedSensitivityView === 'general' ? '' : 'opacity-50'}">Geral</button>
-                                <button data-sens-view="paula" class="btn btn-primary text-sm ${state.selectedSensitivityView === 'paula' ? '' : 'opacity-50'}">Paula Young</button>
-                            </div>
+                            <label for="employeeSensitivitySelect" class="font-medium">Sensibilidade:</label>
+                            <select id="employeeSensitivitySelect" class="form-input w-64">
+                                <option value="all" ${state.selectedSensitivityEmployee === 'all' ? 'selected' : ''}>Todos os Funcionários</option>
+                                ${state.employees.map(emp => `<option value="${emp.id}" ${state.selectedSensitivityEmployee === emp.id ? 'selected' : ''}>${emp.name}</option>`).join('')}
+                            </select>
                         </div>
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -508,18 +509,21 @@
                 </div>`;
                 
                 const employees = getSortedEmployees();
-                const marcelo = employees.find(e => e.name.toLowerCase().includes('marcelo'));
-                const paula = employees.find(e => e.name.toLowerCase().includes('paula young'));
+                const selectedEmployee = state.selectedSensitivityEmployee === 'all'
+                    ? null
+                    : employees.find(e => e.id === state.selectedSensitivityEmployee);
                 const rangeMarcelo = Array.from({length: 50 - 13 + 1}, (_,i) => (13 + i) * 1000000);
                 const rangeRest = Array.from({length: ((134 - 40) / 2) + 1}, (_,i) => (40 + i*2) * 1000000);
-                let sensitivityHtml = '';
 
-                if (state.selectedSensitivityView === 'paula' && paula) {
-                    sensitivityHtml = renderSensitivityMatrix(filteredContracts, [paula.id], `Matriz de Sensibilidade - ${paula.name}`, rangeRest);
-                } else if (marcelo) {
-                    const others = employees.filter(e => e.id !== marcelo.id).map(e => e.id);
-                    sensitivityHtml += renderSensitivityMatrix(filteredContracts, [marcelo.id], `Matriz de Sensibilidade - ${marcelo.name}`, rangeMarcelo);
-                    sensitivityHtml += renderSensitivityMatrix(filteredContracts, others, 'Matriz de Sensibilidade - Equipe', rangeRest);
+                let sensitivityHtml = '';
+                if (selectedEmployee) {
+                    const range = selectedEmployee.name.toLowerCase().includes('marcelo') ? rangeMarcelo : rangeRest;
+                    sensitivityHtml = renderSensitivityMatrix(
+                        filteredContracts,
+                        [selectedEmployee.id],
+                        `Matriz de Sensibilidade - ${selectedEmployee.name}`,
+                        range
+                    );
                 } else {
                     sensitivityHtml = renderSensitivityMatrix(filteredContracts, null, undefined, rangeRest);
                 }
@@ -850,11 +854,9 @@
                             state.selectedAnalysisScenario = e.target.value;
                             render();
                         });
-                        document.querySelectorAll('[data-sens-view]')?.forEach(btn => {
-                            btn.addEventListener('click', e => {
-                                state.selectedSensitivityView = btn.dataset.sensView;
-                                render();
-                            });
+                        document.getElementById('employeeSensitivitySelect')?.addEventListener('change', e => {
+                            state.selectedSensitivityEmployee = e.target.value;
+                            render();
                         });
                     }
                 }
