@@ -177,6 +177,71 @@
                     try { await batch.commit(); } catch (error) { console.error("Error seeding job titles:", error); }
                 }
 
+                async function seedCommissionModel() {
+                    if(state.employees.length === 0) return;
+                    const employeeId = name => state.employees.find(e => e.name === name)?.id;
+                    const idMap = {
+                        marcelo: employeeId('Marcelo Furtado'),
+                        paula: employeeId('Paula Young'),
+                        carolina: employeeId('Carolina Chrispim'),
+                        nathan: employeeId('Nathan Lemos'),
+                        milena: employeeId('Milena Franco'),
+                        nathalia: employeeId('Nathalia Carvalho'),
+                        vitoria: employeeId('Vitoria Damacena'),
+                        julio: employeeId('Julio Gracco'),
+                        pedro: employeeId('Pedro Souto'),
+                        gabriel: employeeId('Gabriel Assis'),
+                    };
+                    const model = {
+                        name: 'Modelo Padrão',
+                        tiers: [
+                            { rangeInf: 0, rangeSup: 1000000, rates: {
+                                [idMap.marcelo]: 0.0100, [idMap.paula]: 0.0012,
+                                [idMap.carolina]: 0.0005, [idMap.nathan]: 0.0005,
+                                [idMap.milena]: 0.00025, [idMap.nathalia]: 0.00016,
+                                [idMap.vitoria]: 0.00016, [idMap.julio]: 0.00065,
+                                [idMap.pedro]: 0.00065, [idMap.gabriel]: 0.00045,
+                            } },
+                            { rangeInf: 1000000.01, rangeSup: 5000000, rates: {
+                                [idMap.marcelo]: 0.0090, [idMap.paula]: 0.00108,
+                                [idMap.carolina]: 0.00045, [idMap.nathan]: 0.00045,
+                                [idMap.milena]: 0.000225, [idMap.nathalia]: 0.000144,
+                                [idMap.vitoria]: 0.000144, [idMap.julio]: 0.000585,
+                                [idMap.pedro]: 0.000585, [idMap.gabriel]: 0.000405,
+                            } },
+                            { rangeInf: 5000000.01, rangeSup: 10000000, rates: {
+                                [idMap.marcelo]: 0.0080, [idMap.paula]: 0.00096,
+                                [idMap.carolina]: 0.00040, [idMap.nathan]: 0.00040,
+                                [idMap.milena]: 0.00020, [idMap.nathalia]: 0.000128,
+                                [idMap.vitoria]: 0.000128, [idMap.julio]: 0.00052,
+                                [idMap.pedro]: 0.00052, [idMap.gabriel]: 0.00036,
+                            } },
+                            { rangeInf: 10000000.01, rangeSup: 50000000, rates: {
+                                [idMap.marcelo]: 0.0070, [idMap.paula]: 0.00084,
+                                [idMap.carolina]: 0.00035, [idMap.nathan]: 0.00035,
+                                [idMap.milena]: 0.000175, [idMap.nathalia]: 0.000112,
+                                [idMap.vitoria]: 0.000112, [idMap.julio]: 0.000455,
+                                [idMap.pedro]: 0.000455, [idMap.gabriel]: 0.000315,
+                            } },
+                            { rangeInf: 50000000.01, rangeSup: 100000000, rates: {
+                                [idMap.marcelo]: 0.0060, [idMap.paula]: 0.00072,
+                                [idMap.carolina]: 0.00030, [idMap.nathan]: 0.00030,
+                                [idMap.milena]: 0.00015, [idMap.nathalia]: 0.000096,
+                                [idMap.vitoria]: 0.000096, [idMap.julio]: 0.00039,
+                                [idMap.pedro]: 0.00039, [idMap.gabriel]: 0.00027,
+                            } },
+                            { rangeInf: 100000000, rangeSup: null, rates: {
+                                [idMap.marcelo]: 0.0050, [idMap.paula]: 0.00060,
+                                [idMap.carolina]: 0.00025, [idMap.nathan]: 0.00025,
+                                [idMap.milena]: 0.000125, [idMap.nathalia]: 0.00008,
+                                [idMap.vitoria]: 0.00008, [idMap.julio]: 0.000325,
+                                [idMap.pedro]: 0.000325, [idMap.gabriel]: 0.000225,
+                            } }
+                        ]
+                    };
+                    try { await addDoc(commissionModelsCol, model); } catch (e) { console.error('Error seeding commission model:', e); }
+                }
+
                 collectionsToLoad.forEach(key => {
                     state.loadingMessage = `Carregando ${key}...`;
                     if(appEl.innerHTML.includes('loader')) render();
@@ -192,8 +257,14 @@
                         } else if (key === 'jobTitles') {
                             if (snapshot.empty && state.userProfile.isAdmin) await seedJobTitles();
                             else state[key] = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                        } else if (key === 'commissionModels') {
+                            if (snapshot.empty && state.userProfile.isAdmin) await seedCommissionModel();
+                            state[key] = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
                         } else {
                             state[key] = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                            if (key === 'employees' && state.userProfile.isAdmin && state.commissionModels.length === 0) {
+                                await seedCommissionModel();
+                            }
                         }
                         onDataLoaded();
                     }, error => {
