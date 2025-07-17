@@ -85,7 +85,8 @@
                 adminView: 'dashboard', 
                 adminAction: 'list',
                 selectedItemId: null,
-                selectedAnalysisScenario: 'all', 
+                selectedAnalysisScenario: 'all',
+                selectedSensitivityView: 'general',
                 loadingMessage: 'Inicializando...', unsubscribe: [],
                 dataErrors: {},
             };
@@ -451,7 +452,7 @@
                 // --- Scenario Selector and KPIs ---
                 const header = `
                     <div class="card">
-                        <div class="flex items-center gap-4">
+                        <div class="flex flex-col sm:flex-row sm:items-center gap-4">
                             <label for="scenarioSelect" class="font-medium">Analisar Cenário:</label>
                             <select id="scenarioSelect" class="form-input w-64">
                                 <option value="all" ${scenario === 'all' ? 'selected' : ''}>Todos os Cenários</option>
@@ -459,6 +460,10 @@
                                 <option value="scenario2" ${scenario === 'scenario2' ? 'selected' : ''}>Cenário 2</option>
                                 <option value="scenario3" ${scenario === 'scenario3' ? 'selected' : ''}>Cenário 3</option>
                             </select>
+                            <div class="flex gap-2">
+                                <button data-sens-view="general" class="btn btn-primary text-sm ${state.selectedSensitivityView === 'general' ? '' : 'opacity-50'}">Geral</button>
+                                <button data-sens-view="paula" class="btn btn-primary text-sm ${state.selectedSensitivityView === 'paula' ? '' : 'opacity-50'}">Paula Young</button>
+                            </div>
                         </div>
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -504,19 +509,25 @@
                 
                 const employees = getSortedEmployees();
                 const marcelo = employees.find(e => e.name.toLowerCase().includes('marcelo'));
+                const paula = employees.find(e => e.name.toLowerCase().includes('paula young'));
+                const rangeMarcelo = Array.from({length: 50 - 13 + 1}, (_,i) => (13 + i) * 1000000);
+                const rangeRest = Array.from({length: ((134 - 40) / 2) + 1}, (_,i) => (40 + i*2) * 1000000);
                 let sensitivityHtml = '';
-                if (marcelo) {
+
+                if (state.selectedSensitivityView === 'paula' && paula) {
+                    sensitivityHtml = renderSensitivityMatrix(filteredContracts, [paula.id], `Matriz de Sensibilidade - ${paula.name}`, rangeRest);
+                } else if (marcelo) {
                     const others = employees.filter(e => e.id !== marcelo.id).map(e => e.id);
-                    sensitivityHtml += renderSensitivityMatrix(filteredContracts, [marcelo.id], `Matriz de Sensibilidade - ${marcelo.name}`);
-                    sensitivityHtml += renderSensitivityMatrix(filteredContracts, others, 'Matriz de Sensibilidade - Equipe');
+                    sensitivityHtml += renderSensitivityMatrix(filteredContracts, [marcelo.id], `Matriz de Sensibilidade - ${marcelo.name}`, rangeMarcelo);
+                    sensitivityHtml += renderSensitivityMatrix(filteredContracts, others, 'Matriz de Sensibilidade - Equipe', rangeRest);
                 } else {
-                    sensitivityHtml = renderSensitivityMatrix(filteredContracts);
+                    sensitivityHtml = renderSensitivityMatrix(filteredContracts, null, undefined, rangeRest);
                 }
 
                 return `${header}<div class="grid grid-cols-1 lg:grid-cols-1 gap-6">${propertyChart}</div>${sensitivityHtml}`;
             }
             
-            function renderSensitivityMatrix(contracts, employeeIds = null, title = 'Matriz de Sensibilidade: Receita vs. Bônus (em nº de salários)') {
+            function renderSensitivityMatrix(contracts, employeeIds = null, title = 'Matriz de Sensibilidade: Receita vs. Bônus (em nº de salários)', revenueValues = null) {
                 const activeModel = state.commissionModels.find(m => m.id === state.settings.activeCommissionModelId);
                 if (!activeModel) return '<div class="card text-center"><p class="text-orange-500">Selecione um Modelo de Comissão ativo no Dashboard para ver a análise de sensibilidade.</p></div>';
 
@@ -550,14 +561,26 @@
                 });
 
                 const projections = [];
-                for (let i = -50; i <= 100; i += 25) {
-                    const projectedRevenue = baseRevenue * (1 + i / 100);
-                    const projectedBonuses = {};
-                    employees.forEach(emp => {
-                        const empProjRevenue = projectedRevenue * revenueShareByEmployee[emp.id];
-                        projectedBonuses[emp.id] = empProjRevenue * averageBonusRateByEmployee[emp.id];
+                if (Array.isArray(revenueValues) && revenueValues.length > 0) {
+                    revenueValues.forEach(val => {
+                        const projectedRevenue = val;
+                        const projectedBonuses = {};
+                        employees.forEach(emp => {
+                            const empProjRevenue = projectedRevenue * revenueShareByEmployee[emp.id];
+                            projectedBonuses[emp.id] = empProjRevenue * averageBonusRateByEmployee[emp.id];
+                        });
+                        projections.push({ revenue: projectedRevenue, bonuses: projectedBonuses });
                     });
-                    projections.push({ revenue: projectedRevenue, bonuses: projectedBonuses });
+                } else {
+                    for (let i = -50; i <= 100; i += 25) {
+                        const projectedRevenue = baseRevenue * (1 + i / 100);
+                        const projectedBonuses = {};
+                        employees.forEach(emp => {
+                            const empProjRevenue = projectedRevenue * revenueShareByEmployee[emp.id];
+                            projectedBonuses[emp.id] = empProjRevenue * averageBonusRateByEmployee[emp.id];
+                        });
+                        projections.push({ revenue: projectedRevenue, bonuses: projectedBonuses });
+                    }
                 }
 
                 const headers = ['Receita Projetada', ...employees.map(e => e.name)];
@@ -826,6 +849,12 @@
                         document.getElementById('scenarioSelect')?.addEventListener('change', e => {
                             state.selectedAnalysisScenario = e.target.value;
                             render();
+                        });
+                        document.querySelectorAll('[data-sens-view]')?.forEach(btn => {
+                            btn.addEventListener('click', e => {
+                                state.selectedSensitivityView = btn.dataset.sensView;
+                                render();
+                            });
                         });
                     }
                 }
